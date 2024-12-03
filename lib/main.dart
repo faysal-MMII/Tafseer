@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'Tafseer',
+                      'TafseerS',
                       style: TextStyle(
                         fontFamily: 'Noto Nastaliq Urdu',
                         fontSize: 36,

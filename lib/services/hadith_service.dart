@@ -25,31 +25,73 @@ class HadithService {
       Map<String, dynamic>? bestMatch;
       int bestScore = 0;
       
+      print('Searching for query: $query');
+      
+      // Extract important phrases from query
+      Set<String> importantPhrases = {
+        'pregnant wife',
+        'divorce',
+        'divorcing',
+        'pregnant',
+        'irreconcilable differences'
+      }.where((phrase) => query.contains(phrase)).toSet();
+      
       for (var category in _qaData!['qa_pairs']) {
         for (var question in category['questions']) {
           int score = 0;
+          String questionText = question['question'].toString().toLowerCase();
           
-          for (String keyword in question['keywords']) {
-            if (query.contains(keyword.toLowerCase())) {
-              score += 2;
+          // Check for important phrases
+          for (String phrase in importantPhrases) {
+            if (questionText.contains(phrase)) {
+              score += 6;
+              print('Important phrase match found: "$phrase". Score: $score');
             }
+          }
+          
+          // Check keywords with higher weight for marriage/divorce related terms
+          for (String keyword in question['keywords']) {
+            keyword = keyword.toLowerCase();
+            if (['divorce', 'marriage', 'pregnant', 'wife'].contains(keyword) && 
+                query.contains(keyword)) {
+              score += 5;
+              print('Critical keyword match found: "$keyword". Score: $score');
+            } else if (query.contains(keyword)) {
+              score += 2;
+              print('Regular keyword match found: "$keyword". Score: $score');
+            }
+          }
+          
+          // Boost score for questions about divorce/marriage
+          if (questionText.contains('divorce') || 
+              questionText.contains('marriage') ||
+              questionText.contains('pregnant')) {
+            score += 3;
+            print('Topic relevance boost applied. Score: $score');
           }
           
           if (score > bestScore) {
             bestScore = score;
-            bestMatch = question['hadith_results']; // Changed this line
+            bestMatch = question;
+            print('New best match found! Question: "${question['question']}" Score: $score');
           }
         }
       }
 
-      if (bestMatch != null) {
-        return {'hadith_results': bestMatch};
+      if (bestMatch != null && bestScore > 5) {  // Increased threshold
+        print('Returning match with score: $bestScore');
+        return bestMatch;
       }
 
+      print('No match found above threshold');
       return {
         'hadith_results': {
           'answer': 'I could not find specific hadiths for your question.',
           'hadiths': []
+        },
+        'quran_results': {
+          'answer': 'I could not find specific answers to your question.',
+          'verses': []
         }
       };
 
@@ -59,6 +101,10 @@ class HadithService {
         'hadith_results': {
           'answer': 'Error processing your query',
           'hadiths': []
+        },
+        'quran_results': {
+          'answer': 'Error processing your query',
+          'verses': []
         }
       };
     }

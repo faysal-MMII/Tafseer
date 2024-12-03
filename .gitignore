@@ -11,11 +11,6 @@ build/
 *.jar
 *.apk
 
-# Database files
-*.db
-data/
-assets/data/
-
 # Environment files
 .env
 *.env
