@@ -85,6 +85,32 @@ The project evolved from a web-based Flask application to a mobile Flutter appli
 - Flask version: Dynamic responses using AI
 - Flutter version: Static responses from curated database
 
+## Modifying the Q&A Database
+
+The Q&A database is stored in `assets/data/islamic_qa.json`. To add or modify questions:
+
+1. Each question should follow this format:
+```json
+{
+  "keywords": ["keyword1", "keyword2", ...],
+  "question": "Your question here?",
+  "quran_results": {
+    "answer": "Your Quranic answer...",
+    "verses": ["**Verse X:Y**", ...]
+  },
+  "hadith_results": {
+    "answer": "Your Hadith guidance...",
+    "hadiths": [
+      {
+        "collection": "Collection name",
+        "reference": "Reference number",
+        "text": "Hadith text"
+      }
+    ]
+  }
+}
+
+
 ## Contributing
 
 Feel free to submit issues and enhancement requests.
