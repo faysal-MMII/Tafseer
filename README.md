@@ -25,6 +25,8 @@ Tafseer exists in two versions:
 - Elegant UI (Lesss is more)
 - Search functionality for quick answers
 
+
+
 ## Technology Stack
 
 - **Flask Version:**
@@ -85,6 +87,17 @@ The project evolved from a web-based Flask application to a mobile Flutter appli
 - Flask version: Dynamic responses using AI
 - Flutter version: Static responses from curated database
 
+
+
+
+## Contributing
+
+Feel free to submit issues and enhancement requests.
+
+## Contact
+
+[eccodg02@proton.me]
+
 ## Modifying the Q&A Database
 
 The Q&A database is stored in `assets/data/islamic_qa.json`. To add or modify questions:
@@ -109,12 +122,3 @@ The Q&A database is stored in `assets/data/islamic_qa.json`. To add or modify qu
     ]
   }
 }
-
-
-## Contributing
-
-Feel free to submit issues and enhancement requests.
-
-## Contact
-
-[eccodg02@proton.me]
