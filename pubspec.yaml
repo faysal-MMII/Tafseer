@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
   http: ^1.1.0
   sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.0
@@ -22,15 +21,14 @@ dev_dependencies:
   flutter_lints: ^2.0.0
 
 flutter:
-  uses-material-design: true
+  uses-material-design: false
   
   assets:
-    - assets/fonts/
     - assets/icon/icon.png
     - assets/data/
     - assets/data/islamic_qa.json
     - assets/data/hadith.db
-    
+   
   fonts:
     - family: Amiri
       fonts:
