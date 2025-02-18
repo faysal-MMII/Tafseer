@@ -2,13 +2,10 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'config_service.dart';
-import 'storage/offline_storage_service.dart';
-import '../models/offline_response.dart';
 import '../services/firestore_service.dart'; // Import FirestoreService
 
 class QuranService {
   static Map<String, dynamic>? _quranData;
-  final OfflineStorageService _offlineStorage = OfflineStorageService();
   final FirestoreService? _firestoreService; // FirestoreService is now an optional dependency
 
   QuranService([this._firestoreService]); // Constructor accepts optional FirestoreService
@@ -26,12 +23,6 @@ class QuranService {
   }
 
   Future<List<Map<String, dynamic>>> fetchQuranVerses(String query) async {
-    // Check offline storage first (existing functionality)
-    final offlineResponses = await _offlineStorage.searchResponses(query, 'quran');
-    if (offlineResponses.isNotEmpty) {
-      return List<Map<String, dynamic>>.from(offlineResponses.first.references);
-    }
-
     // Check Firestore cache if available
     if (_firestoreService != null) {
       final cachedResponse = await _firestoreService!.getCachedVerse('search:$query'); // Check Firestore cache
@@ -60,25 +51,14 @@ class QuranService {
           'verse_key': verse['verse_key'],
         }));
 
-        // Save to offline storage (existing functionality)
-        if (results.isNotEmpty) {
-          await _offlineStorage.saveResponse(OfflineResponse(
-            query: query,
-            response: 'API search results',
-            type: 'quran',
-            timestamp: DateTime.now(),
-            references: results,
-          ));
-
-          // Cache in Firestore if available
-          if (_firestoreService != null) {
-            await _firestoreService!.cacheVerse('search:$query', { // Cache search results in Firestore
-              'results': results,
-              'query': query,
-              'timestamp': DateTime.now().toIso8601String(),
-            });
-            print('Quran search results for query "$query" cached in Firestore.');
-          }
+        // Cache in Firestore if available
+        if (_firestoreService != null && results.isNotEmpty) {
+          await _firestoreService!.cacheVerse('search:$query', {
+            'results': results,
+            'query': query,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+          print('Quran search results for query "$query" cached in Firestore.');
         }
 
         return results;

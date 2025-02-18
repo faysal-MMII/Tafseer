@@ -5,8 +5,6 @@ import 'hadith_service.dart';
 import '../models/hadith.dart';
 import 'rag_services/quran_rag_service.dart';
 import 'rag_services/hadith_rag_service.dart';
-import 'storage/offline_storage_service.dart';
-import '../models/offline_response.dart';
 import 'package:dart_openai/dart_openai.dart';
 
 class OpenAiService {
@@ -15,7 +13,6 @@ class OpenAiService {
   final HadithService hadithService;
   final QuranRAGService quranRagService;
   final HadithRAGService hadithRagService;
-  final OfflineStorageService _offlineStorage = OfflineStorageService();
 
   OpenAiService({
     required this.quranService,
@@ -28,13 +25,6 @@ class OpenAiService {
 
   Future<Map<String, dynamic>> generateResponse(String query) async {
     try {
-      // Check offline storage first
-      final offlineResponses =
-          await _offlineStorage.searchResponses(query, 'ai_response');
-      if (offlineResponses.isNotEmpty) {
-        return json.decode(offlineResponses.first.response);
-      }
-
       // Fetch verses and hadiths
       final verses = await quranService.fetchQuranVerses(query);
       final hadiths = await hadithService.searchHadiths(query);
@@ -89,15 +79,6 @@ class OpenAiService {
           'hadiths': _processHadithList(hadithResponse['hadiths']),
         },
       };
-
-      // Save response for offline use
-      await _offlineStorage.saveResponse(OfflineResponse(
-        query: query,
-        response: json.encode(response),
-        type: 'ai_response',
-        timestamp: DateTime.now(),
-        references: [],
-      ));
 
       return response;
     } catch (e, stackTrace) {
@@ -187,7 +168,7 @@ Please provide:
 1. A direct answer based on these verses
 2. How each verse relates to the question
 3. Important context and considerations
-""";
+""" ;
 
     final quranCompletion = await OpenAI.instance.chat.create(
       model: "gpt-3.5-turbo",

@@ -6,15 +6,12 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 import '../models/hadith.dart';
 import 'user_interaction_service.dart';
-import 'storage/offline_storage_service.dart';
-import '../models/offline_response.dart';
 
 class HadithService {
   static final HadithService _instance = HadithService._internal();
   static Database? _database;
   static bool _initialized = false;
   late UserInteractionService userInteractionService;
-  final OfflineStorageService _offlineStorage = OfflineStorageService();
 
   // New: Static map to hold Hadith data from JSON
   static Map<String, dynamic>? _hadithData;
@@ -110,7 +107,7 @@ class HadithService {
 
   Future<void> _ensureTableExists(Database db) async {
     print('Checking for hadiths table...');
-    await db.execute('''
+    await db.execute(''' 
       CREATE TABLE IF NOT EXISTS hadiths (
         id INTEGER PRIMARY KEY,
         collection_id INTEGER,
@@ -124,7 +121,7 @@ class HadithService {
       )
     ''');
 
-    await db.execute('''
+    await db.execute(''' 
       CREATE VIRTUAL TABLE IF NOT EXISTS hadiths_fts USING fts5(
         text,
         content='hadiths',
@@ -142,7 +139,7 @@ class HadithService {
 
     if (ftsCount == 0 && mainCount > 0) {
       print('Populating FTS table...');
-      await db.execute('''
+      await db.execute(''' 
         INSERT INTO hadiths_fts(rowid, text)
         SELECT id, text FROM hadiths
       ''');
@@ -159,7 +156,7 @@ class HadithService {
 
       if (ftsExists.isEmpty) {
         print('Creating FTS table...');
-        await db.execute('''
+        await db.execute(''' 
           CREATE VIRTUAL TABLE IF NOT EXISTS hadiths_fts USING fts5(
             text,
             content='hadiths',
@@ -182,7 +179,7 @@ class HadithService {
         print('Rebuilding FTS table...');
         await db.transaction((txn) async {
           await txn.execute('DELETE FROM hadiths_fts');
-          await txn.execute('''
+          await txn.execute(''' 
             INSERT INTO hadiths_fts(rowid, text)
             SELECT id, text FROM hadiths
           ''');
@@ -288,20 +285,11 @@ class HadithService {
   Future<List<Hadith>> searchHadiths(String query) async {
     if (query.isEmpty) return [];
 
-    // First check offline storage
-    final offlineResponses = await _offlineStorage.searchResponses(query, 'hadith');
-    if (offlineResponses.isNotEmpty) {
-      final references = offlineResponses.first.references;
-      return references
-          .map((ref) => Hadith.fromMap(ref as Map<String, dynamic>))
-          .toList();
-    }
-
     final db = await database;
     print('🔍 Starting search for query: $query');
 
     try {
-      List<Map<String, dynamic>> results = await db.rawQuery('''
+      List<Map<String, dynamic>> results = await db.rawQuery(''' 
         SELECT h.*, json_extract(h.hadith_number, '\$') as hadith_number
         FROM hadiths h
         JOIN hadiths_fts f ON h.id = f.rowid
@@ -314,20 +302,7 @@ class HadithService {
       print("hadith_number type: ${results.firstOrNull?['hadith_number']?.runtimeType}");
       print("===========================\n");
 
-      final hadiths = _convertToHadiths(results);
-
-      // Save to offline storage
-      if (hadiths.isNotEmpty) {
-        await _offlineStorage.saveResponse(OfflineResponse(
-          query: query,
-          response: 'Direct database search results',
-          type: 'hadith',
-          timestamp: DateTime.now(),
-          references: hadiths.map((h) => h.toMap()).toList(),
-        ));
-      }
-
-      return hadiths;
+      return _convertToHadiths(results);
     } catch (e) {
       print('Search error: $e');
       return [];
@@ -398,7 +373,7 @@ class HadithService {
       
       if (hasFTS.isEmpty) {
         print('FTS table missing, recreating...');
-        await db.execute('''
+        await db.execute(''' 
           CREATE VIRTUAL TABLE IF NOT EXISTS hadiths_fts USING fts5(
             text,
             content='hadiths',

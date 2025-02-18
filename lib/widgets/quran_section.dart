@@ -9,8 +9,6 @@ import '../services/firestore_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../theme/text_styles.dart';
 import 'dart:math';
-import '../services/storage/offline_storage_service.dart';
-import '../models/offline_response.dart';
 import 'dart:convert';
 
 String extractVerseNumbers(String text) {
@@ -38,7 +36,7 @@ String stripHtmlTags(String text) {
       .replaceAll('&', '&')
       .replaceAll('<', '<')
       .replaceAll('>', '>')
-      .replaceAll(' ', ' ');
+      .replaceAll(' ', ' ');
 
   return text.trim();
 }
@@ -102,7 +100,6 @@ class QuranSection extends StatefulWidget {
 
 class _QuranSectionState extends State<QuranSection> {
   final QuranService _quranService = QuranService();
-  final OfflineStorageService _offlineStorage = OfflineStorageService();
   late OpenAiService _openAiService;
 
   bool _isLoading = false;
@@ -132,79 +129,6 @@ class _QuranSectionState extends State<QuranSection> {
       _searchVerses(widget.query!);
     }
   }
-
-  // In QuranSection, replace the automatic saving with:
-
-  Future<void> _saveForOffline() async {
-    if (_response == null && (widget.verses.isEmpty || widget.answer.isEmpty)) {
-      return;
-    }
-
-    // No setState _isSaving = true; here
-
-    try {
-      // Get verses either from response or widget
-      final List<Map<String, dynamic>> formattedVerses = [];
-
-      if (_response != null && _response!['quran_results']?['verses'] != null) {
-        // Handle verses from response
-        for (var verse in _response!['quran_results']['verses']) {
-          if (verse is Map<String, dynamic>) {
-            formattedVerses.add({
-              'verse_key': verse['verse_key'],
-              'text': stripHtmlTags(verse['text'].toString()),
-              'arabic_text': verse['arabic_text']
-            });
-          } else {
-            formattedVerses.add({
-              'verse_key': extractVerseNumbers(verse.toString()),
-              'text': stripHtmlTags(verse.toString()),
-            });
-          }
-        }
-      } else if (widget.verses.isNotEmpty) {
-        // Handle verses from widget
-        for (var verse in widget.verses) {
-          formattedVerses.add({
-            'verse_key': extractVerseNumbers(verse),
-            'text': stripHtmlTags(verse),
-          });
-        }
-      }
-
-      // Get the answer either from response or widget
-      final String answer = stripHtmlTags(
-          _response?['quran_results']?['answer']?.toString() ??
-              widget.answer
-      );
-
-      // Create offline response
-      final offlineResponse = OfflineResponse(
-        query: widget.query ?? '',
-        response: answer,
-        type: 'quran',
-        timestamp: DateTime.now(),
-        references: formattedVerses,
-      );
-
-      await _offlineStorage.saveResponse(offlineResponse);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved for offline use')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: ${e.toString()}')),
-        );
-      }
-    } finally {
-      // No setState _isSaving = false; here
-    }
-  }
-
 
   // *** Integrated _searchVerses function with Type Casting and Null Checks ***
   Future<void> _searchVerses(String query) async {
@@ -261,7 +185,6 @@ class _QuranSectionState extends State<QuranSection> {
     }
   }
   // *** End of Integrated _searchVerses function with Type Casting and Null Checks ***
-
 
   void _debugPrintState() {
     print('\n=== QuranSection State Debug ===');

@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/hadith_service.dart';
 import '../services/openai_service.dart';
-import '../services/storage/offline_storage_service.dart';
-import '../models/offline_response.dart';
-import '../theme/text_styles.dart';
 import '../models/hadith.dart';
 import '../services/rag_services/hadith_rag_service.dart';
 import '../services/rag_services/quran_rag_service.dart';
 import '../services/quran_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../theme/text_styles.dart';
 import 'package:sqflite/sqflite.dart';
-import 'dart:math';
 import '../services/firestore_service.dart';
-import 'dart:math' as math;
 
 class HadithSection extends StatefulWidget {
   final String? query;
@@ -43,9 +39,8 @@ class _HadithSectionState extends State<HadithSection> {
   final HadithRAGService _hadithRagService = HadithRAGService(
     apiKey: dotenv.env['OPENAI_API_KEY'] ?? '',
   );
-  final OfflineStorageService _offlineStorage = OfflineStorageService();
+
   bool _isLoading = false;
-  bool _isSaving = false;
   HadithResponse? _aiResponse;
   String? _error;
   List<Hadith> _retrievedHadiths = [];
@@ -100,18 +95,6 @@ class _HadithSectionState extends State<HadithSection> {
         }
       }
 
-
-      final offlineResponses = await _offlineStorage.searchResponses(query, 'hadith');
-      if (offlineResponses.isNotEmpty) {
-        setState(() {
-          _retrievedHadiths = offlineResponses.first.references
-              .map((ref) => Hadith.fromMap(ref as Map<String, dynamic>))
-              .toList();
-          _isLoading = false;
-        });
-        return;
-      }
-
       _retrievedHadiths = await searchHadiths(query);
 
       if (_retrievedHadiths.isEmpty) {
@@ -144,8 +127,6 @@ class _HadithSectionState extends State<HadithSection> {
       });
     }
   }
-  // *** End of Integrated _fetchHadithsAndAiResponse function ***
-
 
   Future<List<Hadith>> searchHadiths(String userInput) async {
     try {
@@ -154,36 +135,6 @@ class _HadithSectionState extends State<HadithSection> {
       print('Search error: $e');
       await _hadithService.validateDatabaseState();
       rethrow;
-    }
-  }
-
-  Future<void> _saveForOffline() async {
-    if (_retrievedHadiths.isEmpty) return;
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    try {
-      await _offlineStorage.saveResponse(OfflineResponse(
-        query: widget.query ?? '',
-        response: 'Saved hadiths',
-        type: 'hadith',
-        timestamp: DateTime.now(),
-        references: _retrievedHadiths.map((h) => h.toMap()).toList(),
-      ));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved for offline use')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving: ${e.toString()}')),
-      );
-    } finally {
-      setState(() {
-        _isSaving = false;
-      });
     }
   }
 
@@ -212,11 +163,6 @@ class _HadithSectionState extends State<HadithSection> {
                 'Hadith ${hadith.hadithNumber ?? "N/A"}',
                 style: AppTextStyles.titleText,
               ),
-              if (_retrievedHadiths.isNotEmpty)
-                IconButton(
-                  icon: Icon(_isSaving ? Icons.hourglass_empty : Icons.download_outlined),
-                  onPressed: _isSaving ? null : _saveForOffline,
-                ),
             ],
           ),
           SizedBox(height: 8),
