@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/home/faisal/Documents/islam101/data/hadith.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="1813"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,8:mainchapters"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1">-- Create a new FTS5 table
+CREATE VIRTUAL TABLE hadiths_fts USING fts5(
+    text,
+    arabic_text,
+    narrator,
+    keywords,
+    hadith_number,
+    grade,
+    collection_id,
+    chapter_id
+);
+
+-- Copy your existing data into the FTS5 table
+INSERT INTO hadiths_fts(
+    text,
+    arabic_text,
+    narrator,
+    keywords,
+    hadith_number,
+    grade,
+    collection_id,
+    chapter_id
+)
+SELECT 
+    text,
+    arabic_text,
+    narrator,
+    keywords,
+    hadith_number,
+    grade,
+    collection_id,
+    chapter_id
+FROM hadiths;</sql><current_tab id="0"/></tab_sql></sqlb_project>

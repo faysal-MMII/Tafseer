@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islam101 - Islamic Knowledge Guide</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&family=Amiri:wght@400;700&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Islam101</h1>
+        <div class="question-form">
+            <textarea 
+                id="question" 
+                placeholder="Salam Allaikum, how may I help you today?"
+                rows="4"
+                aria-label="Ask your Islamic question here"></textarea>
+            <button onclick="askQuestion()" id="ask-button">Ask Question</button>
+        </div>
+        
+        <div class="results-container">
+            <div class="result-section">
+                <h2>Quranic Evidence</h2>
+                <div id="quran-results" class="result-box" aria-live="polite"></div>
+            </div>
+            
+            <div class="result-section">
+                <h2>Hadith Guidance</h2>
+                <div id="hadith-results" class="result-box" aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatAnswer(text) {
+            text = text.replace(/^\d+\.\s*/gm, '');
+            let sentences = text.split(/\.\s+/);
+            let formattedHtml = '';
+            
+            sentences.forEach(sentence => {
+                if (sentence.trim()) {
+                    const ending = sentence.endsWith('.') ? '' : '.';
+                    formattedHtml += `
+                        <div class="answer-point">
+                            <span class="answer-text">${sentence.trim()}${ending}</span>
+                        </div>
+                    `;
+                }
+            });
+            return formattedHtml;
+        }
+
+        async function askQuestion() {
+            const questionInput = document.getElementById('question');
+            const question = questionInput.value.trim();
+            const quranDiv = document.getElementById('quran-results');
+            const hadithDiv = document.getElementById('hadith-results');
+            const askButton = document.getElementById('ask-button');
+            
+            if (!question) {
+                quranDiv.innerHTML = '<p class="error-message">Please enter a question.</p>';
+                questionInput.focus();
+                return;
+            }
+
+            askButton.disabled = true;
+            askButton.textContent = 'Searching...';
+            quranDiv.innerHTML = '<div class="loading">Searching Quranic references...</div>';
+            hadithDiv.innerHTML = '<div class="loading">Searching Hadith references...</div>';
+            
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    quranDiv.innerHTML = `<p class="error-message">${data.error}</p>`;
+                    hadithDiv.innerHTML = `<p class="error-message">${data.error}</p>`;
+                    return;
+                }
+
+                if (data.quran_results) {
+                    let quranHtml = '<h3>Answer</h3>';
+                    quranHtml += `<div class="answer-content">${formatAnswer(data.quran_results.answer)}</div>`;
+                    
+                    if (data.quran_results.verses && data.quran_results.verses.length > 0) {
+                        quranHtml += '<h3>Relevant Verses</h3>';
+                        data.quran_results.verses.forEach(verse => {
+                            quranHtml += `
+                                <div class="verse-container">
+                                    <p class="reference">Verse ${verse.verse_key}</p>
+                                    <p class="arabic-text" lang="ar">${verse.arabic}</p>
+                                    <p class="translation">${verse.translation}</p>
+                                </div>
+                            `;
+                        });
+                    }
+                    quranDiv.innerHTML = quranHtml;
+                }
+
+                if (data.hadith_results) {
+                    let hadithHtml = '<h3>Answer</h3>';
+                    hadithHtml += `<div class="answer-content">${formatAnswer(data.hadith_results.answer)}</div>`;
+                    
+                    if (data.hadith_results.hadiths && data.hadith_results.hadiths.length > 0) {
+                        hadithHtml += '<h3>Relevant Hadiths</h3>';
+                        data.hadith_results.hadiths.forEach(hadith => {
+                            hadithHtml += `
+                                <div class="hadith-container">
+                                    <p class="reference">Collection: ${hadith.collection} | Reference: ${hadith.reference}</p>
+                                    ${hadith.arabic ? `<p class="arabic-text" lang="ar">${hadith.arabic}</p>` : ''}
+                                    <p class="translation">${hadith.text}</p>
+                                </div>
+                            `;
+                        });
+                    }
+                    hadithDiv.innerHTML = hadithHtml;
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                quranDiv.innerHTML = '<p class="error-message">Error processing request. Please try again.</p>';
+                hadithDiv.innerHTML = '<p class="error-message">Error processing request. Please try again.</p>';
+            } finally {
+                askButton.disabled = false;
+                askButton.textContent = 'Ask Question';
+            }
+        }
+
+        document.getElementById('question').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                askQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
