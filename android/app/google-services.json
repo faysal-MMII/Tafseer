@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "121009374788",
+    "project_id": "tafseer-7f736",
+    "storage_bucket": "tafseer-7f736.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:121009374788:android:74667ccad0ff8c509fde11",
+        "android_client_info": {
+          "package_name": "com.example.islam101"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtHlzJzarhKNVWL5GscUWbse9Es7dBtGg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
