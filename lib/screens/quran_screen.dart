@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/quran_service.dart';
 import '../theme/text_styles.dart';
+import '../widgets/responsive_layout.dart';
 
 class QuranScreen extends StatefulWidget {
   @override
@@ -177,114 +178,125 @@ class _QuranScreenState extends State<QuranScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Quran', style: AppTextStyles.titleText),
       ),
-      body: Row(
-        children: [
-          // Left Panel with Search and Surah List
-          Container(
-            width: 250,
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: Column(
+      body: ResponsiveLayout(
+        child: isSmallScreen
+          ? Column(
               children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search Surahs...',
-                      prefixIcon: Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filterSurahs('');
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    ),
-                    onChanged: _filterSurahs,
-                  ),
+                _buildSearchPanel(),
+                Expanded(child: _buildContentPanel()),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  width: 250,
+                  child: _buildSearchPanel(),
                 ),
-                // Surah List
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _filteredSurahs.length,
-                    itemBuilder: (context, index) {
-                      final surah = _filteredSurahs[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          '${surah["number"]}. ${surah["name"]}',
-                          style: AppTextStyles.englishText,
-                        ),
-                        subtitle: Text(
-                          '${surah["verses"]} verses',
-                          style: AppTextStyles.englishText.copyWith(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        onTap: () => _loadSurah(surah["number"]),
-                      );
-                    },
-                  ),
-                ),
+                Expanded(child: _buildContentPanel()),
               ],
             ),
-          ),
-          // Right Panel with Verses
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Text(
-                          'Error: $_error',
-                          style: AppTextStyles.englishText.copyWith(color: Colors.red),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _currentVerses.length,
-                        itemBuilder: (context, index) {
-                          final verse = _currentVerses[index];
-                          return Card(
-                            margin: EdgeInsets.all(8),
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    verse['text'],
-                                    style: AppTextStyles.englishText,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Verse: ${verse['verse_key']}',
-                                    style: AppTextStyles.englishText.copyWith(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
+      ),
+    );
+  }
+
+  Widget _buildSearchPanel() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search Surahs...',
+                prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _filterSurahs('');
                         },
-                      ),
+                      )
+                    : null,
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              ),
+              onChanged: _filterSurahs,
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _filteredSurahs.length,
+              itemBuilder: (context, index) {
+                final surah = _filteredSurahs[index];
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    '${surah["number"]}. ${surah["name"]}',
+                    style: AppTextStyles.englishText,
+                  ),
+                  subtitle: Text(
+                    '${surah["verses"]} verses',
+                    style: AppTextStyles.englishText.copyWith(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  onTap: () => _loadSurah(surah["number"]),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildContentPanel() {
+    return _isLoading
+      ? Center(child: CircularProgressIndicator())
+      : _error != null
+        ? Center(child: Text('Error: $_error', style: AppTextStyles.englishText.copyWith(color: Colors.red)))
+        : ListView.builder(
+            itemCount: _currentVerses.length,
+            itemBuilder: (context, index) {
+              final verse = _currentVerses[index];
+              return Card(
+                margin: EdgeInsets.all(8),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        verse['text'],
+                        style: AppTextStyles.englishText,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Verse: ${verse['verse_key']}',
+                        style: AppTextStyles.englishText.copyWith(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
   }
 
   @override

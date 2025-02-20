@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/config_service.dart';
@@ -17,7 +14,6 @@ import 'widgets/hadith_section.dart';
 import 'theme/text_styles.dart';
 import '../models/hadith.dart';
 import 'dart:io';
-import 'database/database_helper.dart';
 import 'widgets/faq_section.dart';
 import 'screens/quran_screen.dart';
 import 'screens/hadith_screen.dart';
@@ -29,11 +25,19 @@ import 'services/analytics_service.dart';
 import '../services/firestore_service.dart';
 import 'firebase_options.dart';
 import 'screens/history_screen.dart';
+import 'widgets/responsive_layout.dart'; 
 
 FirebaseAnalytics? analytics;
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
 void main() async {
+  // Set up error logging
+  FlutterError.onError = (FlutterErrorDetails details) {
+    print('FLUTTER ERROR: ${details.exception}');
+    print('STACK TRACE: ${details.stack}');
+  };
+
+  String? initializationError;
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
@@ -44,14 +48,8 @@ void main() async {
     }
 
     await ConfigService.loadEnvFile();
-
-    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     await dotenv.load(fileName: ".env");
-    final db = await DatabaseHelper.initializeDatabase();
+
     final quranService = QuranService();
     final hadithService = HadithService();
 
@@ -81,31 +79,31 @@ void main() async {
       print('Firebase Analytics not supported on this platform.');
     }
 
-    await hadithService.validateDatabaseState();
-
     runApp(MyApp(
       openAiService: openAiService,
-      db: db,
       analyticsService: analyticsService,
       firestoreService: firestoreService,
+      initializationError: initializationError,
     ));
   } catch (e, stackTrace) {
+    initializationError = 'Failed to initialize app: $e';
     print('Initialization error: $e');
     print('Stack trace: $stackTrace');
+    runApp(MyApp(initializationError: initializationError));
   }
 }
 
 class MyApp extends StatelessWidget {
-  final OpenAiService openAiService;
-  final Database db;
+  final OpenAiService? openAiService;
   final AnalyticsService? analyticsService;
   final FirestoreService? firestoreService;
+  final String? initializationError;
 
   MyApp({
-    required this.openAiService,
-    required this.db,
+    this.openAiService,
     this.analyticsService,
     this.firestoreService,
+    this.initializationError,
   });
 
   @override
@@ -113,8 +111,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tafseer',
       navigatorObservers: [
-        if (analytics != null)
-          FirebaseAnalyticsObserver(analytics: analytics!),
+        if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
       ],
       theme: ThemeData(
         textTheme: TextTheme(
@@ -124,11 +121,35 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blueGrey,
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
-      home: HomeScreen(
-        openAiService: openAiService,
-        db: db,
-        analyticsService: analyticsService,
-        firestoreService: firestoreService,
+      home: initializationError != null
+          ? ErrorScreen(message: initializationError!)
+          : HomeScreen(
+              openAiService: openAiService!,
+              analyticsService: analyticsService,
+              firestoreService: firestoreService,
+            ),
+    );
+  }
+}
+
+class ErrorScreen extends StatelessWidget {
+  final String message;
+
+  const ErrorScreen({Key? key, required this.message}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Error')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            message,
+            style: AppTextStyles.englishText.copyWith(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
@@ -136,13 +157,11 @@ class MyApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final OpenAiService openAiService;
-  final Database db;
   final AnalyticsService? analyticsService;
   final FirestoreService? firestoreService;
 
   HomeScreen({
     required this.openAiService,
-    required this.db,
     this.analyticsService,
     this.firestoreService,
   });
@@ -194,7 +213,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => SearchResultsScreen(
           query: query,
           openAiService: widget.openAiService,
-          db: widget.db,
           analyticsService: widget.analyticsService,
           firestoreService: widget.firestoreService,
         ),
@@ -327,59 +345,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMainContent(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Container(
-          width: 800,
-          margin: EdgeInsets.all(40),
-          padding: EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF0F0F0), Color(0xFFC0C0C0)],
+    return ResponsiveLayout(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Tafseer',
+              style: AppTextStyles.titleText.copyWith(fontSize: 44),
+              textAlign: TextAlign.center,
             ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0xFFBEBEBE),
-                offset: Offset(20, 20),
-                blurRadius: 60,
-              ),
-              BoxShadow(
-                color: Colors.white,
-                offset: Offset(-20, -20),
-                blurRadius: 60,
-              ),
+            SizedBox(height: 30),
+            IslamicFunFact(),
+            SizedBox(height: 20),
+            _buildQuestionInput(),
+            FAQSection(),
+            SizedBox(height: 20),
+            if (_isLoading) ...[
+              Center(child: CircularProgressIndicator()),
+            ] else if (_error != null) ...[
+              _buildErrorBox(),
+            ] else if (_showResults) ...[
+              _buildQuranicEvidenceSection(),
+              SizedBox(height: 20),
+              _buildHadithGuidanceSection(),
             ],
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Tafseer',
-                  style: AppTextStyles.titleText.copyWith(fontSize: 44),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 30),
-                IslamicFunFact(),
-                SizedBox(height: 20),
-                _buildQuestionInput(),
-                FAQSection(),
-                SizedBox(height: 20),
-                if (_isLoading) ...[
-                  Center(child: CircularProgressIndicator()),
-                ] else if (_error != null) ...[
-                  _buildErrorBox(),
-                ] else if (_showResults) ...[
-                  _buildQuranicEvidenceSection(),
-                  SizedBox(height: 20),
-                  _buildHadithGuidanceSection(),
-                ],
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -454,7 +445,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHadithGuidanceSection() {
     print('=== HomeScreen Debug ===');
     print('OpenAiService exists: ${widget.openAiService != null}');
-    print('Database exists: ${widget.db != null}');
     print('=====================');
 
     return _buildResultSection(
@@ -463,7 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
         HadithSection(
           query: currentQuery,
           hadiths: _hadiths,
-          db: widget.db,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
         ),

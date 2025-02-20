@@ -2,25 +2,58 @@ import 'package:flutter/material.dart';
 import '../services/hadith_service.dart';
 import '../services/openai_service.dart';
 import '../models/hadith.dart';
-import '../services/rag_services/hadith_rag_service.dart';
-import '../services/rag_services/quran_rag_service.dart';
-import '../services/quran_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../theme/text_styles.dart';
-import 'package:sqflite/sqflite.dart';
 import '../services/firestore_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// Create a new widget for loading state
+class LoadingIndicator extends StatelessWidget {
+  final String message;
+
+  const LoadingIndicator({
+    Key? key,
+    this.message = 'Loading...',
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text(
+            message,
+            style: AppTextStyles.englishText,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class HadithSection extends StatefulWidget {
   final String? query;
   final List<Hadith> hadiths;
-  final Database db;
   final OpenAiService openAiService;
   final FirestoreService? firestoreService;
 
   HadithSection({
     this.query,
     required this.hadiths,
-    required this.db,
     required this.openAiService,
     this.firestoreService,
   });
@@ -30,20 +63,13 @@ class HadithSection extends StatefulWidget {
 }
 
 class _HadithSectionState extends State<HadithSection> {
-  final QuranService _quranService = QuranService();
   late OpenAiService _openAiService;
   late final HadithService _hadithService;
-  final QuranRAGService _quranRagService = QuranRAGService(
-    apiKey: dotenv.env['OPENAI_API_KEY'] ?? '',
-  );
-  final HadithRAGService _hadithRagService = HadithRAGService(
-    apiKey: dotenv.env['OPENAI_API_KEY'] ?? '',
-  );
 
-  bool _isLoading = false;
-  HadithResponse? _aiResponse;
-  String? _error;
+  bool _isLoading = true; // Start with loading true
+  bool _isFetching = false; 
   List<Hadith> _retrievedHadiths = [];
+  Map<String, dynamic>? _response; // Make nullable
 
   @override
   void initState() {
@@ -54,91 +80,76 @@ class _HadithSectionState extends State<HadithSection> {
 
     print('Initializing HadithSection with query: ${widget.query}');
 
-    _hadithService = HadithService(widget.db);
-    _hadithService.debugDatabase();
+    // Create instance first and then set the OpenAiService
+    _hadithService = HadithService();  
+    _hadithService.openAiService = widget.openAiService;  
     _openAiService = widget.openAiService;
 
-    if (widget.hadiths.isEmpty && widget.query != null && widget.query!.isNotEmpty) {
-      print('Starting search for query: ${widget.query}');
-      _fetchHadithsAndAiResponse(widget.query!);
+    // Immediately fetch results
+    if (widget.query != null) {
+      _fetchResults();
     }
   }
 
-  // *** Integrated _fetchHadithsAndAiResponse function ***
-  Future<void> _fetchHadithsAndAiResponse(String query) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _fetchResults() async {
+    print('=== FETCH RESULTS START ===');
 
-    try {
-      Map<String, dynamic>? existingAnswer;
-      if (widget.firestoreService != null) {
-        existingAnswer = await widget.firestoreService?.findSimilarQuestion(query);
-      }
-
-      if (existingAnswer != null) {
-        final answer = existingAnswer['answer'] as String?;
-        final hadiths = existingAnswer['hadiths'] as List<dynamic>?;
-
-        if (answer != null && hadiths != null) {
-          // If hadiths contains full Hadith objects
-          if (hadiths.isNotEmpty && hadiths.first is Map<String, dynamic> && hadiths.first.containsKey('text')) {
-            setState(() {
-              _retrievedHadiths = hadiths
-                  .map((h) => Hadith.fromMap(h as Map<String, dynamic>))
-                  .toList();
-              _isLoading = false;
-            });
-            return;
-          }
-        }
-      }
-
-      _retrievedHadiths = await searchHadiths(query);
-
-      if (_retrievedHadiths.isEmpty) {
-        final response = await _openAiService.generateResponse(query);
-        print('Raw response from OpenAI: $response');
-
-        if (response.containsKey('hadith_results')) {
-          final hadithResults = response['hadith_results'];
-          if (hadithResults != null && hadithResults is Map<String, dynamic>) {
-            setState(() {
-              _aiResponse = HadithResponse.fromMap(hadithResults);
-            });
-          } else {
-            throw Exception('Invalid hadith_results format: ${hadithResults.runtimeType}');
-          }
-        } else {
-          throw Exception('No hadith_results found in the response');
-        }
-      }
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e, stackTrace) {
-      print('Error in _fetchHadithsAndAiResponse: $e');
-      print('Stack trace: $stackTrace');
-      setState(() {
-        _isLoading = false;
-        _error = e.toString();
-      });
+    if (widget.query == null) {
+      print('Query is null, returning');
+      return;
     }
-  }
 
-  Future<List<Hadith>> searchHadiths(String userInput) async {
+    if (_isFetching) {
+      print('Already fetching, returning');
+      return;
+    }
+
+    _isFetching = true;
+    setState(() => _isLoading = true);
+
     try {
-      return await _hadithService.searchHadiths(userInput);
+      print('Starting hadith search for query: ${widget.query}');
+      final hadiths = await _hadithService.searchHadiths(widget.query!);
+      print('Retrieved ${hadiths.length} hadiths');
+
+      // Fetch explanation and hadiths
+      final response = await _openAiService.generateResponse(widget.query!);
+      if (mounted) {
+        setState(() {
+          _response = response; // Store the response
+          _retrievedHadiths = hadiths;
+        });
+      }
     } catch (e) {
-      print('Search error: $e');
-      await _hadithService.validateDatabaseState();
-      rethrow;
+      print('Error in _fetchResults: $e');
+    } finally {
+      print('Resetting loading states');
+      _isFetching = false;
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+
+    print('=== FETCH RESULTS END ===');
   }
 
   Widget _buildHadithItem(Hadith hadith) {
+    print('Building hadith item for: ${hadith.text}');
+
+    String narrator = '';
+    String text = hadith.text;
+    if (hadith.text.startsWith('Narrated ')) {
+      final narratorEnd = hadith.text.indexOf(':');
+      if (narratorEnd != -1) {
+        narrator = hadith.text.substring(9, narratorEnd).trim();
+        text = hadith.text.substring(narratorEnd + 1).trim();
+      }
+    }
+
+    if (text.length > 500) {
+      text = text.substring(0, 497) + '...';
+    }
+
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(16),
@@ -160,111 +171,81 @@ class _HadithSectionState extends State<HadithSection> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Hadith ${hadith.hadithNumber ?? "N/A"}',
-                style: AppTextStyles.titleText,
+                'Reference: ${hadith.hadithNumber}',
+                style: AppTextStyles.titleText.copyWith(fontSize: 14),
               ),
             ],
           ),
-          SizedBox(height: 8),
-          Text(hadith.text, style: AppTextStyles.englishText),
-          if (hadith.arabicText != null) ...[
+          if (narrator.isNotEmpty) ...[
             SizedBox(height: 8),
             Text(
-              hadith.arabicText!,
-              style: AppTextStyles.arabicText,
-              textAlign: TextAlign.right,
+              'Narrator: $narrator',
+              style: AppTextStyles.englishText.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[700],
+              ),
             ),
           ],
+          SizedBox(height: 8),
+          Text(text, style: AppTextStyles.englishText),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _hadithService.database,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _buildErrorBox(snapshot.error.toString());
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return Container(
-          margin: const EdgeInsets.only(top: 20),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 5,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.query != null && widget.query!.isNotEmpty)
-                Text(
-                  'Hadiths related to: "${widget.query}"',
-                  style: AppTextStyles.titleText.copyWith(fontSize: 18),
-                ),
-              SizedBox(height: 10),
-              if (_retrievedHadiths.isNotEmpty) ...[
-                for (var hadith in _retrievedHadiths)
-                  _buildHadithItem(hadith),
-              ] else ...[
-                if (_isLoading) ...[
-                  Center(child: CircularProgressIndicator()),
-                ] else if (_error != null) ...[
-                  _buildErrorBox(),
-                ] else if (_aiResponse != null) ...[
-                  _buildAiResponse(),
-                ] else ...[
-                  Text(
-                    'No Hadiths found for "${widget.query}".',
-                    style: AppTextStyles.englishText.copyWith(color: Colors.grey[600]),
-                  ),
-                ],
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
+  Widget _buildResults() {
+    if (_response == null) {
+      return Text(
+        'No results available',
+        style: AppTextStyles.englishText,
+      );
+    }
 
-  Widget _buildAiResponse() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hadith Section:',
-          style: AppTextStyles.titleText.copyWith(fontSize: 18),
+          'Islamic Guidance',
+          style: AppTextStyles.titleText,
         ),
-        SizedBox(height: 10),
+        SizedBox(height: 16),
         Text(
-          _aiResponse!.answer ?? 'No answer provided.',
+          _response!['hadith_results']['answer'] ?? 'No explanation available',
           style: AppTextStyles.englishText,
         ),
-        SizedBox(height: 10),
-        if (_aiResponse!.hadiths.isNotEmpty) ...[
+        SizedBox(height: 24),
+        if (_retrievedHadiths.isNotEmpty) ...[
           Text(
-            'Relevant Hadiths:',
-            style: AppTextStyles.titleText.copyWith(fontSize: 18),
+            'Relevant Hadiths',
+            style: AppTextStyles.titleText,
           ),
-          SizedBox(height: 10),
-          for (var hadith in _aiResponse!.hadiths)
-            Text(
-              hadith['text'],
-              style: AppTextStyles.englishText,
-            ),
+          ..._retrievedHadiths.map((hadith) => _buildHadithItem(hadith)),
         ],
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: _isLoading
+          ? LoadingIndicator(
+              message: 'Searching for guidance...',
+            )
+          : _buildResults(), // Call the new method to build results
     );
   }
 
@@ -282,7 +263,7 @@ class _HadithSectionState extends State<HadithSection> {
         ),
       ),
       child: Text(
-        errorMessage ?? 'Error: $_error',
+        errorMessage ?? 'Error fetching hadiths.',
         style: AppTextStyles.englishText.copyWith(color: Color(0xFFC0392B)),
       ),
     );

@@ -13,41 +13,44 @@ class HadithNumber {
   String toString() => '$book:$hadith';
 
   factory HadithNumber.fromDynamic(dynamic value) {
-    print('Creating HadithNumber from: (${value.runtimeType}) $value');
+    print('Creating HadithNumber from: (${value?.runtimeType}) $value');
 
-    if (value == null) {
-      return HadithNumber(book: 0, hadith: 0);
-    }
+    if (value == null) return HadithNumber(book: 0, hadith: 0);
 
     try {
-      // Case 1: JSON String
-      if (value is String && value.isNotEmpty) {
-        final map = json.decode(value);
-        if (map is Map) {
-          return HadithNumber(
-            book: _parseIntSafely(map['book']),
-            hadith: _parseIntSafely(map['hadith']),
-          );
-        }
-      }
-
-      // Case 2: Map
+      // If it's already a Map, use it directly
       if (value is Map) {
         return HadithNumber(
           book: _parseIntSafely(value['book']),
           hadith: _parseIntSafely(value['hadith']),
         );
       }
+
+      // If it's a String, try different parsing approaches
+      if (value is String) {
+        // First, try to parse it as a proper JSON
+        try {
+          // Replace single quotes with double quotes to make it valid JSON
+          String jsonString = value.replaceAll("'", '"');
+          Map<String, dynamic> map = json.decode(jsonString);
+          return HadithNumber(
+            book: _parseIntSafely(map['book']),
+            hadith: _parseIntSafely(map['hadith']),
+          );
+        } catch (e) {
+          print('Error parsing hadith number: $e');
+          print('Input value was: $value');
+        }
+      }
+
+      print('Could not parse value: $value');
     } catch (e) {
-      print('Error parsing hadith number: $e');
-      print('Input value was: $value');
+      print('Error in HadithNumber.fromDynamic: $e');
     }
 
-    print('Could not parse value: $value');
     return HadithNumber(book: 0, hadith: 0);
   }
 
-  // Helper method to safely parse integers from various types
   static int _parseIntSafely(dynamic value) {
     if (value == null) return 0;
     if (value is int) return value;
@@ -55,7 +58,6 @@ class HadithNumber {
     return int.tryParse(value.toString()) ?? 0;
   }
 
-  // For debugging
   Map<String, dynamic> toMap() {
     return {
       'book': book,
@@ -227,4 +229,30 @@ class HadithResponse {
       'hadiths': hadiths.map((hadith) => hadith.toMap()).toList(),
     };
   }
+}
+
+
+// Helper function to debug hadith processing
+void debugHadithProcessing(dynamic hadithData, String stage) {
+  print('\n==== DEBUG HADITH PROCESSING ($stage) ====');
+  if (hadithData is Map) {
+    print('Type: Map');
+    hadithData.forEach((key, value) {
+      print('$key: (${value.runtimeType}) $value');
+    });
+
+    // Special check for hadith_number
+    if (hadithData.containsKey('hadith_number')) {
+      print('HADITH_NUMBER FOCUS: ${hadithData['hadith_number']} (${hadithData['hadith_number'].runtimeType})');
+    }
+  } else if (hadithData is List) {
+    print('Type: List with ${hadithData.length} items');
+    if (hadithData.isNotEmpty) {
+      print('First item type: ${hadithData.first.runtimeType}');
+    }
+  } else {
+    print('Type: ${hadithData.runtimeType}');
+    print('Value: $hadithData');
+  }
+  print('=============================\n');
 }

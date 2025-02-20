@@ -64,15 +64,11 @@ class HadithRAGService {
 
       // Step 3: Process Hadiths for Response
       final processedHadiths = hadiths.take(3).map((h) {
-        var hadithNumber = h['hadith_number'];
-        // Ensure hadith_number is always a JSON string
-        if (hadithNumber is Map) {
-          hadithNumber = json.encode(hadithNumber);
-        }
-        
+        final hadithNumber = h['hadith_number']; // If hadith_number is already a Map, keep it as a Map
+
         return {
           'text': h['text'] ?? '',
-          'hadith_number': hadithNumber?.toString() ?? '',
+          'hadith_number': hadithNumber, // Don't convert to string, keep as Map or original type
           'grade': h['grade'] ?? '',
           'narrator': h['narrator'] ?? '',
         };

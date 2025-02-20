@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'config_service.dart';
 import 'quran_service.dart';
@@ -24,39 +25,69 @@ class OpenAiService {
   }
 
   Future<Map<String, dynamic>> generateResponse(String query) async {
+    // Add timeout
+    final timeout = Duration(seconds: 30);
     try {
-      // Fetch verses and hadiths
-      final verses = await quranService.fetchQuranVerses(query);
-      final hadiths = await hadithService.searchHadiths(query);
+      // Fetch verses and hadiths with timeout
+      final results = await Future.wait([
+        quranService.fetchQuranVerses(query),
+        hadithService.searchHadiths(query),
+      ]).timeout(timeout);
+
+      final verses = results[0] as List<Map<String, dynamic>>;
+      final hadiths = results[1] as List<Hadith>;
 
       // Debug: Print hadith details
       print('\n=== DEBUG: INITIAL HADITHS ===');
       for (var h in hadiths) {
-        print('Hadith Number Type: ${h.hadithNumber.runtimeType}');
-        print('Hadith Number toString: ${h.hadithNumber.toString()}');
-        print('Hadith Number toJson: ${h.hadithNumber.toJson()}');
-        print('Hadith Number toMap: ${h.hadithNumber.toMap()}');
+        if (h is Hadith) {
+          print('Hadith Number Type: ${h.hadithNumber.runtimeType}');
+          print('Hadith Number toString: ${h.hadithNumber.toString()}');
+          print('Hadith Number toJson: ${h.hadithNumber.toJson()}');
+          print('Hadith Number toMap: ${h.hadithNumber.toMap()}');
+        } else {
+          print('Not a Hadith object: ${h.runtimeType}');
+        }
         print('---');
       }
 
       // Convert hadiths to maps
       final hadithMaps = hadiths.map((hadith) {
-        var map = {
-          'text': hadith.text,
-          'hadith_number': hadith.hadithNumber.toJson(),
-          'grade': hadith.grade ?? '',
-          'narrator': hadith.narrator ?? '',
-          'collection_id': hadith.collectionId.toString(),
-          'chapter_id': hadith.chapterId.toString(),
-        };
-        print('\n=== DEBUG: HADITH MAP ===');
-        print('hadith_number type: ${map['hadith_number'].runtimeType}');
-        print('hadith_number value: ${map['hadith_number']}');
-        return map;
+        if (hadith is Hadith) {
+          var map = {
+            'text': hadith.text,
+            'hadith_number': hadith.hadithNumber.toJson(),
+            'grade': hadith.grade ?? '',
+            'narrator': hadith.narrator ?? '',
+            'collection_id': hadith.collectionId.toString(),
+            'chapter_id': hadith.chapterId.toString(),
+          };
+          print('\n=== DEBUG: HADITH MAP ===');
+          print('hadith_number type: ${map['hadith_number'].runtimeType}');
+          print('hadith_number value: ${map['hadith_number']}');
+          return map;
+        } else {
+          // Return a default map if not a Hadith object
+          return _createDefaultHadithMap();
+        }
+      }).toList();
+
+      // Make sure verses is properly typed
+      final List<Map<String, dynamic>> typedVerses = verses.map((v) {
+        if (v is Map<String, dynamic>) {
+          return v;
+        } else {
+          // Convert to the expected format if needed
+          return {
+            'reference': v['reference']?.toString() ?? '',
+            'text': v['text']?.toString() ?? '',
+            // Add other fields as needed
+          };
+        }
       }).toList();
 
       // Generate responses
-      final quranResponse = await _generateQuranResponse(query, verses);
+      final quranResponse = await _generateQuranResponse(query, typedVerses);
       final hadithResponse =
           await hadithRagService.generateResponse(query, hadithMaps);
 
@@ -81,6 +112,12 @@ class OpenAiService {
       };
 
       return response;
+    } on TimeoutException {
+      print('Request timed out');
+      return {
+        'quran_results': {'answer': '', 'verses': []},
+        'hadith_results': {'answer': 'Request timed out', 'hadiths': []}
+      };
     } catch (e, stackTrace) {
       print('\n=== ERROR ===');
       print('Error type: ${e.runtimeType}');
@@ -131,17 +168,28 @@ class OpenAiService {
   }
 
   String _processHadithNumber(dynamic hadithNumber) {
-    if (hadithNumber == null) {
-      return json.encode({'book': 0, 'hadith': 0});
+    try {
+      if (hadithNumber == null) {
+        return "{'book': 0, 'hadith': 0}";  // Note: Using single quotes
+      }
+      if (hadithNumber is String) {
+        // If it's already in the correct format, return as is
+        if (hadithNumber.startsWith("{'book'")) return hadithNumber;
+        return hadithNumber;
+      }
+      if (hadithNumber is Map) {
+        return "{'book': ${hadithNumber['book']}, 'hadith': ${hadithNumber['hadith']}}";  // Format with single quotes
+      }
+      return "{'book': 0, 'hadith': 0}";  // Default with single quotes
+    } catch (e) {
+      print('Error in _processHadithNumber: $e');
+      return "{'book': 0, 'hadith': 0}";  // Default with single quotes
     }
-    if (hadithNumber is String) return hadithNumber;
-    if (hadithNumber is Map) return json.encode(hadithNumber);
-    return json.encode({'book': 0, 'hadith': 0});
   }
 
   Map<String, dynamic> _createDefaultHadithMap() => {
         'text': '',
-        'hadith_number': json.encode({'book': 0, 'hadith': 0}),
+        'hadith_number': "{'book': 0, 'hadith': 0}",
         'grade': '',
         'narrator': '',
       };
@@ -156,7 +204,7 @@ You are a knowledgeable Islamic scholar explaining Quranic verses.
 2. Explain how each verse relates to the question
 3. Provide important context for understanding these verses
 Keep explanations clear and focused.
-""";
+""" ;
 
     String quranUserPrompt = """
 Question: $query

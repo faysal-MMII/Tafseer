@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:math' show pi, sin, cos, sqrt, atan2;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/responsive_layout.dart';
 
 class UserInteractionTracker {
   static const String kFilterCountKey = 'filter_counts';
@@ -859,17 +860,24 @@ class _PlacesScreenState extends State<PlacesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Muslim Places Finder'),
       ),
       body: Column(
         children: [
+          // Filter chips container
           Container(
             height: 60,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 5 : 10,
+                vertical: 5
+              ),
               children: filterOptions.entries.map((filter) {
                 bool isActive = activeFilter == filter.key;
                 return Padding(
@@ -905,8 +913,12 @@ class _PlacesScreenState extends State<PlacesScreen> {
               }).toList(),
             ),
           ),
+
+          // Radius slider
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallScreen ? 8.0 : 16.0
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -929,6 +941,8 @@ class _PlacesScreenState extends State<PlacesScreen> {
               ],
             ),
           ),
+
+          // Map section
           Expanded(
             child: Stack(
               children: [

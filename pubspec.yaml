@@ -12,13 +12,10 @@ dependencies:
   cupertino_icons: ^1.0.0
   http: ^1.2.2
   dart_openai: ^5.1.0
-  sqflite: ^2.4.1
-  sqflite_common_ffi: ^2.3.4+4
   path_provider: ^2.1.2
   flutter_launcher_icons: ^0.14.2
   google_fonts: ^6.2.1
   win32: ^5.10.1
-  sqlite3: ^2.1.0
   flutter_dotenv: ^5.0.2
   firebase_core: ^2.32.0
   cloud_firestore: ^4.15.9
@@ -49,7 +46,6 @@ flutter:
   assets:
     - assets/icon/icon.png
     - assets/data/
-    - assets/data/hadith.db
     - .env
     - assets/data/faq_data.json
     - assets/data/translation.json

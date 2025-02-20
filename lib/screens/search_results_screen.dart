@@ -4,23 +4,21 @@ import '../theme/text_styles.dart';
 import '../widgets/quran_section.dart';
 import '../widgets/hadith_section.dart';
 import '../services/openai_service.dart';
-import 'package:sqflite/sqflite.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/responsive_layout.dart'; // Ensure ResponsiveLayout is imported
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
   final OpenAiService openAiService;
-  final Database db;
   final AnalyticsService? analyticsService;
-  final FirestoreService? firestoreService; // Keep firestoreService nullable
+  final FirestoreService? firestoreService;
 
   SearchResultsScreen({
     required this.query,
     required this.openAiService,
-    required this.db,
     this.analyticsService,
-    this.firestoreService, // Keep firestoreService nullable in constructor
+    this.firestoreService,
   });
 
   @override
@@ -29,85 +27,88 @@ class SearchResultsScreen extends StatefulWidget {
 
 class _SearchResultsScreenState extends State<SearchResultsScreen> {
   bool _isLoading = true;
+  bool _isInitialized = false;
   String? _error;
   String _aiResponse = '';
   List<String> _quranVerses = [];
   List<Hadith> _hadiths = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchResults();
+    if (!_isInitialized) {
+      _isInitialized = true;
+      Future.microtask(() => _fetchResults());
+    }
   }
 
   Future<void> _fetchResults() async {
-    await widget.analyticsService?.logQuestionAsked(widget.query);
-    final startTime = DateTime.now().millisecondsSinceEpoch;
+    if (_isSearching) {
+      print('Search already in progress, skipping');
+      return;
+    }
+
+    _isSearching = true;
+
+    print('=== Performance Tracking ===');
+    final startTime = DateTime.now();
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _aiResponse = '';
+      _quranVerses = [];
+      _hadiths = [];
+    });
 
     try {
-      // First, check if we have a similar question in Firestore
-      final existingQA = await widget.firestoreService?.findSimilarQuestion(widget.query);
+      print('Starting API request: ${DateTime.now()}');
+      final response = await widget.openAiService.generateResponse(widget.query);
+      print('API request completed: ${DateTime.now()}');
 
-      if (existingQA != null) {
-        // Use existing answer if found
-        setState(() {
-          _aiResponse = existingQA['answer'] ?? '';  // Add null check
-          _quranVerses = List<String>.from(existingQA['quranVerses'] ?? []); // Add null check
-          _hadiths = List<Hadith>.from(
-            (existingQA['hadiths'] as List? ?? []).map((h) => Hadith.fromMap({  // Add null check
-              'id': 0,
-              'collection_id': 0,
-              'chapter_id': 0,
-              'hadith_number': '',
-              'text': h,
-              'arabic_text': null,
-              'grade': null,
-              'narrator': null,
-              'keywords': null,
-            })),
-          );
-          _isLoading = false;
-        });
-      } else {
-        // Rest of your code remains the same
-        final response = await widget.openAiService.generateResponse(widget.query);
+      if (!mounted) return;
 
-        await widget.firestoreService?.saveQA(
-          question: widget.query,
-          answer: response['quran_results']['answer'] ?? 'No answer found.',
-          quranVerses: List<String>.from(response['quran_results']['verses'] ?? []),
-          hadiths: List<String>.from(response['hadith_results']['hadiths'] ?? []),
+      setState(() {
+        _aiResponse = response['quran_results']['answer'] ?? '';
+        _quranVerses = List<String>.from(response['quran_results']['verses'] ?? []);
+        _hadiths = List<Hadith>.from(
+          (response['hadith_results']['hadiths'] ?? []).map((h) => Hadith.fromMap({
+            'id': 0,
+            'collection_id': 0,
+            'chapter_id': 0,
+            'hadith_number': '',
+            'text': h['text'] ?? '',
+            'arabic_text': h['arabic'] ?? null,
+            'grade': h['grade'] ?? null,
+            'narrator': h['narrator'] ?? null,
+            'keywords': null,
+          })),
         );
+        _isLoading = false;
+      });
 
-        setState(() {
-          _aiResponse = response['quran_results']['answer'] ?? 'No answer found.';
-          _quranVerses = List<String>.from(response['quran_results']['verses'] ?? []);
-          _hadiths = List<Hadith>.from(
-            (response['hadith_results']['hadiths'] ?? []).map((h) => Hadith.fromMap({
-              'id': 0,
-              'collection_id': 0,
-              'chapter_id': 0,
-              'hadith_number': '',
-              'text': h,
-              'arabic_text': null,
-              'grade': null,
-              'narrator': null,
-              'keywords': null,
-            })),
-          );
-          _isLoading = false;
-        });
-      }
+      widget.firestoreService?.saveQA(
+        question: widget.query,
+        answer: response['quran_results']['answer'] ?? '',
+        quranVerses: List<String>.from(response['quran_results']['verses'] ?? []),
+        hadiths: (response['hadith_results']['hadiths'] as List? ?? []).map((h) => h['text'] as String).toList(),
+      ).catchError((e) => print('Firestore save error: $e'));
 
-      await widget.analyticsService?.logAnswerGenerated(
-        widget.query,
-        DateTime.now().millisecondsSinceEpoch - startTime,
-      );
     } catch (e) {
+      print('Error in _fetchResults: $e');
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
+    } finally {
+      _isSearching = false;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -121,8 +122,27 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          if (_isLoading)
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-      body: _buildBody(),
+      body: RefreshIndicator(
+        onRefresh: () => _fetchResults(),
+        child: _buildBody(),
+      ),
     );
   }
 
@@ -135,26 +155,29 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       return _buildErrorContainer();
     }
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return SingleChildScrollView(
-      child: Center(
-        child: Container(
-          width: 800,
-          margin: EdgeInsets.all(40),
-          child: Column(
-            children: [
-              _buildQueryContainer(),
-              SizedBox(height: 20),
-              _buildResultsContainer(),
-            ],
-          ),
+      child: ResponsiveLayout(
+        child: Column(
+          children: [
+            _buildQueryContainer(),
+            SizedBox(height: isSmallScreen ? 12 : 20),
+            _buildResultsContainer(),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildQueryContainer() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Container(
-      padding: EdgeInsets.all(20),
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -180,9 +203,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         children: [
           Text(
             'Your Question:',
-            style: AppTextStyles.titleText.copyWith(fontSize: 18),
+            style: AppTextStyles.titleText.copyWith(
+              fontSize: isSmallScreen ? 16 : 18
+            ),
           ),
-          SizedBox(height: 10),
+          SizedBox(height: isSmallScreen ? 6 : 10),
           Text(
             widget.query,
             style: AppTextStyles.englishText,
@@ -194,6 +219,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   Widget _buildResultsContainer() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         QuranSection(
           query: widget.query,
@@ -206,13 +232,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         HadithSection(
           query: widget.query,
           hadiths: _hadiths,
-          db: widget.db,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
         ),
       ],
     );
   }
+
 
   Widget _buildErrorContainer() {
     return Center(
