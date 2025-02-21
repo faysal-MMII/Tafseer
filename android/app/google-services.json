@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:121009374788:android:74667ccad0ff8c509fde11",
+        "mobilesdk_app_id": "1:121009374788:android:74819cf4baeb94769fde11",
         "android_client_info": {
-          "package_name": "com.example.islam101"
+          "package_name": "dev.faisal.tafseer"
         }
       },
       "oauth_client": [],

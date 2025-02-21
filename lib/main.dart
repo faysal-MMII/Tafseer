@@ -73,7 +73,16 @@ void main() async {
     if (isFirebaseSupported) {
       analytics = FirebaseAnalytics.instance;
       await analytics!.setAnalyticsCollectionEnabled(true);
-      print('Firebase Analytics enabled: ${await analytics!.isSupported()}');
+      final isSupported = await analytics!.isSupported();
+      print('Firebase Analytics supported: $isSupported');
+      await analytics!.logEvent(
+        name: 'app_open',
+        parameters: {'build_type': 'release'}
+      ).then((_) {
+        print('Successfully logged app_open event');
+      }).catchError((error) {
+        print('Failed to log app_open event: $error');
+      });
       analyticsService = AnalyticsService();
     } else {
       print('Firebase Analytics not supported on this platform.');
