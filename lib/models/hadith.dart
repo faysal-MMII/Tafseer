@@ -28,9 +28,17 @@ class HadithNumber {
 
       // If it's a String, try different parsing approaches
       if (value is String) {
-        // First, try to parse it as a proper JSON
+        // First try to parse as colon-separated numbers (e.g., "0:1")
+        if (value.contains(':')) {
+          final parts = value.split(':');
+          return HadithNumber(
+            book: _parseIntSafely(parts[0]),
+            hadith: _parseIntSafely(parts[1]),
+          );
+        }
+
+        // Then try to parse as JSON if the above fails
         try {
-          // Replace single quotes with double quotes to make it valid JSON
           String jsonString = value.replaceAll("'", '"');
           Map<String, dynamic> map = json.decode(jsonString);
           return HadithNumber(
@@ -38,7 +46,7 @@ class HadithNumber {
             hadith: _parseIntSafely(map['hadith']),
           );
         } catch (e) {
-          print('Error parsing hadith number: $e');
+          print('Error parsing hadith number as JSON: $e');
           print('Input value was: $value');
         }
       }
@@ -230,7 +238,6 @@ class HadithResponse {
     };
   }
 }
-
 
 // Helper function to debug hadith processing
 void debugHadithProcessing(dynamic hadithData, String stage) {

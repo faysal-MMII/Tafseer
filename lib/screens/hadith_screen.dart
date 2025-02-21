@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/hadith_service.dart';
+import 'package:flutter/services.dart';
 import '../theme/text_styles.dart';
-import '../models/hadith.dart';
-import '../widgets/responsive_layout.dart';
+import 'dart:convert';
+import 'hadith_detail_screen.dart';
 
 class HadithScreen extends StatefulWidget {
   @override
@@ -10,71 +10,61 @@ class HadithScreen extends StatefulWidget {
 }
 
 class _HadithScreenState extends State<HadithScreen> {
-  final HadithService _hadithService = HadithService();
   final TextEditingController _searchController = TextEditingController();
-  List<Hadith> _currentHadiths = [];
-  List<Map<String, dynamic>> _filteredHadiths = [];
+  Map<String, dynamic>? _selectedHadith;
   bool _isLoading = false;
   String? _error;
-  String _collectionName = '';
-
-  // List of Nawawi's 40 Hadith
-  final List<Map<String, dynamic>> hadiths = List.generate(
-    40,  
-    (index) => {
-      "number": index + 1,
-      "name": "Hadith ${index + 1}",
-    },
-  );
+  List<Map<String, dynamic>> _hadiths = [];
+  List<Map<String, dynamic>> _filteredHadiths = [];
 
   @override
   void initState() {
     super.initState();
-    _loadHadith(1); // Load first hadith by default
-    _filteredHadiths = hadiths;
-    _loadCollectionName();
+    _loadAllHadiths();
   }
 
-  Future<void> _loadCollectionName() async {
-    await _hadithService.loadHadithData();
-    setState(() {
-      _collectionName = _hadithService.getCollectionName();
-    });
-  }
-
-  void _filterHadiths(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredHadiths = hadiths;
-      } else {
-        _filteredHadiths = hadiths.where((hadith) {
-          final numberStr = hadith["number"].toString();
-          final nameStr = hadith["name"].toString().toLowerCase();
-          final searchStr = query.toLowerCase();
-          return numberStr.contains(searchStr) || nameStr.contains(searchStr);
-        }).toList();
-      }
-    });
-  }
-
-  Future<void> _loadHadith(int hadithNumber) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+  Future<void> _loadAllHadiths() async {
     try {
-      final hadith = await _hadithService.fetchHadith(hadithNumber);
-      setState(() {
-        _currentHadiths = [hadith];
-        _isLoading = false;
-      });
+      setState(() => _isLoading = true);
+      
+      final String jsonString = await rootBundle.loadString('assets/data/nawawi.json');
+      final data = json.decode(jsonString);
+      
+      _hadiths = List<Map<String, dynamic>>.from(
+        data['hadiths']['hadiths'].map((h) => {
+          'number': h['hadith'],
+          'text': h['text'],
+        })
+      );
+      
+      _filteredHadiths = List.from(_hadiths);
+      
+      if (_hadiths.isNotEmpty) {
+        _selectedHadith = _hadiths.first;
+      }
+
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  void _filterHadiths(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredHadiths = _hadiths;
+      } else {
+        _filteredHadiths = _hadiths.where((hadith) {
+          final number = hadith['number'].toString();
+          final text = hadith['text'].toString().toLowerCase();
+          final searchLower = query.toLowerCase();
+          return number.contains(searchLower) || text.contains(searchLower);
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -84,113 +74,125 @@ class _HadithScreenState extends State<HadithScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hadith', style: AppTextStyles.titleText),  
+        title: Text('Hadith', style: AppTextStyles.titleText),
       ),
-      body: ResponsiveLayout(
-        child: isSmallScreen
-          ? Column(
-              children: [
-                _buildSearchPanel(),
-                Expanded(child: _buildContentPanel()),
-              ],
-            )
-          : Row(
-              children: [
-                Container(
-                  width: 250,
-                  child: _buildSearchPanel(),
-                ),
-                Expanded(child: _buildContentPanel()),
-              ],
-            ),
-      ),
-    );
-  }
-
-  Widget _buildSearchPanel() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search Hadiths...',
-                prefixIcon: Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterHadiths('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              ),
-              onChanged: _filterHadiths,
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _filteredHadiths.length,
-              itemBuilder: (context, index) {
-                final hadith = _filteredHadiths[index];
-                return ListTile(
-                  dense: true,
-                  title: Text(
-                    '${hadith["number"]}. ${hadith["name"]}',
-                    style: AppTextStyles.englishText,
+      body: _isLoading 
+        ? Center(child: CircularProgressIndicator())
+        : _error != null
+          ? Center(child: Text(_error!, style: TextStyle(color: Colors.red)))
+          : isSmallScreen
+            // Mobile layout
+            ? Column(
+                children: [
+                  // Search bar
+                  Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search Hadiths...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: _filterHadiths,
+                    ),
                   ),
-                  onTap: () => _loadHadith(hadith["number"]),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentPanel() {
-    return _isLoading
-      ? Center(child: CircularProgressIndicator())
-      : _error != null
-        ? Center(child: Text('Error: $_error', style: AppTextStyles.englishText.copyWith(color: Colors.red)))
-        : ListView.builder(
-            itemCount: _currentHadiths.length,
-            itemBuilder: (context, index) {
-              final hadith = _currentHadiths[index];
-              return Card(
-                margin: EdgeInsets.all(8),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hadith ${hadith.hadithNumber}',
-                        style: AppTextStyles.titleText.copyWith(
-                          fontSize: 20,
-                          color: Theme.of(context).primaryColor,
+                  // List of hadiths
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _filteredHadiths.length,
+                      itemBuilder: (context, index) {
+                        final hadith = _filteredHadiths[index];
+                        return ListTile(
+                          selected: _selectedHadith == hadith,
+                          title: Text(
+                            'Hadith ${hadith['number']}',
+                            style: AppTextStyles.englishText,
+                          ),
+                          onTap: () {
+                            setState(() => _selectedHadith = hadith);
+                            // For mobile, navigate to a new screen to show the hadith
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => HadithDetailScreen(hadith: hadith),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              )
+            // Desktop/tablet layout
+            : Row(
+                children: [
+                  Container(
+                    width: 200, // Reduced from 300 to 200
+                    decoration: BoxDecoration(
+                      border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search Hadiths...',
+                              prefixIcon: Icon(Icons.search),
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: _filterHadiths,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        hadith.text,
-                        style: AppTextStyles.englishText,
-                      ),
-                    ],
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _filteredHadiths.length,
+                            itemBuilder: (context, index) {
+                              final hadith = _filteredHadiths[index];
+                              return ListTile(
+                                selected: _selectedHadith == hadith,
+                                title: Text(
+                                  'Hadith ${hadith['number']}',
+                                  style: AppTextStyles.englishText,
+                                ),
+                                onTap: () => setState(() => _selectedHadith = hadith),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
+                  Expanded(
+                    child: _selectedHadith == null 
+                      ? Center(child: Text('Select a hadith'))
+                      : SingleChildScrollView(
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hadith ${_selectedHadith!['number']}',
+                                style: AppTextStyles.titleText.copyWith(fontSize: 24),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                _selectedHadith!['text'],
+                                style: AppTextStyles.englishText.copyWith(
+                                  height: 1.5,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                  ),
+                ],
+              ),
+    );
   }
 
   @override

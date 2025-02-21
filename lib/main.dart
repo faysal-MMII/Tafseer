@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import for FontAwesomeIcons
 import 'services/config_service.dart';
 import 'services/openai_service.dart';
 import 'services/quran_service.dart';
@@ -25,13 +26,12 @@ import 'services/analytics_service.dart';
 import '../services/firestore_service.dart';
 import 'firebase_options.dart';
 import 'screens/history_screen.dart';
-import 'widgets/responsive_layout.dart'; 
+import 'widgets/responsive_layout.dart';
 
 FirebaseAnalytics? analytics;
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
 void main() async {
-  // Set up error logging
   FlutterError.onError = (FlutterErrorDetails details) {
     print('FLUTTER ERROR: ${details.exception}');
     print('STACK TRACE: ${details.stack}');
@@ -262,83 +262,69 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Color(0xFFF0F0F0),
       appBar: AppBar(
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            TextButton.icon(
-              icon: Icon(Icons.home, color: Theme.of(context).iconTheme.color),
-              label: Text(
-                'Home',
-                style: AppTextStyles.englishText.copyWith(
-                  fontSize: 16,
-                  color: Theme.of(context).iconTheme.color,
-                ),
+            TextButton(
+              onPressed: () => setState(() => _currentIndex = 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.home, color: Colors.blueGrey[800], size: 24),
+                  Text('Home', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
+                ],
               ),
-              onPressed: () {
-                setState(() => _currentIndex = 0);
-              },
             ),
-            TextButton.icon(
-              icon: Icon(Icons.mosque, color: Theme.of(context).iconTheme.color),
-              label: Text(
-                'Explore',
-                style: AppTextStyles.englishText.copyWith(
-                  fontSize: 16,
-                  color: Theme.of(context).iconTheme.color,
-                ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => PlacesScreen()));
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.mosque, color: Colors.blueGrey[800], size: 24),
+                  Text('Explore', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
+                ],
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => PlacesScreen()),
-                );
-              },
             ),
-            TextButton.icon(
-              icon: Icon(Icons.book, color: Theme.of(context).iconTheme.color),
-              label: Text(
-                'Quran',
-                style: AppTextStyles.englishText.copyWith(
-                  fontSize: 16,
-                  color: Theme.of(context).iconTheme.color,
-                ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(FontAwesomeIcons.bookQuran, color: Colors.blueGrey[800], size: 24),
+                  Text('Quran', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
+                ],
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => QuranScreen()),
-                );
-              },
             ),
-            TextButton.icon(
-              icon: Icon(Icons.book_outlined, color: Theme.of(context).iconTheme.color),
-              label: Text(
-                'Hadith',
-                style: AppTextStyles.englishText.copyWith(
-                  fontSize: 16,
-                  color: Theme.of(context).iconTheme.color,
-                ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(FontAwesomeIcons.bookOpen, color: Colors.blueGrey[800], size: 24),
+                  Text('Hadith', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
+                ],
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HadithScreen()),
-                );
-              },
             ),
-            IconButton(
-              icon: const Icon(Icons.history),
+            TextButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HistoryScreen(firestoreService: firestoreService),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: firestoreService)));
               },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.history, color: Colors.blueGrey[800], size: 24),
+                  Text('History', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
+                ],
+              ),
             ),
           ],
         ),
-        centerTitle: true,
       ),
       body: _buildMainContent(context),
     );

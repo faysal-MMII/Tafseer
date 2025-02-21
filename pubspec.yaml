@@ -32,6 +32,7 @@ dependencies:
   geolocator: ^10.1.0
   shared_preferences: ^2.2.0
   firebase_remote_config: ^4.3.8
+  font_awesome_flutter: ^10.6.0
   hijri:
 
 
