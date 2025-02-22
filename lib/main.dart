@@ -3,7 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import for FontAwesomeIcons
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; 
 import 'services/config_service.dart';
 import 'services/openai_service.dart';
 import 'services/quran_service.dart';
@@ -32,21 +33,19 @@ FirebaseAnalytics? analytics;
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
 void main() async {
-  FlutterError.onError = (FlutterErrorDetails details) {
-    print('FLUTTER ERROR: ${details.exception}');
-    print('STACK TRACE: ${details.stack}');
-  };
+  // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
 
-  String? initializationError;
-  try {
-    WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-    if (Platform.isAndroid || Platform.isIOS) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
+  // Enable Crashlytics
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
+  // Log uncaught errors
+  runZonedGuarded(() async {
     await ConfigService.loadEnvFile();
     await dotenv.load(fileName: ".env");
 
@@ -92,14 +91,12 @@ void main() async {
       openAiService: openAiService,
       analyticsService: analyticsService,
       firestoreService: firestoreService,
-      initializationError: initializationError,
     ));
-  } catch (e, stackTrace) {
-    initializationError = 'Failed to initialize app: $e';
-    print('Initialization error: $e');
-    print('Stack trace: $stackTrace');
-    runApp(MyApp(initializationError: initializationError));
-  }
+  }, (error, stackTrace) {
+    // Log errors to Crashlytics
+    FirebaseCrashlytics.instance.recordError(error, stackTrace);
+    runApp(MyApp(initializationError: 'Failed to initialize app: $error'));
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -270,69 +267,143 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Color(0xFFF0F0F0),
       appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            TextButton(
-              onPressed: () => setState(() => _currentIndex = 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.home, color: Colors.blueGrey[800], size: 24),
-                  Text('Home', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
-                ],
+        toolbarHeight: 70,  // Increased height for buttons
+        title: SizedBox(
+          width: double.infinity,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => setState(() => _currentIndex = 0),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.home, color: Colors.blueGrey[800], size: 20),
+                      Text(
+                        'Home',
+                        style: TextStyle(
+                          color: Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => PlacesScreen()));
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.mosque, color: Colors.blueGrey[800], size: 24),
-                  Text('Explore', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
-                ],
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => PlacesScreen()));
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mosque, color: Colors.blueGrey[800], size: 20),
+                      Text(
+                        'Explore',
+                        style: TextStyle(
+                          color: Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(FontAwesomeIcons.bookQuran, color: Colors.blueGrey[800], size: 24),
-                  Text('Quran', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
-                ],
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FontAwesomeIcons.bookQuran, color: Colors.blueGrey[800], size: 20),
+                      Text(
+                        'Quran',
+                        style: TextStyle(
+                          color: Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(FontAwesomeIcons.bookOpen, color: Colors.blueGrey[800], size: 24),
-                  Text('Hadith', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
-                ],
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FontAwesomeIcons.bookOpen, color: Colors.blueGrey[800], size: 20),
+                      Text(
+                        'Hadith',
+                        style: TextStyle(
+                          color: Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: firestoreService)));
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history, color: Colors.blueGrey[800], size: 24),
-                  Text('History', style: TextStyle(color: Colors.blueGrey[800], fontSize: 12, height: 1)),
-                ],
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: firestoreService)));
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.history, color: Colors.blueGrey[800], size: 20),
+                      Text(
+                        'History',
+                        style: TextStyle(
+                          color: Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: _buildMainContent(context),

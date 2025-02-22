@@ -1,4 +1,4 @@
-package com.example.islam101
+package dev.faisal.tafseer
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -142,62 +142,64 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 style: AppTextStyles.englishText,
               ),
             )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search history...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+          : SafeArea(  // Add SafeArea
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search history...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
+                      onChanged: _onSearchChanged,
                     ),
-                    onChanged: _onSearchChanged,
                   ),
-                ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: _documents.isEmpty && !_isLoading
-                        ? const Center(
-                            child: Text('No search history yet'),
-                          )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _documents.length + (_isLoading ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index == _documents.length) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
+                  Expanded(  // This should now work properly with SafeArea
+                    child: RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: _documents.isEmpty && !_isLoading
+                          ? const Center(
+                              child: Text('No search history yet'),
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _documents.length + (_isLoading ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == _documents.length) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
 
-                              final doc = _documents[index];
-                              final data = doc.data() as Map<String, dynamic>;
-                              return Dismissible(
-                                key: Key(doc.id),
-                                background: Container(
-                                  color: Colors.red,
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: const Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
+                                final doc = _documents[index];
+                                final data = doc.data() as Map<String, dynamic>;
+                                return Dismissible(
+                                  key: Key(doc.id),
+                                  background: Container(
+                                    color: Colors.red,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                                direction: DismissDirection.endToStart,
-                                onDismissed: (_) => _deleteEntry(doc),
-                                child: _buildHistoryCard(data),
-                              );
-                            },
-                          ),
+                                  direction: DismissDirection.endToStart,
+                                  onDismissed: (_) => _deleteEntry(doc),
+                                  child: _buildHistoryCard(data),
+                                );
+                              },
+                            ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
     );
   }

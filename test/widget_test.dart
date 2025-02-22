@@ -1,30 +1,90 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// test/widget_test.dart
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences.dart';
+import 'package:tafseer/main.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:tafseer/services/analytics_service.dart';
+import 'package:tafseer/services/firestore_service.dart';
+import 'package:tafseer/services/openai_service.dart';
+import 'package:tafseer/services/quran_service.dart';
+import 'package:tafseer/services/hadith_service.dart';
+import 'widget_test.mocks.dart';
 
-import 'package:islam101/main.dart';
-
+@GenerateMocks([
+  OpenAiService, 
+  AnalyticsService, 
+  FirestoreService,
+  QuranService,
+  HadithService,
+  SharedPreferences
+])
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  late MockOpenAiService mockOpenAiService;
+  late MockAnalyticsService mockAnalyticsService;
+  late MockFirestoreService mockFirestoreService;
+  late MockSharedPreferences mockSharedPreferences;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  setUp(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    mockOpenAiService = MockOpenAiService();
+    mockAnalyticsService = MockAnalyticsService();
+    mockFirestoreService = MockFirestoreService();
+    mockSharedPreferences = MockSharedPreferences();
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  group('State Persistence Tests', () {
+    testWidgets('App preserves question input during background', (WidgetTester tester) async {
+      final testQuestion = 'What is the importance of Salah?';
+      
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            openAiService: mockOpenAiService,
+            analyticsService: mockAnalyticsService,
+            firestoreService: mockFirestoreService,
+          ),
+        ),
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Enter text
+      await tester.enterText(
+        find.byType(TextField), 
+        testQuestion
+      );
+      await tester.pump();
+
+      // Simulate app going to background
+      await tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      // Simulate app coming back to foreground
+      await tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+
+      // Verify text is still there
+      expect(find.text(testQuestion), findsOneWidget);
+    });
+
+    testWidgets('App restores last screen after restart', (WidgetTester tester) async {
+      // Mock SharedPreferences to return last screen
+      when(mockSharedPreferences.getString('last_screen')).thenReturn('quran');
+      
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            openAiService: mockOpenAiService,
+            analyticsService: mockAnalyticsService,
+            firestoreService: mockFirestoreService,
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      
+      // Verify we're on the right screen
+      expect(find.text('Quran'), findsOneWidget);
+    });
   });
 }
