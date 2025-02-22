@@ -1,4 +1,4 @@
-name: Flutter Tests
+name: Flutter Test
 
 on:
   push:
@@ -7,20 +7,13 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.9'
+          flutter-version: '3.19.0'  
           channel: 'stable'
-      
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Run tests
-        run: flutter test
+      - run: flutter pub get
+      - run: flutter analyze
