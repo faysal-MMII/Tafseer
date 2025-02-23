@@ -1,124 +1,139 @@
-# Tafseer
+# Tafseer: Islamic Knowledge & Guidance App
 
-An Islamic Q&A application available in both Flutter (mobile) and Flask (web) versions, providing answers to questions about Islam through Quranic verses and Hadith guidance.
+Tafseer is a comprehensive Flutter application providing Islamic knowledge, guidance, and practical features for Muslims worldwide. The app combines traditional Islamic texts with modern AI technology to provide accurate, contextual answers to Islamic questions.
 
-## Project Overview
+## 🌟 Features
 
-Tafseer exists in two versions:
+### Islamic Q&A with AI
+- AI-powered question answering system using OpenAI (You can use whichever AI you want, just make sure you follow the API's documentation.)
+- Answers grounded in Quranic verses and authentic Hadiths
+- Retrieval-Augmented Generation (RAG) ensuring accurate Islamic context
+- Pre-defined Q&A dataset for common Islamic questions
 
-### Flask Version (Web)
-- Built with Python Flask framework
-- Powered by OpenAI's API for dynamic responses
-- Accessible via web browser at `http://127.0.0.1:8000/` after running app.py
-- Provides real-time answers using ChatGPT
+### Quran & Hadith
+- Browse and search through the complete Quran
+- Access Imam Nawawi's 40 Hadith collection
+- Detailed verse and Hadith views
+- Smart search functionality for finding relevant verses and Hadiths
 
-### Flutter Version (Mobile)
-- Native mobile application
-- Uses pre-compiled Q&A database
-- Offline functionality
-- Structured responses with Quranic and Hadith sections
+### Practical Tools
+- Islamic Places Finder
+  - Locate nearby mosques, halal restaurants, and Islamic centers
+  - Filter by place type and radius
+  - Support for manual location input
+- Personalized Islamic Facts
+  - Region-specific facts
+  - Context-aware fun facts
+  - Monthly Islamic knowledge
 
-## Features
+### Additional Features
+- Search history tracking
+- Frequently Asked Questions (FAQ) section
+- Responsive design for all screen sizes
+- Offline support with data caching
+- Analytics and crash reporting
 
-- Islamic knowledge Q&A system
-- Split view of Quranic verses and Hadith guidance
-- Elegant UI (Lesss is more)
-- Search functionality for quick answers
+## 🚀 Getting Started
 
+### Prerequisites
+- Flutter (latest version)
+- Firebase account
+- OpenAI API key
 
+### Installation
 
-## Technology Stack
-
-- **Flask Version:**
-  - Python
-  - Flask
-  - OpenAI API
-  - HTML/CSS
-
-- **Flutter Version:**
-  - Dart
-  - Flutter SDK
-  - SQLite
-  - JSON data storage
-
-## Installation
-
-### Flask Version
 1. Clone the repository
-2. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Set up OpenAI API key in `.env` file
-4. Run the application:
-   ```bash
-   python app.py
-   ```
-5. Navigate to `http://127.0.0.1:8000/`
+```bash
+git clone https://github.com/yourusername/islamic-app.git
+```
 
-### Flutter Version
-1. Ensure Flutter is installed
-2. Clone the repository
-3. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
-4. Run the app:
-   ```bash
-   flutter run
-   ```
+2. Install dependencies
+```bash
+flutter pub get
+```
 
-## Usage
+3. Create a `.env` file in the root directory with your API keys:
+```
+OPENAI_API_KEY=your_openai_api_key
+```
 
-1. Launch the application (web or mobile)
-2. Enter your Islamic question in the search box
-3. View the response split into:
-   - Quranic Evidence
-   - Hadith Guidance
+4. Set up Firebase:
+   - Create a new Firebase project
+   - Add your Firebase configuration files
+   - Enable Analytics and Crashlytics
 
-## Data Sources
+5. Run the app
+```bash
+flutter run
+```
 
-- **Flask Version:** Utilizes OpenAI's GPT model for dynamic responses
-- **Flutter Version:** Uses curated `islamic_qa.json` database with pre-compiled answers
+## 📱 App Structure
 
-## Development
+### Core Components
 
-The project evolved from a web-based Flask application to a mobile Flutter application, with the key difference being:
-- Flask version: Dynamic responses using AI
-- Flutter version: Static responses from curated database
+- **Screens**
+  - HomeScreen: Main interface with search and navigation
+  - QuranScreen: Quran browsing and search
+  - HadithScreen: Hadith collection viewer
+  - PlacesScreen: Islamic places finder
+  - SearchResultsScreen: AI-powered search results
+  - HistoryScreen: User search history
 
+- **Services**
+  - OpenAiService: AI integration
+  - QuranService: Quranic data management
+  - HadithService: Hadith data management
+  - FirestoreService: Firebase integration
+  - LocationService: Geolocation features
+  - IslamicFactsData: Islamic knowledge base
 
+- **RAG Services**
+  - QuranRAGService: Quran-based AI responses
+  - HadithRAGService: Hadith-based AI responses
 
+### Data Sources
+- Local JSON assets for Quran translations
+- Nawawi's 40 Hadith collection
+- Islamic Q&A dataset
+- Regional boundary data for personalization
 
-## Contributing
+## 🛠 Technical Details
 
-Feel free to submit issues and enhancement requests.
+### Built With
+- Flutter - UI framework
+- Firebase - Backend services
+- OpenAI API - AI capabilities
+- flutter_map - Maps integration
+- shared_preferences - Local storage
+- http - API communication
 
-## Contact
+### Key Features
+- Responsive design for all screen sizes
+- Efficient data caching
+- Error handling and crash reporting
+- Analytics integration
+- Location-based services
 
-[eccodg02@proton.me]
+## 📝 Contributing
 
-## Modifying the Q&A Database
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
 
-The Q&A database is stored in `assets/data/islamic_qa.json`. To add or modify questions:
+## 📄 License
 
-1. Each question should follow this format:
-```json
-{
-  "keywords": ["keyword1", "keyword2", ...],
-  "question": "Your question here?",
-  "quran_results": {
-    "answer": "Your Quranic answer...",
-    "verses": ["**Verse X:Y**", ...]
-  },
-  "hadith_results": {
-    "answer": "Your Hadith guidance...",
-    "hadiths": [
-      {
-        "collection": "Collection name",
-        "reference": "Reference number",
-        "text": "Hadith text"
-      }
-    ]
-  }
-}
+This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- OpenAI for AI capabilities
+- Firebase for backend services
+- The Flutter team
+- Contributors to the Islamic datasets used in this project
+
+## 📞 Support
+
+For support, please:
+- Open an issue in this repository
+- Contact us at [eccodg02@proton.me]
+
+---
+Made with ❤️ for the Muslim Ummah
