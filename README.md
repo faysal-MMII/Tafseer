@@ -2,6 +2,16 @@
 
 Tafseer is a comprehensive Flutter application providing Islamic knowledge, guidance, and practical features for Muslims worldwide. The app combines traditional Islamic texts with modern AI technology to provide accurate, contextual answers to Islamic questions.
 
+## 📱 Latest Release
+The latest version of the app can be found in the Releases section. Each release includes:
+
+Release notes detailing new features and bug fixes
+Downloadable APK files for Android (if applicable)
+Installation instructions
+Known issues or limitations
+
+⚠️ Always download the app from the official releases page to ensure you have the latest stable version.
+
 ## 🌟 Features
 
 ### Islamic Q&A with AI
