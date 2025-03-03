@@ -28,7 +28,7 @@ class Place {
       String name = tags['name'] ?? 
           tags['name:en'] ?? 
           tags['alt_name'] ?? 
-          '${element['type']?.toString().capitalize() ?? 'Place'}';
+          (element['type'] == 'way' ? 'Unnamed Mosque' : '${element['type']?.toString().capitalize() ?? 'Place'}');
 
       // Try different ways to get coordinates
       double? lat;
