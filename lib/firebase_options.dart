@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
-///
+/// 
 /// Example:
 /// ```dart
 /// import 'firebase_options.dart';
@@ -29,10 +29,8 @@ class DefaultFirebaseOptions {
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        // Return a mock or development configuration for Linux
+        return android; // Using Android config as fallback
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -64,7 +62,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '121009374788',
     projectId: 'tafseer-7f736',
     storageBucket: 'tafseer-7f736.firebasestorage.app',
-    iosBundleId: 'com.example.islam101',
+    iosBundleId: 'dev.faisal.tafseer',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +71,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '121009374788',
     projectId: 'tafseer-7f736',
     storageBucket: 'tafseer-7f736.firebasestorage.app',
-    iosBundleId: 'com.example.islam101',
+    iosBundleId: 'dev.faisal.tafseer',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

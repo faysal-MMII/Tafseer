@@ -18,32 +18,60 @@ class HadithNumber {
     if (value == null) return HadithNumber(book: 0, hadith: 0);
 
     try {
-      // If it's already a Map, use it directly
+      // Case 1: Map format
       if (value is Map) {
+        final book = _parseIntSafely(value['book']);
+        final hadith = _parseIntSafely(value['hadith']);
         return HadithNumber(
-          book: _parseIntSafely(value['book']),
-          hadith: _parseIntSafely(value['hadith']),
+          book: book >= 0 ? book : 0,  // No negative numbers
+          hadith: hadith >= 0 ? hadith : 0,
         );
       }
 
-      // If it's a String, try different parsing approaches
+      // Case 2: String handling
       if (value is String) {
-        // First try to parse as colon-separated numbers (e.g., "0:1")
-        if (value.contains(':')) {
-          final parts = value.split(':');
+        String cleanValue = value.trim();
+        
+        if (cleanValue.isEmpty) {
+          return HadithNumber(book: 0, hadith: 0);
+        }
+
+        // Try colon format first (e.g., "1:234")
+        if (cleanValue.contains(':')) {
+          final parts = cleanValue.split(':');
+          if (parts.length == 2) {
+            final book = _parseIntSafely(parts[0]);
+            final hadith = _parseIntSafely(parts[1]);
+            return HadithNumber(
+              book: book >= 0 ? book : 0,
+              hadith: hadith >= 0 ? hadith : 0,
+            );
+          }
+        }
+
+        // Try to extract numbers from text (e.g., "Book 1, Hadith 234")
+        final numbers = RegExp(r'\d+').allMatches(cleanValue).map((m) => int.parse(m.group(0)!)).toList();
+        if (numbers.length >= 2) {
           return HadithNumber(
-            book: _parseIntSafely(parts[0]),
-            hadith: _parseIntSafely(parts[1]),
+            book: numbers[0] >= 0 ? numbers[0] : 0,
+            hadith: numbers[1] >= 0 ? numbers[1] : 0,
+          );
+        } else if (numbers.length == 1) {
+          return HadithNumber(
+            book: 0,
+            hadith: numbers[0] >= 0 ? numbers[0] : 0,
           );
         }
 
-        // Then try to parse as JSON if the above fails
+        // Try JSON format as last resort
         try {
-          String jsonString = value.replaceAll("'", '"');
-          Map<String, dynamic> map = json.decode(jsonString);
+          cleanValue = cleanValue.replaceAll("'", '"');
+          Map<String, dynamic> map = json.decode(cleanValue);
+          final book = _parseIntSafely(map['book']);
+          final hadith = _parseIntSafely(map['hadith']);
           return HadithNumber(
-            book: _parseIntSafely(map['book']),
-            hadith: _parseIntSafely(map['hadith']),
+            book: book >= 0 ? book : 0,
+            hadith: hadith >= 0 ? hadith : 0,
           );
         } catch (e) {
           print('Error parsing hadith number as JSON: $e');
@@ -51,19 +79,38 @@ class HadithNumber {
         }
       }
 
+      // Case 3: Number format
+      if (value is num) {
+        final number = value.toInt();
+        return HadithNumber(
+          book: 0,
+          hadith: number >= 0 ? number : 0,
+        );
+      }
+
       print('Could not parse value: $value');
+      return HadithNumber(book: 0, hadith: 0);
+      
     } catch (e) {
       print('Error in HadithNumber.fromDynamic: $e');
+      return HadithNumber(book: 0, hadith: 0);
     }
-
-    return HadithNumber(book: 0, hadith: 0);
   }
 
   static int _parseIntSafely(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    return int.tryParse(value.toString()) ?? 0;
+    try {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final cleanValue = value.replaceAll(RegExp(r'[^0-9-]'), '');
+        final number = int.tryParse(cleanValue) ?? 0;
+        return number >= 0 ? number : 0;  // No negative numbers
+      }
+      return 0;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Map<String, dynamic> toMap() {

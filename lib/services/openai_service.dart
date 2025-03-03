@@ -88,8 +88,7 @@ class OpenAiService {
 
       // Generate responses
       final quranResponse = await _generateQuranResponse(query, typedVerses);
-      final hadithResponse =
-          await hadithRagService.generateResponse(query, hadithMaps);
+      final hadithResponse = await generateHadithResponse(query, hadithMaps);
 
       // Debug: Print hadith response details safely
       print('\n=== DEBUG: HADITH RESPONSE ===');
@@ -105,10 +104,7 @@ class OpenAiService {
       // Construct the final response
       final response = {
         'quran_results': quranResponse['quran_results'], // Access the nested 'quran_results'
-        'hadith_results': {
-          'answer': _extractContent(hadithResponse['answer']),
-          'hadiths': _processHadithList(hadithResponse['hadiths']),
-        },
+        'hadith_results': hadithResponse, // Use the hadith response directly
       };
 
       return response;
@@ -128,6 +124,29 @@ class OpenAiService {
       return {
         'quran_results': {'answer': '', 'verses': []},
         'hadith_results': {'answer': 'No results found', 'hadiths': []},
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> generateHadithResponse(
+    String query,
+    List<Map<String, dynamic>> hadiths,
+  ) async {
+    try {
+      final hadithResponse = await hadithRagService.generateResponse(query, hadiths);
+      
+      return {
+        'answer': _extractContent(hadithResponse['answer']),
+        'hadiths': _processHadithList(hadithResponse['hadiths']),
+      };
+    } catch (e, stackTrace) {
+      print('\n=== ERROR in generateHadithResponse ===');
+      print('Error message: $e');
+      print('Stack trace: $stackTrace');
+      
+      return {
+        'answer': 'Error processing hadith response',
+        'hadiths': [],
       };
     }
   }
@@ -236,7 +255,16 @@ Please provide:
     return {
       'quran_results': {
         'answer': quranCompletion.choices.first.message.content?.firstOrNull?.text ?? '',
-        'verses': verses.map((v) => "${v['text']} (${v['reference']})").toList(),
+        'verses': verses.map((v) {
+          // Access translation array if it exists
+          String text = '';
+          if (v.containsKey('translations') && v['translations'] is List && v['translations'].isNotEmpty) {
+            text = v['translations'][0]['text'] ?? '';
+          } else {
+            text = v['text'] ?? '';
+          }
+          return "$text (${v['verse_key'] ?? v['reference'] ?? ''})";
+        }).toList(),
       }
     };
   }

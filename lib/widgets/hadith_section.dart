@@ -5,6 +5,8 @@ import '../models/hadith.dart';
 import '../theme/text_styles.dart';
 import '../services/firestore_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'hadith_card.dart';
+import 'expandable_explanation.dart';
 
 // Create a new widget for loading state
 class LoadingIndicator extends StatelessWidget {
@@ -133,63 +135,12 @@ class _HadithSectionState extends State<HadithSection> {
     print('=== FETCH RESULTS END ===');
   }
 
+  // Updated _buildHadithItem method
   Widget _buildHadithItem(Hadith hadith) {
     print('Building hadith item for: ${hadith.text}');
-
-    String narrator = '';
-    String text = hadith.text;
-    if (hadith.text.startsWith('Narrated ')) {
-      final narratorEnd = hadith.text.indexOf(':');
-      if (narratorEnd != -1) {
-        narrator = hadith.text.substring(9, narratorEnd).trim();
-        text = hadith.text.substring(narratorEnd + 1).trim();
-      }
-    }
-
-    if (text.length > 500) {
-      text = text.substring(0, 497) + '...';
-    }
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Reference: ${hadith.hadithNumber}',
-                style: AppTextStyles.titleText.copyWith(fontSize: 14),
-              ),
-            ],
-          ),
-          if (narrator.isNotEmpty) ...[
-            SizedBox(height: 8),
-            Text(
-              'Narrator: $narrator',
-              style: AppTextStyles.englishText.copyWith(
-                fontStyle: FontStyle.italic,
-                color: Colors.grey[700],
-              ),
-            ),
-          ],
-          SizedBox(height: 8),
-          Text(text, style: AppTextStyles.englishText),
-        ],
-      ),
+    return HadithCard(
+      hadith: hadith,
+      showExpandButton: true,
     );
   }
 
@@ -205,22 +156,16 @@ class _HadithSectionState extends State<HadithSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Islamic Guidance',
+          'Hadith Guidance',
           style: AppTextStyles.titleText,
         ),
         SizedBox(height: 16),
-        Text(
-          _response!['hadith_results']['answer'] ?? 'No explanation available',
+        ExpandableExplanation(
+          text: _response!['hadith_results']['answer'] ?? 'No explanation available',            
           style: AppTextStyles.englishText,
         ),
         SizedBox(height: 24),
-        if (_retrievedHadiths.isNotEmpty) ...[
-          Text(
-            'Relevant Hadiths',
-            style: AppTextStyles.titleText,
-          ),
-          ..._retrievedHadiths.map((hadith) => _buildHadithItem(hadith)),
-        ],
+        // Removed the Relevant Hadiths section
       ],
     );
   }

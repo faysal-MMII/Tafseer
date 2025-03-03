@@ -40,6 +40,10 @@
 -keep class io.flutter.plugins.pathprovider.** { *; }
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 
+# Keep MainActivity and Application classes
+-keep class dev.faisal.tafseer.MainActivity { *; }
+-keep class dev.faisal.tafseer.Application { *; }
+
 # Keep JSON serialization 
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;

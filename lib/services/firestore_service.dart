@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -23,9 +24,19 @@ class FirestoreService {
     required List<dynamic> hadiths,
   }) async {
     try {
+      // Get current user ID
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+      // If not logged in, don't save history (or handle accordingly)
+      if (userId == null) {
+        print('User not logged in, history not saved');
+        return;
+      }
+
       final searchableTerms = _generateSearchableTerms(question);
 
       await _db.collection('qa_history').add({
+        'userId': userId,  // Store the user ID
         'question': question,
         'answer': answer,
         'quranVerses': quranVerses,
@@ -40,10 +51,19 @@ class FirestoreService {
 
   Future<Map<String, dynamic>?> findSimilarQuestion(String question) async {
     try {
+      // Get current user ID
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+      // If not logged in, can't find user-specific questions
+      if (userId == null) {
+        return null;
+      }
+
       final searchTerms = _generateSearchableTerms(question);
 
       for (final term in searchTerms) {
         final snapshot = await _db.collection('qa_history')
+            .where('userId', isEqualTo: userId)  // Filter by user ID
             .where('searchableTerms', arrayContains: term)
             .orderBy('timestamp', descending: true)
             .limit(1)
@@ -127,6 +147,50 @@ class FirestoreService {
       await batch.commit();
     } catch (e) {
       print('Error clearing old cache: $e');
+    }
+  }
+
+  // New method to check and migrate history data
+  Future<void> checkAndMigrateHistoryData() async {
+    try {
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        print('No user logged in, cannot check history data');
+        return;
+      }
+      
+      // First, check if there are any documents without userId
+      final snapshot = await _db.collection('qa_history')
+          .limit(100) // Limit to prevent too many reads
+          .get();
+      
+      print('Found ${snapshot.docs.length} history records to check');
+      
+      int migratedCount = 0;
+      
+      // Check if any documents don't have userId field
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        if (!data.containsKey('userId')) {
+          // Update the document to include the current user's ID
+          await _db.collection('qa_history')
+              .doc(doc.id)
+              .update({'userId': userId});
+          migratedCount++;
+        }
+      }
+      
+      print('Migrated $migratedCount records to include userId');
+      
+      final userSnapshot = await _db.collection('qa_history')
+          .where('userId', isEqualTo: userId)
+          .limit(5)
+          .get();
+      
+      print('After migration, found ${userSnapshot.docs.length} records for current user');
+      
+    } catch (e) {
+      print('Error checking/migrating history data: $e');
     }
   }
 }

@@ -145,21 +145,49 @@ class _QuranScreenState extends State<QuranScreen> {
     try {
       setState(() => _isLoading = true);
       
-      final String jsonString = await rootBundle.loadString('assets/data/translation.json');
-      final data = json.decode(jsonString);
+      // Load English translation
+      final String translationJson = await rootBundle.loadString('assets/data/translation.json');
+      final translationData = json.decode(translationJson);
       
+      // Load Arabic text
+      final String arabicJson = await rootBundle.loadString('assets/data/quran-arabic.json');
+      final arabicData = json.decode(arabicJson);
+      
+      // Merge the data
       _surahs = List<Map<String, dynamic>>.from(
-        data['quran']['chapters'].map((ch) {
+        translationData['quran']['chapters'].map((ch) {
+          // Find the corresponding Arabic chapter
+          final arabicChapter = arabicData['quran']['chapters'].firstWhere(
+            (arabCh) => arabCh['chapter'] == ch['chapter'],
+            orElse: () => {'verses': []},
+          );
+          
           // Find the corresponding surah name
           final surahInfo = surahNames.firstWhere(
             (s) => int.parse(s['number']!) == ch['chapter'],
             orElse: () => {"number": "${ch['chapter']}", "name": "Surah ${ch['chapter']}"},
           );
+          
+          // Merge verses with both Arabic and English text
+          final List<Map<String, dynamic>> mergedVerses = [];
+          for (var verse in ch['verses']) {
+            // Find corresponding Arabic verse
+            final arabicVerse = arabicChapter['verses'].firstWhere(
+              (arabVerse) => arabVerse['verse'] == verse['verse'],
+              orElse: () => {'text': ''},
+            );
+            
+            mergedVerses.add({
+              'verse': verse['verse'],
+              'text': verse['text'],
+              'arabic': arabicVerse['text'],
+            });
+          }
 
           return {
             'chapter': ch['chapter'],
             'name': surahInfo['name'],
-            'verses': ch['verses'],
+            'verses': mergedVerses,
           };
         })
       );
@@ -321,6 +349,15 @@ class _QuranScreenState extends State<QuranScreen> {
                                     style: AppTextStyles.englishText.copyWith(
                                       height: 1.5,
                                       fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    verse['arabic'],
+                                    style: AppTextStyles.englishText.copyWith(
+                                      height: 1.5,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],

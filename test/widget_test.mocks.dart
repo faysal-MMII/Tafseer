@@ -3,15 +3,14 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i9;
+import 'dart:async' as _i8;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i8;
-import 'package:tafseer/models/hadith.dart' as _i6;
-import 'package:tafseer/services/analytics_service.dart' as _i10;
-import 'package:tafseer/services/firestore_service.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i7;
+import 'package:tafseer/services/analytics_service.dart' as _i9;
+import 'package:tafseer/services/firestore_service.dart' as _i10;
 import 'package:tafseer/services/hadith_service.dart' as _i3;
-import 'package:tafseer/services/openai_service.dart' as _i7;
+import 'package:tafseer/services/openai_service.dart' as _i6;
 import 'package:tafseer/services/quran_service.dart' as _i2;
 import 'package:tafseer/services/rag_services/hadith_rag_service.dart' as _i5;
 import 'package:tafseer/services/rag_services/quran_rag_service.dart' as _i4;
@@ -52,15 +51,10 @@ class _FakeHadithRAGService_3 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
-class _FakeHadith_4 extends _i1.SmartFake implements _i6.Hadith {
-  _FakeHadith_4(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
 /// A class which mocks [OpenAiService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockOpenAiService extends _i1.Mock implements _i7.OpenAiService {
+class MockOpenAiService extends _i1.Mock implements _i6.OpenAiService {
   MockOpenAiService() {
     _i1.throwOnMissingStub(this);
   }
@@ -69,7 +63,7 @@ class MockOpenAiService extends _i1.Mock implements _i7.OpenAiService {
   String get apiKey =>
       (super.noSuchMethod(
             Invocation.getter(#apiKey),
-            returnValue: _i8.dummyValue<String>(
+            returnValue: _i7.dummyValue<String>(
               this,
               Invocation.getter(#apiKey),
             ),
@@ -121,35 +115,35 @@ class MockOpenAiService extends _i1.Mock implements _i7.OpenAiService {
           as _i5.HadithRAGService);
 
   @override
-  _i9.Future<Map<String, dynamic>> generateResponse(String? query) =>
+  _i8.Future<Map<String, dynamic>> generateResponse(String? query) =>
       (super.noSuchMethod(
             Invocation.method(#generateResponse, [query]),
-            returnValue: _i9.Future<Map<String, dynamic>>.value(
+            returnValue: _i8.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i9.Future<Map<String, dynamic>>);
+          as _i8.Future<Map<String, dynamic>>);
 }
 
 /// A class which mocks [AnalyticsService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAnalyticsService extends _i1.Mock implements _i10.AnalyticsService {
+class MockAnalyticsService extends _i1.Mock implements _i9.AnalyticsService {
   MockAnalyticsService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i9.Future<void> logQuestionAsked(String? questionType) =>
+  _i8.Future<void> logQuestionAsked(String? questionType) =>
       (super.noSuchMethod(
             Invocation.method(#logQuestionAsked, [questionType]),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 
   @override
-  _i9.Future<void> logAnswerGenerated(
+  _i8.Future<void> logAnswerGenerated(
     String? questionType,
     int? responseTime,
   ) =>
@@ -158,31 +152,31 @@ class MockAnalyticsService extends _i1.Mock implements _i10.AnalyticsService {
               questionType,
               responseTime,
             ]),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 
   @override
-  _i9.Future<void> logRagServiceUsed(String? serviceName) =>
+  _i8.Future<void> logRagServiceUsed(String? serviceName) =>
       (super.noSuchMethod(
             Invocation.method(#logRagServiceUsed, [serviceName]),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 }
 
 /// A class which mocks [FirestoreService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFirestoreService extends _i1.Mock implements _i11.FirestoreService {
+class MockFirestoreService extends _i1.Mock implements _i10.FirestoreService {
   MockFirestoreService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i9.Future<void> saveQA({
+  _i8.Future<void> saveQA({
     required String? question,
     required String? answer,
     required List<String>? quranVerses,
@@ -195,179 +189,54 @@ class MockFirestoreService extends _i1.Mock implements _i11.FirestoreService {
               #quranVerses: quranVerses,
               #hadiths: hadiths,
             }),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 
   @override
-  _i9.Future<Map<String, dynamic>?> findSimilarQuestion(String? question) =>
+  _i8.Future<Map<String, dynamic>?> findSimilarQuestion(String? question) =>
       (super.noSuchMethod(
             Invocation.method(#findSimilarQuestion, [question]),
-            returnValue: _i9.Future<Map<String, dynamic>?>.value(),
+            returnValue: _i8.Future<Map<String, dynamic>?>.value(),
           )
-          as _i9.Future<Map<String, dynamic>?>);
+          as _i8.Future<Map<String, dynamic>?>);
 
   @override
-  _i9.Future<Map<String, dynamic>?> getCachedVerse(String? verseKey) =>
+  _i8.Future<Map<String, dynamic>?> getCachedVerse(String? verseKey) =>
       (super.noSuchMethod(
             Invocation.method(#getCachedVerse, [verseKey]),
-            returnValue: _i9.Future<Map<String, dynamic>?>.value(),
+            returnValue: _i8.Future<Map<String, dynamic>?>.value(),
           )
-          as _i9.Future<Map<String, dynamic>?>);
+          as _i8.Future<Map<String, dynamic>?>);
 
   @override
-  _i9.Future<void> cacheVerse(
+  _i8.Future<void> cacheVerse(
     String? verseKey,
     Map<String, dynamic>? verseData,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#cacheVerse, [verseKey, verseData]),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 
   @override
-  _i9.Future<void> cacheBulkVerses(Map<String, Map<String, dynamic>>? verses) =>
+  _i8.Future<void> cacheBulkVerses(Map<String, Map<String, dynamic>>? verses) =>
       (super.noSuchMethod(
             Invocation.method(#cacheBulkVerses, [verses]),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
+          as _i8.Future<void>);
 
   @override
-  _i9.Future<void> clearOldCache() =>
+  _i8.Future<void> clearOldCache() =>
       (super.noSuchMethod(
             Invocation.method(#clearOldCache, []),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
           )
-          as _i9.Future<void>);
-}
-
-/// A class which mocks [QuranService].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockQuranService extends _i1.Mock implements _i2.QuranService {
-  MockQuranService() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i9.Future<List<Map<String, dynamic>>> fetchQuranVerses(String? query) =>
-      (super.noSuchMethod(
-            Invocation.method(#fetchQuranVerses, [query]),
-            returnValue: _i9.Future<List<Map<String, dynamic>>>.value(
-              <Map<String, dynamic>>[],
-            ),
-          )
-          as _i9.Future<List<Map<String, dynamic>>>);
-
-  @override
-  _i9.Future<Map<String, dynamic>> fetchVerseDetails(String? verseKey) =>
-      (super.noSuchMethod(
-            Invocation.method(#fetchVerseDetails, [verseKey]),
-            returnValue: _i9.Future<Map<String, dynamic>>.value(
-              <String, dynamic>{},
-            ),
-          )
-          as _i9.Future<Map<String, dynamic>>);
-
-  @override
-  _i9.Future<List<Map<String, dynamic>>> fetchSurahVerses(int? surahNumber) =>
-      (super.noSuchMethod(
-            Invocation.method(#fetchSurahVerses, [surahNumber]),
-            returnValue: _i9.Future<List<Map<String, dynamic>>>.value(
-              <Map<String, dynamic>>[],
-            ),
-          )
-          as _i9.Future<List<Map<String, dynamic>>>);
-
-  @override
-  _i9.Future<List<Map<String, dynamic>>> searchQuran(String? query) =>
-      (super.noSuchMethod(
-            Invocation.method(#searchQuran, [query]),
-            returnValue: _i9.Future<List<Map<String, dynamic>>>.value(
-              <Map<String, dynamic>>[],
-            ),
-          )
-          as _i9.Future<List<Map<String, dynamic>>>);
-}
-
-/// A class which mocks [HadithService].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockHadithService extends _i1.Mock implements _i3.HadithService {
-  MockHadithService() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  set openAiService(_i7.OpenAiService? service) => super.noSuchMethod(
-    Invocation.setter(#openAiService, service),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  String formatHadithNumber(Map<String, dynamic>? map) =>
-      (super.noSuchMethod(
-            Invocation.method(#formatHadithNumber, [map]),
-            returnValue: _i8.dummyValue<String>(
-              this,
-              Invocation.method(#formatHadithNumber, [map]),
-            ),
-          )
-          as String);
-
-  @override
-  _i9.Future<void> loadHadithData() =>
-      (super.noSuchMethod(
-            Invocation.method(#loadHadithData, []),
-            returnValue: _i9.Future<void>.value(),
-            returnValueForMissingStub: _i9.Future<void>.value(),
-          )
-          as _i9.Future<void>);
-
-  @override
-  String getCollectionName() =>
-      (super.noSuchMethod(
-            Invocation.method(#getCollectionName, []),
-            returnValue: _i8.dummyValue<String>(
-              this,
-              Invocation.method(#getCollectionName, []),
-            ),
-          )
-          as String);
-
-  @override
-  _i9.Future<_i6.Hadith> fetchHadith(int? number) =>
-      (super.noSuchMethod(
-            Invocation.method(#fetchHadith, [number]),
-            returnValue: _i9.Future<_i6.Hadith>.value(
-              _FakeHadith_4(this, Invocation.method(#fetchHadith, [number])),
-            ),
-          )
-          as _i9.Future<_i6.Hadith>);
-
-  @override
-  _i9.Future<List<_i6.Hadith>> searchHadiths(String? query) =>
-      (super.noSuchMethod(
-            Invocation.method(#searchHadiths, [query]),
-            returnValue: _i9.Future<List<_i6.Hadith>>.value(<_i6.Hadith>[]),
-          )
-          as _i9.Future<List<_i6.Hadith>>);
-
-  @override
-  _i9.Future<Map<String, dynamic>> searchHadithsWithExplanation(
-    String? query,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#searchHadithsWithExplanation, [query]),
-            returnValue: _i9.Future<Map<String, dynamic>>.value(
-              <String, dynamic>{},
-            ),
-          )
-          as _i9.Future<Map<String, dynamic>>);
+          as _i8.Future<void>);
 }

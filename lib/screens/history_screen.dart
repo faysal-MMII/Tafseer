@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../theme/text_styles.dart';
 import '../models/hadith.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HistoryScreen extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -54,22 +55,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
 
     try {
+      // Get the current user ID
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      print('Loading history for user: $userId');
+      
+      // If no user is logged in, handle appropriately
+      if (userId == null) {
+        setState(() {
+          _isLoading = false;
+          print('No user logged in, cannot load history');
+        });
+        return;
+      }
+
+      // Query only the current user's history
       Query query = FirebaseFirestore.instance
           .collection('qa_history')
+          .where('userId', isEqualTo: userId)  // Filter by user ID
           .orderBy('timestamp', descending: true);
 
+      print('Query created with user filter: $userId');
+      
       if (_searchQuery.isNotEmpty) {
         // Apply similarity search
         query = query.where('searchableTerms', arrayContains: _searchQuery.toLowerCase());
+        print('Added search filter: $_searchQuery');
       }
 
       if (_lastDocument != null) {
         query = query.startAfterDocument(_lastDocument!);
+        print('Added pagination after document');
       }
 
       query = query.limit(_pageSize);
+      print('Executing query with limit: $_pageSize');
 
       final QuerySnapshot snapshot = await query.get();
+      print('Query executed. Got ${snapshot.docs.length} results');
 
       setState(() {
         _documents.addAll(snapshot.docs);
@@ -84,6 +106,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _isLoading = false;
       });
       print('Error loading data: $e');
+      print('Error stack trace: ${StackTrace.current}');
     }
   }
 
@@ -129,86 +152,138 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Search History', style: AppTextStyles.titleText),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: widget.firestoreService == null
+      body: user == null
           ? Center(
-              child: Text(
-                'History not available offline',
-                style: AppTextStyles.englishText,
-              ),
-            )
-          : SafeArea(  // Add SafeArea
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search history...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onChanged: _onSearchChanged,
-                    ),
+                  Text(
+                    'You need to be logged in to view history',
+                    style: AppTextStyles.englishText,
                   ),
-                  Expanded(  // This should now work properly with SafeArea
-                    child: RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: _documents.isEmpty && !_isLoading
-                          ? const Center(
-                              child: Text('No search history yet'),
-                            )
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _documents.length + (_isLoading ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _documents.length) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-
-                                final doc = _documents[index];
-                                final data = doc.data() as Map<String, dynamic>;
-                                return Dismissible(
-                                  key: Key(doc.id),
-                                  background: Container(
-                                    color: Colors.red,
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 16),
-                                    child: const Icon(
-                                      Icons.delete,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  direction: DismissDirection.endToStart,
-                                  onDismissed: (_) => _deleteEntry(doc),
-                                  child: _buildHistoryCard(data),
-                                );
-                              },
-                            ),
-                    ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signInAnonymously();
+                      setState(() {}); // Refresh the UI
+                    },
+                    child: Text('Login Anonymously'),
                   ),
                 ],
               ),
-            ),
+            )
+          : widget.firestoreService == null
+              ? Center(
+                  child: Text(
+                    'History not available offline',
+                    style: AppTextStyles.englishText,
+                  ),
+                )
+              : SafeArea(  // Add SafeArea
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search history...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                      Expanded(  // This should now work properly with SafeArea
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: _documents.isEmpty && !_isLoading
+                              ? const Center(
+                                  child: Text('No search history yet'),
+                                )
+                              : ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _documents.length + (_isLoading ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (index == _documents.length) {
+                                      return const Center(
+                                        child: CircularProgressIndicator(),
+                                      );
+                                    }
+
+                                    final doc = _documents[index];
+                                    final data = doc.data() as Map<String, dynamic>;
+                                    return Dismissible(
+                                      key: Key(doc.id),
+                                      background: Container(
+                                        color: Colors.red,
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 16),
+                                        child: const Icon(
+                                          Icons.delete,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      direction: DismissDirection.endToStart,
+                                      onDismissed: (_) => _deleteEntry(doc),
+                                      child: _buildHistoryCard(data),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
   Widget _buildHistoryCard(Map<String, dynamic> data) {
     final question = data['question'] as String? ?? '';
     final answer = data['answer'] as String? ?? '';
-    final quranVerses = List<String>.from(data['quranVerses'] ?? []);
-    final hadiths = List<Map<String, dynamic>>.from(data['hadiths'] ?? []);
+
+    // Handle different data types for quranVerses
+    List<String> quranVerses = [];
+    if (data['quranVerses'] is List) {
+      quranVerses = List<String>.from(
+        (data['quranVerses'] as List).map((item) {
+          // Handle if item is a Map or a String
+          if (item is Map) {
+            return item.toString(); // Convert Map to String
+          } else {
+            return item.toString(); // Already a String or convertible
+          }
+        })
+      );
+    }
+
+    // Handle different data types for hadiths
+    List<Map<String, dynamic>> hadiths = [];
+    if (data['hadiths'] is List) {
+      hadiths = (data['hadiths'] as List).map((item) {
+        if (item is Map<String, dynamic>) {
+          return item; // Already a Map
+        } else if (item is String) {
+          // Create a Map with the String as 'text'
+          return {'text': item};
+        } else {
+          // Fall back to empty Map with empty text
+          return {'text': ''};
+        }
+      }).toList().cast<Map<String, dynamic>>();
+    }
+
     final timestamp = data['timestamp'] as Timestamp?;
 
     return Container(
@@ -298,6 +373,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String _formatTimestamp(Timestamp timestamp) {
     final date = timestamp.toDate();
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

@@ -7,27 +7,38 @@ import '../models/hadith.dart';
 class HadithCollectorService {
   static final HadithCollectorService _instance = HadithCollectorService._internal();
   
+  // Keep your existing topic mappings
   static final Map<String, List<String>> topicMappings = {
-    'marriage': ['wife', 'wives', 'marry', 'divorce', 'divorced', 'marriage', 'spouse', 'wedding'],
-    'pregnancy': ['pregnant', 'birth', 'child', 'baby', 'womb', 'deliver'],
-    'divorce': ['divorce', 'separated', 'talaq', 'separation', 'marital'],
-    'prayer': ['salah', 'salat', 'pray', 'worship', 'mosque', 'masjid', 'prostration', 'ruku', 'sujud'],
-    'fasting': ['fast', 'sawm', 'ramadan', 'iftar', 'suhoor', 'suhur', 'taraweeh'],
-    'zakat': ['charity', 'sadaqah', 'sadaqa', 'alms', 'giving', 'wealth', 'poor', 'needy'],
-    'purification': ['wudu', 'ghusl', 'tayammum', 'clean', 'pure', 'ablution', 'water'],
-    'faith': ['iman', 'belief', 'allah', 'prophet', 'quran', 'islam', 'muslim'],
-    'charity': ['donation', 'help', 'support', 'aid', 'philanthropy'],
-    'community': ['ummah', 'brotherhood', 'sisterhood', 'society', 'collective'],
-    'knowledge': ['ilm', 'learning', 'education', 'study', 'scholarship'],
-    'patience': ['sabr', 'endurance', 'perseverance', 'tolerance'],
-    'forgiveness': ['maghfirah', 'pardon', 'mercy', 'clemency'],
-    'justice': ['adl', 'fairness', 'equity', 'law', 'rights'],
-    'humility': ['tawadu', 'modesty', 'humbleness', 'selflessness'],
-    'gratitude': ['shukr', 'thankfulness', 'appreciation', 'recognition'],
-    'trust': ['tawakkul', 'faith', 'confidence', 'reliance'],
-    'sincerity': ['ikhlas', 'genuineness', 'honesty', 'purity'],
-    'service': ['khidmah', 'helping', 'assistance', 'support'],
-    // Add more mappings as needed
+    // Your existing mappings
+  };
+  
+  // Add intent classification mapping - this helps understand the user's intent
+  static final Map<String, List<String>> intentMappings = {
+    'howto': ['how', 'steps', 'procedure', 'method', 'guide', 'instructions', 'perform'],
+    'definition': ['what is', 'define', 'meaning', 'definition', 'explain', 'concept'],
+    'importance': ['why', 'importance', 'benefit', 'significance', 'reason', 'purpose'],
+    'rules': ['rules', 'conditions', 'requirements', 'obligatory', 'mandatory', 'forbidden', 'allowed'],
+    'history': ['origin', 'history', 'start', 'began', 'first', 'during', 'prophet']
+  };
+  
+  // Add procedural term mappings for different topics
+  static final Map<String, List<String>> proceduralMappings = {
+    'prayer': [
+      'stand', 'standing', 'ruku', 'prostration', 'sujud', 'recite', 
+      'recitation', 'tashahhud', 'tasleem', 'salam', 'takbir', 
+      'raise hands', 'bow', 'perform', 'step', 'direction', 'face', 
+      'mecca', 'qibla', 'fatiha', 'position', 'movement', 'sequence',
+      'begin', 'end', 'start', 'finish', 'iqamah', 'allahu akbar'
+    ],
+    'wudu': [
+      'wash', 'hands', 'face', 'arms', 'feet', 'head', 'wiping', 'water',
+      'ablution', 'clean', 'rinse', 'mouth', 'nose', 'ears', 'sequence'
+    ],
+    'fasting': [
+      'start', 'break', 'iftar', 'suhoor', 'dawn', 'sunset', 'refrain',
+      'eat', 'drink', 'abstain', 'intention', 'niyyah', 'during'
+    ]
+    // Add more procedural mappings for other topics
   };
 
   final List<String> urls = [
@@ -72,6 +83,7 @@ class HadithCollectorService {
       await file.writeAsString(json.encode(combinedData));
       _cachedData = combinedData;
       return combinedData;
+
     } catch (e) {
       print("Error loading hadith data: $e");
       return {};
@@ -80,22 +92,70 @@ class HadithCollectorService {
 
   Set<String> expandSearchTerms(String query) {
     Set<String> searchTerms = {};
-    List<String> queryWords = query.toLowerCase().split(' ');
+    String lowercaseQuery = query.toLowerCase();
+    List<String> queryWords = lowercaseQuery.split(' ');
 
     // Add original query and words
-    searchTerms.add(query.toLowerCase());
+    searchTerms.add(lowercaseQuery);
     searchTerms.addAll(queryWords);
 
-    // Add related terms from mappings
-    for (String word in queryWords) {
-      topicMappings.forEach((topic, relatedTerms) {
-        if (word == topic || relatedTerms.contains(word)) {
-          searchTerms.addAll(relatedTerms);
-          searchTerms.add(topic);
+    // Detect query intent (how-to, what is, why, etc.)
+    String detectedIntent = 'general';
+    for (var intent in intentMappings.keys) {
+      for (var term in intentMappings[intent]!) {
+        if (lowercaseQuery.contains(term)) {
+          detectedIntent = intent;
+          break;
         }
-      });
+      }
+      if (detectedIntent != 'general') break;
+    }
+    
+    print("Detected query intent: $detectedIntent");
+
+    // Identify primary topics in the query
+    Set<String> primaryTopics = {};
+    for (String topic in topicMappings.keys) {
+      if (lowercaseQuery.contains(topic)) {
+        primaryTopics.add(topic);
+      } else {
+        // Check if query contains any related terms
+        for (String term in topicMappings[topic]!) {
+          if (queryWords.contains(term)) {
+            primaryTopics.add(topic);
+            break;
+          }
+        }
+      }
+    }
+    
+    print("Identified primary topics: $primaryTopics");
+
+    // Add related terms for identified topics
+    for (String topic in primaryTopics) {
+      searchTerms.addAll(topicMappings[topic] ?? []);
+      
+      // For how-to queries, add procedural terms
+      if (detectedIntent == 'howto' && proceduralMappings.containsKey(topic)) {
+        searchTerms.addAll(proceduralMappings[topic] ?? []);
+        print("Added procedural terms for $topic");
+      }
     }
 
+    // Add multi-word combinations for better phrase matching
+    if (queryWords.length > 1) {
+      for (int i = 0; i < queryWords.length - 1; i++) {
+        searchTerms.add("${queryWords[i]} ${queryWords[i + 1]}");
+      }
+    }
+
+    // Remove very common words
+    searchTerms.removeWhere((term) => 
+      term.length < 3 || 
+      ['the', 'and', 'for', 'was', 'that', 'with', 'this', 'his', 'her', 'they'].contains(term)
+    );
+
+    print("Expanded search terms: $searchTerms");
     return searchTerms;
   }
 
@@ -109,38 +169,135 @@ class HadithCollectorService {
       return _cache[query]!;
     }
 
+    // Detect intent and topics for contextual search
+    String lowercaseQuery = query.toLowerCase();
+    String detectedIntent = 'general';
+    for (var intent in intentMappings.keys) {
+      for (var term in intentMappings[intent]!) {
+        if (lowercaseQuery.contains(term)) {
+          detectedIntent = intent;
+          break;
+        }
+      }
+      if (detectedIntent != 'general') break;
+    }
+    
+    Set<String> primaryTopics = {};
+    for (String topic in topicMappings.keys) {
+      if (lowercaseQuery.contains(topic)) {
+        primaryTopics.add(topic);
+      } else {
+        // Check if query contains any related terms
+        for (String term in topicMappings[topic]!) {
+          if (lowercaseQuery.contains(term)) {
+            primaryTopics.add(topic);
+            break;
+          }
+        }
+      }
+    }
+    
     final searchTerms = expandSearchTerms(query);
     print("Searching for terms: $searchTerms");
 
     List<Map<String, dynamic>> results = [];
     final collections = await loadHadithData();
 
+    // Extract "core" terms for higher weighting
+    List<String> coreTerms = query.toLowerCase().split(' ')
+        .where((term) => term.length > 3 && !['the', 'and', 'for', 'was', 'that', 'with'].contains(term))
+        .toList();
+
     collections.forEach((collectionName, hadiths) {
       for (var hadith in hadiths) {
         String hadithText = hadith['text'].toString().toLowerCase();
         int score = 0;
-
-        for (String term in searchTerms) {
+        
+        // Check for exact phrase match first
+        if (hadithText.contains(lowercaseQuery)) {
+          score += 15;  // High bonus for exact match
+        }
+        
+        // Score each core term
+        for (String term in coreTerms) {
           if (hadithText.contains(term)) {
             // Base score for term presence
             int baseScore = hadithText.split(term).length - 1;
             score += baseScore * 2;
-
+            
             // Position bonus
             int firstPos = hadithText.indexOf(term);
             if (firstPos < hadithText.length ~/ 4) {
-              score += 3;  // Bonus for terms appearing in the first quarter
+              score += 3;  // Higher bonus for terms appearing early
             } else if (firstPos < hadithText.length ~/ 2) {
-              score += 1;  // Bonus for terms appearing in the first half
-            }
-
-            // Exact phrase bonus
-            if (hadithText.contains(query.toLowerCase())) {
-              score += 4;
+              score += 1;
             }
           }
         }
-
+        
+        // Score other search terms
+        for (String term in searchTerms) {
+          if (!coreTerms.contains(term) && hadithText.contains(term)) {
+            // Base score for term presence
+            int baseScore = hadithText.split(term).length - 1;
+            score += baseScore;
+            
+            // Special handling for procedural terms in how-to queries
+            if (detectedIntent == 'howto' && 
+                primaryTopics.isNotEmpty && 
+                primaryTopics.any((topic) => 
+                  proceduralMappings.containsKey(topic) && 
+                  proceduralMappings[topic]!.contains(term))) {
+              score += 5;  // Big bonus for procedural terms in how-to queries
+            }
+          }
+        }
+        
+        // Context-specific scoring based on query intent
+        switch (detectedIntent) {
+          case 'howto':
+            // For how-to queries, boost hadiths with procedural language
+            if (hadithText.contains('narrated') && 
+                (hadithText.contains('perform') || 
+                 hadithText.contains('said') || 
+                 hadithText.contains('used to') || 
+                 hadithText.contains('would'))) {
+              score += 5;
+            }
+            
+            // Check for sequential language (first, then, after)
+            if (hadithText.contains('first') || 
+                hadithText.contains('then') || 
+                hadithText.contains('after') || 
+                hadithText.contains('before') || 
+                hadithText.contains('during')) {
+              score += 5;
+            }
+            break;
+            
+          case 'definition':
+            // For definition queries, boost hadiths with explanatory language
+            if (hadithText.contains('means') || 
+                hadithText.contains('defined') || 
+                hadithText.contains('called') || 
+                hadithText.contains('refers to')) {
+              score += 5;
+            }
+            break;
+            
+          case 'importance':
+            // For importance queries, boost hadiths with value statements
+            if (hadithText.contains('importance') || 
+                hadithText.contains('important') || 
+                hadithText.contains('benefit') || 
+                hadithText.contains('reward') || 
+                hadithText.contains('virtue')) {
+              score += 5;
+            }
+            break;
+        }
+        
+        // Add results with any score, we'll filter later
         if (score > 0) {
           results.add({
             'score': score,
@@ -154,9 +311,24 @@ class HadithCollectorService {
       }
     });
 
-    // Sort by score and take top 5
+    // Sort by score
     results.sort((a, b) => b['score'].compareTo(a['score']));
-    final topResults = results.take(5).toList();
+    
+    // Get more results initially, then filter
+    var topResults = results.take(10).toList();
+    
+    // If we have strong matches, take only those
+    if (topResults.isNotEmpty && topResults[0]['score'] > 10) {
+      // Find cutoff score (at least 40% of top score)
+      int topScore = topResults[0]['score'];
+      int cutoffScore = (topScore * 0.4).round();
+      
+      // Filter by cutoff
+      topResults = topResults.where((r) => r['score'] >= cutoffScore).take(5).toList();
+    } else {
+      // Otherwise take top 5
+      topResults = topResults.take(5).toList();
+    }
 
     // Cache results
     _cache[query] = topResults;
@@ -166,7 +338,7 @@ class HadithCollectorService {
       _cache.remove(_cache.keys.first);
     }
 
-    print('Found ${topResults.length} results');
+    print('Found ${topResults.length} results with scores: ${topResults.map((r) => r['score']).toList()}');
     print('=== COLLECTOR: getHadiths END ===');
     return topResults;
   }
@@ -174,14 +346,7 @@ class HadithCollectorService {
   Future<List<Map<String, dynamic>>> getHadithsWithRelevance(String query) async {
     final results = await getHadiths(query);
     
-    // Sort by relevance
-    results.sort((a, b) {
-      final scoreA = a['score'] ?? 0;
-      final scoreB = b['score'] ?? 0;
-      return scoreB.compareTo(scoreA);
-    });
-
-    // Only return relevant results (score > 0)
-    return results.where((hadith) => (hadith['score'] ?? 0) > 0).take(3).toList();
+    // Already sorted by relevance
+    return results.take(3).toList();
   }
 }

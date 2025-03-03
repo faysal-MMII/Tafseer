@@ -221,7 +221,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        QuranSection(
+        QuranSectionAdapter(
           query: widget.query,
           answer: _aiResponse,
           verses: _quranVerses,

@@ -136,7 +136,10 @@ class _HadithScreenState extends State<HadithScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => HadithDetailScreen(hadith: hadith),
+                builder: (context) => HadithDetailScreen(
+                  hadith: hadith,
+                  searchQuery: _searchController.text, // Pass the search query
+                ),
               ),
             );
           },

@@ -1,0 +1,2 @@
+/home/faisal/Documents/islam101/android/app/.cxx/RelWithDebInfo/3v2f2e5b/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/faisal/Documents/islam101/android/app/.cxx/RelWithDebInfo/3v2f2e5b/armeabi-v7a/CMakeFiles/rebuild_cache.dir
