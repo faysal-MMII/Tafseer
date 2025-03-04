@@ -3,7 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import FirebaseFirestore
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:url_launcher/url_launcher.dart'; 
 
 import '../services/location_service.dart';
 import '../services/api_service.dart';
@@ -538,6 +539,13 @@ class _PlacesScreenState extends State<PlacesScreen> {
             },
             child: Text('Show on Map'),
           ),
+          TextButton(
+            onPressed: () {
+              _launchMapsDirections(place); // Call the new method here
+              Navigator.pop(context);
+            },
+            child: Text('Get Directions'), // Added Get Directions button
+          ),
           // Add report button to allow users to suggest corrections
           TextButton(
             onPressed: () {
@@ -607,6 +615,43 @@ class _PlacesScreenState extends State<PlacesScreen> {
         ],
       ),
     );
+  }
+
+  // Add this method to your class
+  Future<void> _launchMapsDirections(Place place) async {
+    final lat = place.lat;
+    final lon = place.lon;
+    final name = Uri.encodeComponent(place.name);
+
+    Uri url;
+
+    if (Platform.isAndroid) {
+      // Google Maps URL
+      url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&destination_place_id=$name');
+    } else if (Platform.isIOS) {
+      // Apple Maps URL
+      url = Uri.parse('https://maps.apple.com/?daddr=$lat,$lon&dirflg=d');
+
+      // Alternative option: force Google Maps on iOS if installed
+      // url = Uri.parse('comgooglemaps://?daddr=$lat,$lon&directionsmode=driving');
+    } else {
+      // Fallback to Google Maps web
+      url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lon');
+    }
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      // Fallback if the specific map app can't be launched
+      final fallbackUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lon');
+      if (await canLaunchUrl(fallbackUrl)) {
+        await launchUrl(fallbackUrl);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch maps application'))
+        );
+      }
+    }
   }
 
 
