@@ -8,8 +8,14 @@ workflows:
     scripts:
       - name: Install dependencies
         script: flutter pub get
+      - name: Set up iOS build
+        script: |
+          cd ios
+          pod install
+          cd ..
       - name: Build iOS in Release mode
-        script: flutter build ios --release --no-codesign
+        script: |
+          flutter build ios --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/xcarchive/*.xcarchive
