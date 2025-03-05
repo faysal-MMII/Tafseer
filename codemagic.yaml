@@ -6,28 +6,40 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Flutter setup and build
+      - name: Flutter setup and build with custom build settings
         script: |
           # Clean and setup
           flutter clean
           flutter pub get
           
-          # Create iOS setup first
+          # Create iOS setup
           flutter create . --platforms=ios
           
-          # Modify the Podfile to set platform to iOS 12.0
-          sed -i '' '1s/^/platform :ios, '\''12.0'\''\n/' ios/Podfile
+          # Directly modify build settings before pod install
+          echo "platform :ios, '12.0'" > ios/Podfile.new
+          cat ios/Podfile >> ios/Podfile.new
+          mv ios/Podfile.new ios/Podfile
           
-          # Fix the build settings in project.pbxproj
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 9.0;/IPHONEOS_DEPLOYMENT_TARGET = 12.0;/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # Install pods and build
+          # Set min iOS version in all relevant files
           cd ios
+          
+          # Force specific compiler flags for all targets
+          echo "IPHONEOS_DEPLOYMENT_TARGET = 12.0" > exportOptions.plist
+          
+          # Set min iOS version for all pod targets
+          echo "post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+              end
+            end
+          end" >> Podfile
+          
+          # Install pods with explicit settings
           pod install
           cd ..
           
-          # Build with specific flags to avoid compiler issues
-          flutter build ios --release --no-codesign --no-tree-shake-icons
+          # Build with explicit iOS version
+          IPHONEOS_DEPLOYMENT_TARGET=12.0 flutter build ios --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/xcarchive/*.xcarchive
