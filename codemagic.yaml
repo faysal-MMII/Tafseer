@@ -5,9 +5,6 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      ios_signing:
-        distribution_type: development
-        xcode: latest
     scripts:
       - name: Set iOS deployment target
         script: |
@@ -23,7 +20,7 @@ workflows:
           pod install
           cd ..
           # Specify the minimum iOS version
-          flutter build ios --release --no-codesign --debug-verbose
+          flutter build ios --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/xcarchive/*.xcarchive
