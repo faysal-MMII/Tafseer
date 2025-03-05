@@ -5,16 +5,25 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      ios_signing:
+        distribution_type: development
+        xcode: latest
     scripts:
+      - name: Set iOS deployment target
+        script: |
+          # Update minimum iOS version in Podfile
+          echo "Updating iOS deployment target..."
+          sed -i '' 's/# platform :ios.*/platform :ios, "12.0"/' ios/Podfile
+          
       - name: Flutter setup and build
         script: |
           flutter clean
           flutter pub get
-          # Create complete iOS setup on the Mac
-          flutter create . --platforms=ios
           cd ios
           pod install
           cd ..
-          flutter build ios --release --no-codesign
+          # Specify the minimum iOS version
+          flutter build ios --release --no-codesign --debug-verbose
     artifacts:
       - build/ios/ipa/*.ipa
+      - build/ios/xcarchive/*.xcarchive
