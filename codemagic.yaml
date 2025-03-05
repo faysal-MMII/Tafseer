@@ -15,14 +15,19 @@ workflows:
           # Create iOS setup first
           flutter create . --platforms=ios
           
-          # Now we can modify the Podfile since it exists
-          echo "platform :ios, '12.0'" >> ios/Podfile
+          # Modify the Podfile to set platform to iOS 12.0
+          sed -i '' '1s/^/platform :ios, '\''12.0'\''\n/' ios/Podfile
+          
+          # Fix the build settings in project.pbxproj
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 9.0;/IPHONEOS_DEPLOYMENT_TARGET = 12.0;/g' ios/Runner.xcodeproj/project.pbxproj
           
           # Install pods and build
           cd ios
           pod install
           cd ..
-          flutter build ios --release --no-codesign
+          
+          # Build with specific flags to avoid compiler issues
+          flutter build ios --release --no-codesign --no-tree-shake-icons
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/xcarchive/*.xcarchive
