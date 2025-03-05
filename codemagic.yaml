@@ -6,16 +6,15 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Install dependencies
-        script: flutter pub get
-      - name: Set up iOS build
+      - name: Flutter setup and build
         script: |
+          flutter clean
+          flutter pub get
+          # Create complete iOS setup on the Mac
+          flutter create . --platforms=ios
           cd ios
           pod install
           cd ..
-      - name: Build iOS in Release mode
-        script: |
           flutter build ios --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/xcarchive/*.xcarchive
