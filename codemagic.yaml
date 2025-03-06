@@ -4,7 +4,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
-      xcode: latest
+      xcode: 14.3
     scripts:
       - name: Flutter setup and build with custom build settings
         script: |
