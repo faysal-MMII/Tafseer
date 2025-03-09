@@ -7,8 +7,8 @@ import '../services/firestore_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'hadith_card.dart';
 import 'expandable_explanation.dart';
+import '../widgets/formatted_text.dart';
 
-// Create a new widget for loading state
 class LoadingIndicator extends StatelessWidget {
   final String message;
 
@@ -36,7 +36,7 @@ class LoadingIndicator extends StatelessWidget {
         children: [
           CircularProgressIndicator(),
           SizedBox(height: 16),
-          Text(
+          FormattedText( // Use FormattedText here
             message,
             style: AppTextStyles.englishText,
             textAlign: TextAlign.center,
@@ -82,12 +82,10 @@ class _HadithSectionState extends State<HadithSection> {
 
     print('Initializing HadithSection with query: ${widget.query}');
 
-    // Create instance first and then set the OpenAiService
     _hadithService = HadithService();  
     _hadithService.openAiService = widget.openAiService;  
     _openAiService = widget.openAiService;
 
-    // Immediately fetch results
     if (widget.query != null) {
       _fetchResults();
     }
@@ -114,7 +112,6 @@ class _HadithSectionState extends State<HadithSection> {
       final hadiths = await _hadithService.searchHadiths(widget.query!);
       print('Retrieved ${hadiths.length} hadiths');
 
-      // Fetch explanation and hadiths
       final response = await _openAiService.generateResponse(widget.query!);
       if (mounted) {
         setState(() {
@@ -135,7 +132,6 @@ class _HadithSectionState extends State<HadithSection> {
     print('=== FETCH RESULTS END ===');
   }
 
-  // Updated _buildHadithItem method
   Widget _buildHadithItem(Hadith hadith) {
     print('Building hadith item for: ${hadith.text}');
     return HadithCard(
@@ -146,7 +142,7 @@ class _HadithSectionState extends State<HadithSection> {
 
   Widget _buildResults() {
     if (_response == null) {
-      return Text(
+      return FormattedText( // Use FormattedText here
         'No results available',
         style: AppTextStyles.englishText,
       );
@@ -155,7 +151,7 @@ class _HadithSectionState extends State<HadithSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        FormattedText( // Use FormattedText here
           'Hadith Guidance',
           style: AppTextStyles.titleText,
         ),
@@ -165,7 +161,6 @@ class _HadithSectionState extends State<HadithSection> {
           style: AppTextStyles.englishText,
         ),
         SizedBox(height: 24),
-        // Removed the Relevant Hadiths section
       ],
     );
   }
@@ -190,7 +185,7 @@ class _HadithSectionState extends State<HadithSection> {
           ? LoadingIndicator(
               message: 'Searching for guidance...',
             )
-          : _buildResults(), // Call the new method to build results
+          : _buildResults(),
     );
   }
 
@@ -207,7 +202,7 @@ class _HadithSectionState extends State<HadithSection> {
           ),
         ),
       ),
-      child: Text(
+      child: FormattedText( // Use FormattedText here
         errorMessage ?? 'Error fetching hadiths.',
         style: AppTextStyles.englishText.copyWith(color: Color(0xFFC0392B)),
       ),

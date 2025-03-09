@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/deviceid_service.dart'; // Import the DeviceIDService
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -24,46 +25,61 @@ class FirestoreService {
     required List<dynamic> hadiths,
   }) async {
     try {
-      // Get current user ID
-      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      // Get the device ID
+      final String deviceId = await DeviceIDService.getDeviceID();
 
-      // If not logged in, don't save history (or handle accordingly)
-      if (userId == null) {
-        print('User not logged in, history not saved');
-        return;
+      // Check if a similar question already exists
+      final existingQuestions = await _db.collection('qa_history')
+          .where('deviceId', isEqualTo: deviceId)
+          .where('question', isEqualTo: question)
+          .get();
+
+      if (existingQuestions.docs.isNotEmpty) {
+        // Update existing entry instead of creating a new one
+        await _db.collection('qa_history')
+            .doc(existingQuestions.docs.first.id)
+            .update({
+          'answer': answer,
+          'quranVerses': quranVerses,
+          'hadiths': hadiths,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        
+        print('Updated existing QA entry');
+      } else {
+        // Create searchable terms from the question
+        final searchableTerms = _generateSearchableTerms(question);
+
+        // Save the QA with the device ID
+        await _db.collection('qa_history').add({
+          'deviceId': deviceId,
+          'question': question,
+          'answer': answer,
+          'quranVerses': quranVerses,
+          'hadiths': hadiths,
+          'searchableTerms': searchableTerms,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        print('QA saved successfully with device ID: $deviceId');
       }
-
-      final searchableTerms = _generateSearchableTerms(question);
-
-      await _db.collection('qa_history').add({
-        'userId': userId,  // Store the user ID
-        'question': question,
-        'answer': answer,
-        'quranVerses': quranVerses,
-        'hadiths': hadiths,
-        'searchableTerms': searchableTerms,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
     } catch (e) {
-      print('Error saving to Firestore: $e');
+      print('Error saving QA: $e');
     }
   }
 
   Future<Map<String, dynamic>?> findSimilarQuestion(String question) async {
     try {
-      // Get current user ID
-      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      // Get the device ID
+      final String deviceId = await DeviceIDService.getDeviceID();
 
-      // If not logged in, can't find user-specific questions
-      if (userId == null) {
-        return null;
-      }
-
+      // Generate search terms
       final searchTerms = _generateSearchableTerms(question);
 
+      // Search for similar questions using the device ID
       for (final term in searchTerms) {
         final snapshot = await _db.collection('qa_history')
-            .where('userId', isEqualTo: userId)  // Filter by user ID
+            .where('deviceId', isEqualTo: deviceId) // Filter by device ID
             .where('searchableTerms', arrayContains: term)
             .orderBy('timestamp', descending: true)
             .limit(1)
@@ -153,42 +169,38 @@ class FirestoreService {
   // New method to check and migrate history data
   Future<void> checkAndMigrateHistoryData() async {
     try {
-      final String? userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) {
-        print('No user logged in, cannot check history data');
-        return;
-      }
-      
-      // First, check if there are any documents without userId
+      // Get the device ID
+      final String deviceId = await DeviceIDService.getDeviceID();
+
+      // First, check if there are any documents without deviceId
       final snapshot = await _db.collection('qa_history')
           .limit(100) // Limit to prevent too many reads
           .get();
-      
+
       print('Found ${snapshot.docs.length} history records to check');
-      
+
       int migratedCount = 0;
-      
-      // Check if any documents don't have userId field
+
+      // Check if any documents don't have deviceId field
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        if (!data.containsKey('userId')) {
-          // Update the document to include the current user's ID
+        if (!data.containsKey('deviceId')) {
+          // Update the document to include the device ID
           await _db.collection('qa_history')
               .doc(doc.id)
-              .update({'userId': userId});
+              .update({'deviceId': deviceId});
           migratedCount++;
         }
       }
-      
-      print('Migrated $migratedCount records to include userId');
-      
-      final userSnapshot = await _db.collection('qa_history')
-          .where('userId', isEqualTo: userId)
+
+      print('Migrated $migratedCount records to include deviceId');
+
+      final deviceSnapshot = await _db.collection('qa_history')
+          .where('deviceId', isEqualTo: deviceId)
           .limit(5)
           .get();
-      
-      print('After migration, found ${userSnapshot.docs.length} records for current user');
-      
+
+      print('After migration, found ${deviceSnapshot.docs.length} records for current device');
     } catch (e) {
       print('Error checking/migrating history data: $e');
     }

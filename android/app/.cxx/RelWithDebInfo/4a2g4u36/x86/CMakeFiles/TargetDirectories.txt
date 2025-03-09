@@ -1,0 +1,2 @@
+/home/faisal/Documents/islam101/android/app/.cxx/RelWithDebInfo/4a2g4u36/x86/CMakeFiles/edit_cache.dir
+/home/faisal/Documents/islam101/android/app/.cxx/RelWithDebInfo/4a2g4u36/x86/CMakeFiles/rebuild_cache.dir

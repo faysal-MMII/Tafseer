@@ -1,14 +1,16 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // Firebase plugins
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    // Flutter plugin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "dev.faisal.tafseer"
-    // Explicitly set to 34 to support up to Android 14 (and 15 in most cases)
-    compileSdk = 34
+    compileSdk = 35  // Updated from 34 to 35
     ndkVersion = "27.0.12077973"
     
     compileOptions {
@@ -22,9 +24,7 @@ android {
     
     defaultConfig {
         applicationId = "dev.faisal.tafseer"
-        // Set minimum SDK version explicitly
-        minSdk = 21
-        // Target SDK to 34 (latest stable)
+        minSdk = 23  // Updated from 21 to 23
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -32,6 +32,16 @@ android {
     
     buildTypes {
         release {
+            // Added these lines for minification and resource shrinking
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            
+            // Enable Crashlytics for release builds
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+            }
+            // Your existing signing config
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -39,4 +49,11 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Firebase Crashlytics dependencies
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
 }

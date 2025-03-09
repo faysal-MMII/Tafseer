@@ -9,6 +9,7 @@ import '../models/hadith.dart';
 import '../services/firestore_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../theme/text_styles.dart';
+import '../widgets/formatted_text.dart'; 
 import 'dart:math';
 import 'dart:convert';
 
@@ -28,8 +29,9 @@ class QuranSection extends StatefulWidget {
   final String answer;
   final List<String> verses;
   final QuranService quranService;
-  final QuranRAGService quranRAGService; // FIXED: Consistent capitalization
+  final QuranRAGService quranRAGService;
   final FirestoreService? firestoreService;
+  final Function(String)? onVerseSelected; // Add this parameter
 
   const QuranSection({
     super.key,
@@ -37,8 +39,9 @@ class QuranSection extends StatefulWidget {
     this.answer = '',
     this.verses = const [],
     required this.quranService,
-    required this.quranRAGService, // FIXED: Consistent capitalization
+    required this.quranRAGService,
     this.firestoreService,
+    this.onVerseSelected, // Add this parameter
   });
 
   @override
@@ -125,7 +128,7 @@ class _QuranSectionState extends State<QuranSection> {
       }
 
       // Step 2: Generate the response using QuranRAGService
-      final response = await widget.quranRAGService.generateResponse(query, verses); // FIXED: Consistent capitalization
+      final response = await widget.quranRAGService.generateResponse(query, verses);
 
       if (!mounted) return;
       
@@ -165,7 +168,7 @@ class _QuranSectionState extends State<QuranSection> {
 
     if (widget.answer.isEmpty && widget.verses.isEmpty && _response == null) {
       return Center(
-        child: Text(
+        child: FormattedText( // Use FormattedText here
           'No Qur\'anic evidence found',
           style: AppTextStyles.englishText.copyWith(fontStyle: FontStyle.italic),
         ),
@@ -178,13 +181,6 @@ class _QuranSectionState extends State<QuranSection> {
     final verses = widget.verses.isNotEmpty
         ? widget.verses
         : _response?['quran_results']?['verses'] ?? [];
-
-    // Debug print statements
-    print('DEBUG - explanation length: ${explanation.length}');
-    print('DEBUG - verses length: ${verses.length}');
-    print('DEBUG - first verse: ${verses.isNotEmpty ? verses.first : "N/A"}');
-    // FIXED: Explicitly specify int type for min function
-    print('DEBUG - explanation content: ${explanation.substring(0, min<int>(50, explanation.length))}...');
 
     return Container(
       width: double.infinity,
@@ -217,7 +213,7 @@ class _QuranSectionState extends State<QuranSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              FormattedText( // Use FormattedText here
                 'Quranic Evidence',
                 style: AppTextStyles.titleText.copyWith(fontSize: 24),
               ),
@@ -226,7 +222,7 @@ class _QuranSectionState extends State<QuranSection> {
           const SizedBox(height: 20),
 
           if (explanation.isNotEmpty) ...[
-            Text(
+            FormattedText( // Use FormattedText here
               'Answer',
               style: AppTextStyles.titleText.copyWith(fontSize: 20),
             ),
@@ -238,7 +234,7 @@ class _QuranSectionState extends State<QuranSection> {
                 color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
+              child: FormattedText( // Use FormattedText here
                 explanation,
                 style: AppTextStyles.englishText,
               ),
@@ -247,7 +243,7 @@ class _QuranSectionState extends State<QuranSection> {
 
           if (verses.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text(
+            FormattedText( // Use FormattedText here
               'Relevant Verses',
               style: AppTextStyles.titleText.copyWith(fontSize: 20),
             ),
@@ -289,11 +285,28 @@ class _QuranSectionState extends State<QuranSection> {
                       color: const Color(0xFFE8E8E8),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      'Verse $verseKey',
-                      style: AppTextStyles.englishText.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.bold,
+                    child: InkWell( // Wrap with InkWell for tap detection
+                      onTap: () {
+                        if (widget.onVerseSelected != null && verseKey.isNotEmpty) {
+                          widget.onVerseSelected!(verseKey);
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: FormattedText( // Use FormattedText here
+                              'Verse $verseKey',
+                              style: AppTextStyles.englishText.copyWith(
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.navigate_next,
+                            color: Colors.grey[600],
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -319,7 +332,7 @@ class _QuranSectionState extends State<QuranSection> {
           ),
         ),
       ),
-      child: Text(
+      child: FormattedText( // Use FormattedText here
         'Error: $_error',
         style: AppTextStyles.englishText.copyWith(color: const Color(0xFFC0392B)),
       ),
@@ -334,6 +347,7 @@ class QuranSectionAdapter extends StatelessWidget {
   final List<String> verses;
   final dynamic openAiService; // Keep this to match existing parameter
   final FirestoreService? firestoreService;
+  final Function(String)? onVerseSelected; // Add this parameter
 
   const QuranSectionAdapter({
     Key? key,
@@ -342,12 +356,13 @@ class QuranSectionAdapter extends StatelessWidget {
     this.verses = const [],
     required this.openAiService,
     this.firestoreService,
+    this.onVerseSelected, // Add this parameter
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     // Create QuranRAGService instance
-    final quranRAGService = QuranRAGService( // FIXED: Consistent capitalization
+    final quranRAGService = QuranRAGService(
       apiKey: ConfigService.openAiApiKey,
     );
     
@@ -358,9 +373,10 @@ class QuranSectionAdapter extends StatelessWidget {
       query: query,
       answer: answer,
       verses: verses,
-      quranRAGService: quranRAGService, // FIXED: Consistent capitalization
+      quranRAGService: quranRAGService,
       quranService: quranService,
       firestoreService: firestoreService,
+      onVerseSelected: onVerseSelected, 
     );
   }
 }

@@ -6,7 +6,11 @@ import '../widgets/hadith_section.dart';
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
-import '../widgets/responsive_layout.dart'; // Ensure ResponsiveLayout is imported
+import '../widgets/responsive_layout.dart'; 
+import '../screens/quran_screen.dart'; 
+import '../screens/quran_detail_screen.dart'; 
+import '../data/surah_data.dart';
+import '../widgets/formatted_text.dart'; 
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
@@ -117,7 +121,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return Scaffold(
       backgroundColor: Color(0xFFF0F0F0),
       appBar: AppBar(
-        title: Text('Search Results', style: AppTextStyles.titleText),
+        title: FormattedText('Search Results', style: AppTextStyles.titleText), 
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -201,14 +205,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          FormattedText( // Use FormattedText here
             'Your Question:',
             style: AppTextStyles.titleText.copyWith(
               fontSize: isSmallScreen ? 16 : 18
             ),
           ),
           SizedBox(height: isSmallScreen ? 6 : 10),
-          Text(
+          FormattedText( // Use FormattedText here
             widget.query,
             style: AppTextStyles.englishText,
           ),
@@ -227,6 +231,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           verses: _quranVerses,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
+          onVerseSelected: _navigateToVerse, 
         ),
         SizedBox(height: 20),
         HadithSection(
@@ -239,6 +244,31 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     );
   }
 
+  void _navigateToVerse(String reference) {
+    final regex = RegExp(r'(\d+):(\d+)');
+    final match = regex.firstMatch(reference);
+
+    if (match != null && match.groupCount >= 2) {
+      final surahNumber = int.tryParse(match.group(1)!);
+      final verseNumber = int.tryParse(match.group(2)!);
+
+      if (surahNumber != null && verseNumber != null) {
+        print('Navigating to Surah $surahNumber, Verse $verseNumber');
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => QuranScreen(
+              initialSurah: surahNumber,
+              initialVerse: verseNumber,
+            ),
+          ),
+        );
+      }
+    } else {
+      print('Could not parse verse reference: $reference');
+    }
+  }
 
   Widget _buildErrorContainer() {
     return Center(
@@ -255,7 +285,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ),
           ),
         ),
-        child: Text(
+        child: FormattedText( 
           'Error: $_error',
           style: AppTextStyles.englishText.copyWith(
             color: Color(0xFFC0392B),

@@ -654,7 +654,6 @@ class _PlacesScreenState extends State<PlacesScreen> {
     }
   }
 
-
   void _onFilterChanged(String filterKey) {
     if (_activeFilter == filterKey) return;
 
@@ -869,7 +868,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
                   options: MapOptions(
                     initialCenter: _currentLocation ?? const LatLng(0, 0),
                     initialZoom: 13.0,
-                    interactiveFlags: InteractiveFlag.all,
+                    // Remove interactiveFlags and do NOT add interaction property
                     onMapReady: () {
                       if (_currentLocation != null) {
                         _mapController.move(_currentLocation!, 13.0);
