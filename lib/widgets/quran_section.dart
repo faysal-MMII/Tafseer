@@ -12,6 +12,7 @@ import '../theme/text_styles.dart';
 import '../widgets/formatted_text.dart'; 
 import 'dart:math';
 import 'dart:convert';
+import '../widgets/quran_answer_section.dart';
 
 String stripHtmlTags(String text) {
   text = text.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -156,6 +157,11 @@ class _QuranSectionState extends State<QuranSection> {
     }
   }
 
+  String _cleanContent(String text) {
+    // Remove numbered list format (e.g., "1. ", "2. ")
+    return text.replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -221,8 +227,8 @@ class _QuranSectionState extends State<QuranSection> {
           ),
           const SizedBox(height: 20),
 
-          if (explanation.isNotEmpty) ...[
-            FormattedText( // Use FormattedText here
+          if (explanation.isNotEmpty) ...[ // Integrated code starts here
+            FormattedText(
               'Answer',
               style: AppTextStyles.titleText.copyWith(fontSize: 20),
             ),
@@ -234,12 +240,12 @@ class _QuranSectionState extends State<QuranSection> {
                 color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: FormattedText( // Use FormattedText here
-                explanation,
+              child: FormattedText(
+                _cleanContent(explanation), // Use cleaned version of the text
                 style: AppTextStyles.englishText,
               ),
             ),
-          ],
+          ], // Integrated code ends here
 
           if (verses.isNotEmpty) ...[
             const SizedBox(height: 20),
