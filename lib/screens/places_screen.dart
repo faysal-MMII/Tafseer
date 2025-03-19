@@ -886,6 +886,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
                       retinaMode: MediaQuery.of(context).devicePixelRatio > 1,
                       keepBuffer: 5,
                       tileBuilder: (context, child, tile) {
+                        print('Attempting to load tile: $tile');
                         return Opacity(
                           opacity: 1.0,
                           child: child,
