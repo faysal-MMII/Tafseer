@@ -878,7 +878,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
                   children: [
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.app',
+                      userAgentPackageName: 'dev.faisal.tafseer',
                       maxZoom: 19,
                       minZoom: 1,
                       tileProvider: NetworkTileProvider(),

@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'hadith_card.dart';
 import 'expandable_explanation.dart';
 import '../widgets/formatted_text.dart';
+import '../widgets/shimmer_loading_effect.dart';
 
 class LoadingIndicator extends StatelessWidget {
   final String message;

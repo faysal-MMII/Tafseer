@@ -71,3 +71,4 @@ data/hadith_data.json
 **pycache**/
 *.pyc
 math
+.env

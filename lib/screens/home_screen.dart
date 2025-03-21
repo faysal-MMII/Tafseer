@@ -15,6 +15,7 @@ import 'hadith_screen.dart';
 import 'history_screen.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../widgets/shimmer_loading_effect.dart';
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 

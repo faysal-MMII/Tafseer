@@ -13,6 +13,7 @@ import '../widgets/formatted_text.dart';
 import 'dart:math';
 import 'dart:convert';
 import '../widgets/quran_answer_section.dart';
+import '../widgets/shimmer_loading_effect.dart';
 
 String stripHtmlTags(String text) {
   text = text.replaceAll(RegExp(r'<[^>]*>'), '');

@@ -11,6 +11,7 @@ import '../screens/quran_screen.dart';
 import '../screens/quran_detail_screen.dart'; 
 import '../data/surah_data.dart';
 import '../widgets/formatted_text.dart'; 
+import '../widgets/shimmer_loading_effect.dart';
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
