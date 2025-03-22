@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:provider/provider.dart';
 import 'services/config_service.dart';
 import 'services/openai_service.dart';
 import 'services/quran_service.dart';
@@ -11,6 +12,7 @@ import 'services/hadith_service.dart';
 import 'services/rag_services/quran_rag_service.dart';
 import 'services/rag_services/hadith_rag_service.dart';
 import 'theme/text_styles.dart';
+import 'theme/theme_provider.dart'; // Import your ThemeProvider
 import '../models/hadith.dart';
 import 'dart:io';
 import 'dart:async';
@@ -91,7 +93,7 @@ void main() async {
           print("User already logged in: ${auth.currentUser?.uid}");
         }
       }
-    } catch (e, stack) {
+    } catch (e) {
       print("Firebase initialization error: $e");
     }
 
@@ -117,11 +119,16 @@ void main() async {
       }
 
       print("All services initialized, launching main app");
-      runApp(MyApp(
-        openAiService: appData.openAiService,
-        analyticsService: analyticsService,
-        firestoreService: firestoreService,
-      ));
+      runApp(
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(),
+          child: MyApp(
+            openAiService: appData.openAiService,
+            analyticsService: analyticsService,
+            firestoreService: firestoreService,
+          ),
+        ),
+      );
     } catch (error, stackTrace) {
       print("Error during initialization: $error");
       print(stackTrace);
@@ -173,26 +180,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tafseer',
-      navigatorObservers: [
-        if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
-      ],
-      theme: ThemeData(
-        textTheme: TextTheme(
-          bodyLarge: AppTextStyles.englishText,
-          titleLarge: AppTextStyles.titleText,
-        ),
-        primarySwatch: Colors.blueGrey,
-        scaffoldBackgroundColor: Color(0xFFFFFFFF),
+    // Get ThemeProvider to access theme settings
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
+    return AnimatedTheme(
+      data: themeProvider.themeData,
+      duration: Duration(milliseconds: 300),
+      child: MaterialApp(
+        title: 'Tafseer',
+        navigatorObservers: [
+          if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
+        ],
+        theme: themeProvider.themeData, // Use the theme from ThemeProvider
+        home: initializationError != null
+            ? ErrorScreen(message: initializationError!)
+            : HomeScreen(
+                openAiService: openAiService,
+                analyticsService: analyticsService,
+                firestoreService: firestoreService,
+              ),
       ),
-      home: initializationError != null
-          ? ErrorScreen(message: initializationError!)
-          : HomeScreen(
-              openAiService: openAiService,
-              analyticsService: analyticsService,
-              firestoreService: firestoreService,
-            ),
     );
   }
 }

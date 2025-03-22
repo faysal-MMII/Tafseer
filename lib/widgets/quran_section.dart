@@ -2,26 +2,16 @@ import 'package:flutter/material.dart';
 import '../services/quran_service.dart';
 import '../services/openai_service.dart';
 import '../services/rag_services/quran_rag_service.dart';
-import '../services/hadith_service.dart';
-import '../services/config_service.dart';
-import '../services/rag_services/hadith_rag_service.dart';
-import '../models/hadith.dart';
 import '../services/firestore_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/config_service.dart';
 import '../theme/text_styles.dart';
 import '../widgets/formatted_text.dart'; 
 import 'dart:math';
-import 'dart:convert';
-import '../widgets/quran_answer_section.dart';
+import '../theme/theme_provider.dart';
 
 String stripHtmlTags(String text) {
   text = text.replaceAll(RegExp(r'<[^>]*>'), '');
   text = text.replaceAll(RegExp(r'\s+'), ' ');
-  text = text.replaceAll('"', '"')
-      .replaceAll('&', '&')
-      .replaceAll('<', '<')
-      .replaceAll('>', '>')
-      .replaceAll(' ', ' ');
   return text.trim();
 }
 
@@ -33,6 +23,7 @@ class QuranSection extends StatefulWidget {
   final QuranRAGService quranRAGService;
   final FirestoreService? firestoreService;
   final Function(String)? onVerseSelected; // Add this parameter
+  final bool isDarkMode; // Add this parameter
 
   const QuranSection({
     super.key,
@@ -42,7 +33,8 @@ class QuranSection extends StatefulWidget {
     required this.quranService,
     required this.quranRAGService,
     this.firestoreService,
-    this.onVerseSelected, // Add this parameter
+    this.onVerseSelected,
+    this.isDarkMode = false, // Default to light mode
   });
 
   @override
@@ -57,9 +49,6 @@ class _QuranSectionState extends State<QuranSection> {
   @override
   void initState() {
     super.initState();
-    print('QuranSection initState called');
-    print('Initial Query: ${widget.query}');
-
     if (widget.query != null && widget.query!.isNotEmpty) {
       _searchVerses(widget.query!);
     }
@@ -157,9 +146,8 @@ class _QuranSectionState extends State<QuranSection> {
     }
   }
 
-  String _cleanContent(String text) {
-    // Remove numbered list format (e.g., "1. ", "2. ")
-    return text.replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '');
+  String _cleanContent(String content) {
+    return stripHtmlTags(content);
   }
 
   @override
@@ -174,7 +162,7 @@ class _QuranSectionState extends State<QuranSection> {
 
     if (widget.answer.isEmpty && widget.verses.isEmpty && _response == null) {
       return Center(
-        child: FormattedText( // Use FormattedText here
+        child: FormattedText(
           'No Qur\'anic evidence found',
           style: AppTextStyles.englishText.copyWith(fontStyle: FontStyle.italic),
         ),
@@ -188,139 +176,171 @@ class _QuranSectionState extends State<QuranSection> {
         ? widget.verses
         : _response?['quran_results']?['verses'] ?? [];
 
+    // Get theme from provider
+    final theme = Theme.of(context);
+    final isDark = widget.isDarkMode;
+    final accentColor = isDark ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      margin: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       constraints: const BoxConstraints(minHeight: 100),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFFFFF), Color(0xFFE6E6E6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          const BoxShadow(
-            color: Color(0xFFD1D1D1),
-            offset: Offset(5, 5),
-            blurRadius: 10,
-          ),
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-5, -5),
-            blurRadius: 10,
+          BoxShadow(
+            color: isDark 
+              ? Colors.black.withOpacity(0.4) 
+              : Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: isDark ? 8 : 10,
+            offset: Offset(0, 2),
           ),
         ],
-        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              FormattedText( // Use FormattedText here
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_stories,
+                  color: accentColor,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
                 'Quranic Evidence',
-                style: AppTextStyles.titleText.copyWith(fontSize: 24),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: accentColor,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          if (explanation.isNotEmpty) ...[ // Integrated code starts here
-            FormattedText(
+          if (explanation.isNotEmpty) ...[
+            Text(
               'Answer',
-              style: AppTextStyles.titleText.copyWith(fontSize: 20),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: accentColor,
+              ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(6),
+                color: isDark 
+                  ? Color(0xFF252525) 
+                  : Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: FormattedText(
-                _cleanContent(explanation), // Use cleaned version of the text
-                style: AppTextStyles.englishText,
-              ),
-            ),
-          ], // Integrated code ends here
-
-          if (verses.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            FormattedText( // Use FormattedText here
-              'Relevant Verses',
-              style: AppTextStyles.titleText.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 15),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0xFFBEBEBE),
-                    offset: Offset(20, 20),
-                    blurRadius: 60,
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-20, -20),
-                    blurRadius: 60,
-                    spreadRadius: 0,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: verses.map<Widget>((verse) {
-                  // Extract verse reference from the format "text (reference)"
-                  final regExp = RegExp(r'\((.*?)\)$');
-                  final match = regExp.firstMatch(verse);
-                  final verseKey = match?.group(1) ?? '';
-
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(15),
-                    margin: const EdgeInsets.only(bottom: 15),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8E8E8),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: InkWell( // Wrap with InkWell for tap detection
-                      onTap: () {
-                        if (widget.onVerseSelected != null && verseKey.isNotEmpty) {
-                          widget.onVerseSelected!(verseKey);
-                        }
-                      },
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: FormattedText( // Use FormattedText here
-                              'Verse $verseKey',
-                              style: AppTextStyles.englishText.copyWith(
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.navigate_next,
-                            color: Colors.grey[600],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+              child: Text(
+                _cleanContent(explanation),
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+                ),
               ),
             ),
           ],
+
+          if (verses.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'Relevant Verses',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: accentColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...verses.map((verse) => _buildVerseItem(context, verse, accentColor)).toList(),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildVerseItem(BuildContext context, String verse, Color accentColor) {
+    final isDark = widget.isDarkMode;
+    
+    // Extract verse reference
+    final regExp = RegExp(r'\((.*?)\)$');
+    final match = regExp.firstMatch(verse);
+    final verseKey = match?.group(1) ?? '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF252525) : Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark 
+            ? Color(0xFF353535) 
+            : Color(0xFFE0E0E0),
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          if (widget.onVerseSelected != null && verseKey.isNotEmpty) {
+            widget.onVerseSelected!(verseKey);
+          }
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              verse,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+              ),
+            ),
+            if (verseKey.isNotEmpty && widget.onVerseSelected != null) ...[
+              SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'View in Quran',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: accentColor,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(
+                    Icons.navigate_next,
+                    color: accentColor,
+                    size: 14,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -338,7 +358,7 @@ class _QuranSectionState extends State<QuranSection> {
           ),
         ),
       ),
-      child: FormattedText( // Use FormattedText here
+      child: FormattedText(
         'Error: $_error',
         style: AppTextStyles.englishText.copyWith(color: const Color(0xFFC0392B)),
       ),
@@ -354,6 +374,7 @@ class QuranSectionAdapter extends StatelessWidget {
   final dynamic openAiService; // Keep this to match existing parameter
   final FirestoreService? firestoreService;
   final Function(String)? onVerseSelected; // Add this parameter
+  final bool isDarkMode; // Add this parameter
 
   const QuranSectionAdapter({
     Key? key,
@@ -362,7 +383,8 @@ class QuranSectionAdapter extends StatelessWidget {
     this.verses = const [],
     required this.openAiService,
     this.firestoreService,
-    this.onVerseSelected, // Add this parameter
+    this.onVerseSelected,
+    this.isDarkMode = false, // Default to light mode
   }) : super(key: key);
 
   @override
@@ -382,7 +404,8 @@ class QuranSectionAdapter extends StatelessWidget {
       quranRAGService: quranRAGService,
       quranService: quranService,
       firestoreService: firestoreService,
-      onVerseSelected: onVerseSelected, 
+      onVerseSelected: onVerseSelected,
+      isDarkMode: isDarkMode, // Pass the dark mode parameter
     );
   }
 }

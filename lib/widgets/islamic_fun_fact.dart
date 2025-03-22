@@ -3,11 +3,12 @@ import 'package:hijri/hijri_calendar.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import '../models/islamic_fact.dart';
 import '../data/islamic_months.dart';
 import '../data/islamic_facts_data.dart';
 import '../services/tracking_service.dart';
-import './fact_display.dart';
+import '../theme/theme_provider.dart';
 
 class IslamicFunFact extends StatefulWidget {
   @override
@@ -24,7 +25,7 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
   bool _isDisposed = false;
   LatLng? _userLocation;
   List<String> _recentInteractions = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -33,43 +34,39 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
     _initializeFacts();
     _setupTimer();
   }
-  
+
   Future<void> _loadUserData() async {
     try {
-      // Get recent interactions from tracking service
       final interactions = await UserInteractionTracker.getRecentInteractions();
-      
+
       if (mounted) {
         setState(() {
           _recentInteractions = interactions;
         });
-        
-        // Force update facts after loading interactions
+
         _updateFacts();
       }
     } catch (e) {
       print('Error loading user data: $e');
     }
   }
-  
+
   void _initializeFacts() {
     try {
       if (_showingMonthFact) {
         _currentFacts = IslamicFactsData.getMonthlyFacts(_hijriDate.hMonth);
       } else {
-        // If no interactions yet, use general facts
         if (_recentInteractions.isEmpty) {
           _currentFacts = IslamicFactsData.generalFacts;
         } else {
-          // Use personalized facts based on interactions
           _currentFacts = IslamicFactsData.getPersonalizedFacts(
             userLocation: _userLocation,
             recentInteractions: _recentInteractions,
-            recentSearches: [], // You can add search history here if needed
+            recentSearches: [],
           );
         }
       }
-      
+
       _currentFactIndex = _currentFacts.isEmpty ? 0 : _random.nextInt(_currentFacts.length);
     } catch (e) {
       print('Error initializing facts: $e');
@@ -77,30 +74,30 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
       _currentFactIndex = 0;
     }
   }
-  
+
   void _setupTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(Duration(seconds: 10), (timer) {
       _updateFacts();
     });
   }
-  
+
   void _updateFacts() {
     if (!mounted || _isDisposed) {
       _timer?.cancel();
       return;
     }
-    
+
     try {
       setState(() {
         _showingMonthFact = !_showingMonthFact;
-        _initializeFacts(); // This will select appropriate facts based on _showingMonthFact
+        _initializeFacts();
       });
     } catch (e) {
       print('Error updating facts: $e');
     }
   }
-  
+
   @override
   void dispose() {
     _isDisposed = true;
@@ -108,44 +105,108 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
     _timer = null;
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    // Add null safety check
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final accentColor = isDarkMode ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+
     if (_currentFacts.isEmpty) {
       return Container(); // Or some fallback widget
     }
-    
+
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 20),
       padding: EdgeInsets.all(20),
+      margin: EdgeInsets.symmetric(horizontal: 8), // Match the search box horizontal padding
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFF0F0F0)],
-        ),
-        borderRadius: BorderRadius.circular(10),
+        color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFD1D1D1),
-            offset: Offset(5, 5),
-            blurRadius: 10,
-          ),
-          BoxShadow(
-            color: Colors.white,
-            offset: Offset(-5, -5),
-            blurRadius: 10,
+            color: isDarkMode 
+              ? Colors.black.withOpacity(0.5) 
+              : Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: isDarkMode ? 12 : 10,
+            offset: Offset(0, 3),
           ),
         ],
+        border: isDarkMode ? Border.all(color: Colors.grey[800]!, width: 1) : null, // Subtle border for more depth
       ),
-      child: FactDisplay(
-        fact: _currentFacts[_currentFactIndex],
-        subtitle: _showingMonthFact
-            ? 'Current Islamic Month: ${IslamicMonths.months[_hijriDate.hMonth]}'
-            : _recentInteractions.isNotEmpty
-                ? 'Based on your interests: ${_recentInteractions.first}'
-                : 'General Islamic Fact',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header section with icon
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline,
+                  color: accentColor,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                "Islamic Fun Fact",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: accentColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          // Title
+          Text(
+            _currentFacts[_currentFactIndex].title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Color(0xFFE0E0E0) : Color(0xFF424242),
+            ),
+          ),
+          SizedBox(height: 8),
+          
+          // Content
+          Text(
+            _currentFacts[_currentFactIndex].description, // Changed from content to description
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: isDarkMode ? Color(0xFFCCCCCC) : Color(0xFF666666),
+            ),
+          ),
+          
+          SizedBox(height: 12),
+          
+          // Subtitle (month or general fact)
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              _showingMonthFact
+                  ? 'Current Islamic Month: ${IslamicMonths.months[_hijriDate.hMonth]}'
+                  : _recentInteractions.isNotEmpty
+                      ? 'Based on your interests: ${_recentInteractions.first}'
+                      : 'General Islamic Fact',
+              style: TextStyle(
+                fontSize: 12,
+                color: accentColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

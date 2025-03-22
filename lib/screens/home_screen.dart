@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
@@ -8,8 +9,8 @@ import '../widgets/islamic_fun_fact.dart';
 import '../widgets/faq_section.dart';
 import '../widgets/quran_section.dart';
 import '../theme/text_styles.dart';
+import '../theme/theme_provider.dart';
 import 'search_results_screen.dart';
-import 'places_screen.dart';
 import 'quran_screen.dart';
 import 'hadith_screen.dart';
 import 'history_screen.dart';
@@ -64,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _askQuestion(String query) async {
     if (query.isEmpty) return;
-    
+
     // Log the question being asked
     widget.analyticsService?.logQuestionAsked('Home Screen Question');
     widget.analyticsService?.logEvent(
@@ -74,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'query_first_word': query.split(' ').first,
       },
     );
-    
+
     final loadingStartTime = DateTime.now();
     Future.delayed(Duration.zero, () async {
       await Navigator.push(
@@ -89,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
       final operationDuration = DateTime.now().difference(loadingStartTime);
-      
+
       // Log completion of the search
       widget.analyticsService?.logEvent(
         name: 'search_completed',
@@ -98,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'duration_ms': operationDuration.inMilliseconds,
         },
       );
-      
+
       if (operationDuration < Duration(milliseconds: 500)) {
         await Future.delayed(Duration(milliseconds: 500) - operationDuration);
       }
@@ -108,10 +109,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final firestoreService = widget.firestoreService;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: Color(0xFFF0F0F0),
+      backgroundColor: isDarkMode ? Color(0xFF121212) : Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         toolbarHeight: 70,
+        backgroundColor: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
         title: SizedBox(
           width: double.infinity,
           child: Row(
@@ -127,11 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.home, color: Colors.blueGrey[800], size: 20),
+                      Icon(Icons.home, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
                       Text(
                         'Home',
                         style: TextStyle(
-                          color: Colors.blueGrey[800],
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
                           fontSize: 11,
                           height: 1,
                         ),
@@ -142,33 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.analyticsService?.logFeatureUsed('places_screen');
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => PlacesScreen()));
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.mosque, color: Colors.blueGrey[800], size: 20),
-                      Text(
-                        'Explore',
-                        style: TextStyle(
-                          color: Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Repeat similar changes for other navigation icons
               Expanded(
                 child: TextButton(
                   onPressed: () {
@@ -181,11 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(FontAwesomeIcons.bookQuran, color: Colors.blueGrey[800], size: 20),
+                      Icon(FontAwesomeIcons.bookQuran, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
                       Text(
                         'Quran',
                         style: TextStyle(
-                          color: Colors.blueGrey[800],
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
                           fontSize: 11,
                           height: 1,
                         ),
@@ -208,11 +187,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(FontAwesomeIcons.bookOpen, color: Colors.blueGrey[800], size: 20),
+                      Icon(FontAwesomeIcons.bookOpen, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
                       Text(
                         'Hadith',
                         style: TextStyle(
-                          color: Colors.blueGrey[800],
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
                           fontSize: 11,
                           height: 1,
                         ),
@@ -235,11 +214,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.history, color: Colors.blueGrey[800], size: 20),
+                      Icon(Icons.history, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
                       Text(
                         'History',
                         style: TextStyle(
-                          color: Colors.blueGrey[800],
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
                           fontSize: 11,
                           height: 1,
                         ),
@@ -259,22 +238,89 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMainContent(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return ResponsiveLayout(
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Tafseer',
-              style: AppTextStyles.titleText.copyWith(fontSize: 44),
-              textAlign: TextAlign.center,
+            // Title and Theme Toggle
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Tafseer',
+                    style: TextStyle(
+                      fontSize: 44,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  // Theme toggle button
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, _) {
+                      return IconButton(
+                        icon: AnimatedSwitcher(
+                          duration: Duration(milliseconds: 300),
+                          child: Icon(
+                            key: ValueKey<bool>(themeProvider.isDarkMode),
+                            themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                            color: themeProvider.isDarkMode ? Colors.cyanAccent : Color(0xFF2D5F7C),
+                          ),
+                        ),
+                        onPressed: () {
+                          themeProvider.toggleTheme();
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 30),
-            IslamicFunFact(),
+            
+            SizedBox(height: 24),
+            
+            // Fun fact card with modern styling
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              decoration: themeProvider.getCardDecoration(context),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: IslamicFunFact(),
+              ),
+            ),
+            
+            SizedBox(height: 24),
+            
+            // Search box with modern styling
+            _buildQuestionInput(context, themeProvider),
+            
+            SizedBox(height: 24),
+            
+            // FAQ section with modern styling
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              decoration: themeProvider.getCardDecoration(context),
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Frequently Asked Questions',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  SizedBox(height: 16),
+                  FAQSection(),
+                ],
+              ),
+            ),
+            
             SizedBox(height: 20),
-            _buildQuestionInput(),
-            FAQSection(),
-            SizedBox(height: 20),
+            
             if (_error != null) ...[
               _buildErrorBox(),
             ] else if (_showResults) ...[
@@ -286,7 +332,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuestionInput() {
+  Widget _buildQuestionInput(BuildContext context, ThemeProvider themeProvider) {
+    final isDark = themeProvider.isDarkMode;
+    final accentColor = isDark ? Color(0xFF81B3D2) : Colors.blueGrey[800];
+  
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: Container(
@@ -294,17 +343,19 @@ class _HomeScreenState extends State<HomeScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white, Color(0xFFF0F0F0)],
+            colors: isDark 
+              ? [Color(0xFF1E1E1E), Color(0xFF252525)] 
+              : [Colors.white, Color(0xFFF0F0F0)],
           ),
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Color(0xFFD1D1D1),
+              color: isDark ? Colors.black.withOpacity(0.3) : Color(0xFFD1D1D1),
               offset: Offset(3, 3),
               blurRadius: 6,
             ),
             BoxShadow(
-              color: Colors.white,
+              color: isDark ? Color(0xFF2A2A2A) : Colors.white,
               offset: Offset(-3, -3),
               blurRadius: 6,
             ),
@@ -322,12 +373,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   contentPadding: EdgeInsets.fromLTRB(16, 16, 8, 8),
                   border: InputBorder.none,
                   hintStyle: TextStyle(
-                    color: Colors.blueGrey.withOpacity(0.7),
+                    color: isDark 
+                      ? Colors.grey.withOpacity(0.7) 
+                      : Colors.blueGrey.withOpacity(0.7),
                     fontSize: 14,
                   ),
                 ),
                 style: AppTextStyles.englishText.copyWith(
-                  color: Color(0xFF333333),
+                  color: isDark ? Color(0xFFE0E0E0) : Color(0xFF333333),
                   fontSize: 14,
                 ),
                 minLines: 1,
@@ -339,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Material(
-                color: Colors.blueGrey[800],
+                color: accentColor,
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),

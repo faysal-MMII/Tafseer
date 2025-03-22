@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../theme/text_styles.dart';
 import 'dart:convert';
 import 'hadith_detail_screen.dart';
+import '../theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class HadithScreen extends StatefulWidget {
   @override
@@ -69,8 +71,8 @@ class _HadithScreenState extends State<HadithScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,6 +81,8 @@ class _HadithScreenState extends State<HadithScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
       ),
       body: _isLoading
         ? Center(child: CircularProgressIndicator())
@@ -92,7 +96,7 @@ class _HadithScreenState extends State<HadithScreen> {
                     'Hadith: As compiled by Imam Nawawi',
                     style: AppTextStyles.titleText.copyWith(
                       fontSize: 18,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                 ),
@@ -102,25 +106,36 @@ class _HadithScreenState extends State<HadithScreen> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search Hadiths...',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: Icon(Icons.search, color: isDark ? Colors.white : Colors.black),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: isDark ? Colors.grey[700]! : Colors.grey[300]!),
                       ),
+                      fillColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+                      filled: true,
                     ),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     onChanged: _filterHadiths,
                   ),
                 ),
                 Expanded(
-                  child: isSmallScreen
-                    ? _buildMobileLayout()
-                    : _buildDesktopLayout(),
+                  child: _buildLayout(isDark),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildLayout(bool isDark) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    return isSmallScreen
+        ? _buildMobileLayout(isDark)
+        : _buildDesktopLayout(isDark);
+  }
+
+  Widget _buildMobileLayout(bool isDark) {
     return ListView.builder(
       itemCount: _filteredHadiths.length,
       itemBuilder: (context, index) {
@@ -129,7 +144,9 @@ class _HadithScreenState extends State<HadithScreen> {
           selected: _selectedHadith == hadith,
           title: Text(
             'Hadith ${hadith['number']}',
-            style: AppTextStyles.englishText,
+            style: AppTextStyles.englishText.copyWith(
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           onTap: () {
             setState(() => _selectedHadith = hadith);
@@ -138,23 +155,26 @@ class _HadithScreenState extends State<HadithScreen> {
               MaterialPageRoute(
                 builder: (context) => HadithDetailScreen(
                   hadith: hadith,
-                  searchQuery: _searchController.text, // Pass the search query
+                  searchQuery: _searchController.text,
                 ),
               ),
             );
           },
+          tileColor: _selectedHadith == hadith
+              ? (isDark ? Color(0xFF252525) : Color(0xFFE0F2F1))
+              : Colors.transparent,
         );
       },
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(bool isDark) {
     return Row(
       children: [
         Container(
           width: 200,
           decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade300)),
+            border: Border(right: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey.shade300)),
           ),
           child: ListView.builder(
             itemCount: _filteredHadiths.length,
@@ -164,16 +184,21 @@ class _HadithScreenState extends State<HadithScreen> {
                 selected: _selectedHadith == hadith,
                 title: Text(
                   'Hadith ${hadith['number']}',
-                  style: AppTextStyles.englishText,
+                  style: AppTextStyles.englishText.copyWith(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
                 onTap: () => setState(() => _selectedHadith = hadith),
+                tileColor: _selectedHadith == hadith
+                    ? (isDark ? Color(0xFF252525) : Color(0xFFE0F2F1))
+                    : Colors.transparent,
               );
             },
           ),
         ),
         Expanded(
           child: _selectedHadith == null
-            ? Center(child: Text('Select a hadith'))
+            ? Center(child: Text('Select a hadith', style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[700])))
             : SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
@@ -181,7 +206,7 @@ class _HadithScreenState extends State<HadithScreen> {
                   children: [
                     Text(
                       'Hadith ${_selectedHadith!['number']}',
-                      style: AppTextStyles.titleText.copyWith(fontSize: 24),
+                      style: AppTextStyles.titleText.copyWith(fontSize: 24, color: isDark ? Colors.white : Colors.black87),
                     ),
                     SizedBox(height: 16),
                     Text(
@@ -189,6 +214,7 @@ class _HadithScreenState extends State<HadithScreen> {
                       style: AppTextStyles.englishText.copyWith(
                         height: 1.5,
                         fontSize: 16,
+                        color: isDark ? Colors.white70 : Colors.black87,
                       ),
                     ),
                   ],
@@ -198,7 +224,6 @@ class _HadithScreenState extends State<HadithScreen> {
       ],
     );
   }
-
 
   @override
   void dispose() {

@@ -10,7 +10,9 @@ import '../widgets/responsive_layout.dart';
 import '../screens/quran_screen.dart'; 
 import '../screens/quran_detail_screen.dart'; 
 import '../data/surah_data.dart';
-import '../widgets/formatted_text.dart'; 
+import '../widgets/formatted_text.dart';
+import '../theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
@@ -118,12 +120,24 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    
     return Scaffold(
-      backgroundColor: Color(0xFFF0F0F0),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: FormattedText('Search Results', style: AppTextStyles.titleText), 
+        elevation: 0,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        title: Text(
+          'Search Results', 
+          style: theme.appBarTheme.titleTextStyle,
+        ), 
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.iconTheme.color,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -135,7 +149,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
                     strokeWidth: 2,
                   ),
                 ),
@@ -144,6 +158,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ],
       ),
       body: RefreshIndicator(
+        color: theme.primaryColor,
         onRefresh: () => _fetchResults(),
         child: _buildBody(),
       ),
@@ -151,8 +166,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildBody() {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+        ),
+      );
     }
 
     if (_error != null) {
@@ -167,54 +189,73 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         child: Column(
           children: [
             _buildQueryContainer(),
-            SizedBox(height: isSmallScreen ? 12 : 20),
+            SizedBox(height: isSmallScreen ? 16 : 24),
             _buildResultsContainer(),
           ],
         ),
       ),
     );
   }
-
+  
   Widget _buildQueryContainer() {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isSmallScreen ? 12 : 20),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFF0F0F0)],
-        ),
-        borderRadius: BorderRadius.circular(10),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFD1D1D1),
-            offset: Offset(5, 5),
-            blurRadius: 10,
-          ),
-          BoxShadow(
-            color: Colors.white,
-            offset: Offset(-5, -5),
-            blurRadius: 10,
+            color: isDarkMode 
+              ? Colors.black26 
+              : Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FormattedText( // Use FormattedText here
-            'Your Question:',
-            style: AppTextStyles.titleText.copyWith(
-              fontSize: isSmallScreen ? 16 : 18
+          // Header with gradient
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDarkMode 
+                  ? [Color(0xFF1E3A38), Color(0xFF102423)] 
+                  : [Color(0xFFE0F2F1), Color(0xFFB2DFDB)],
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Text(
+              'Your Question',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: isSmallScreen ? 16 : 18,
+              ),
             ),
           ),
-          SizedBox(height: isSmallScreen ? 6 : 10),
-          FormattedText( // Use FormattedText here
-            widget.query,
-            style: AppTextStyles.englishText,
+          // Question text
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              widget.query,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isSmallScreen ? 14 : 16,
+              ),
+            ),
           ),
         ],
       ),
@@ -222,6 +263,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildResultsContainer() {
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -231,19 +274,75 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           verses: _quranVerses,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
-          onVerseSelected: _navigateToVerse, 
+          onVerseSelected: _navigateToVerse,
+          isDarkMode: isDarkMode,
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 16),
         HadithSection(
           query: widget.query,
           hadiths: _hadiths,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
+          isDarkMode: isDarkMode,
         ),
       ],
     );
   }
-
+  
+  Widget _buildErrorContainer() {
+    final theme = Theme.of(context);
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    
+    return Center(
+      child: Container(
+        margin: EdgeInsets.all(20),
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDarkMode ? Color(0xFF331111) : Color(0xFFFFEBEE),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isDarkMode 
+                ? Colors.black26 
+                : Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: isDarkMode ? Colors.redAccent.shade700 : Colors.redAccent.shade100,
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: isDarkMode ? Colors.redAccent.shade200 : Colors.redAccent,
+              size: 48,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Error Occurred',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: isDarkMode ? Colors.redAccent.shade200 : Colors.redAccent,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              _error ?? 'An unknown error occurred',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? theme.textTheme.bodyMedium?.color : Colors.red.shade900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   void _navigateToVerse(String reference) {
     final regex = RegExp(r'(\d+):(\d+)');
     final match = regex.firstMatch(reference);
@@ -268,30 +367,5 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     } else {
       print('Could not parse verse reference: $reference');
     }
-  }
-
-  Widget _buildErrorContainer() {
-    return Center(
-      child: Container(
-        margin: EdgeInsets.all(20),
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Color(0xFFFADBD8),
-          borderRadius: BorderRadius.circular(8),
-          border: Border(
-            left: BorderSide(
-              color: Color(0xFFE74C3C),
-              width: 4,
-            ),
-          ),
-        ),
-        child: FormattedText( 
-          'Error: $_error',
-          style: AppTextStyles.englishText.copyWith(
-            color: Color(0xFFC0392B),
-          ),
-        ),
-      ),
-    );
   }
 }

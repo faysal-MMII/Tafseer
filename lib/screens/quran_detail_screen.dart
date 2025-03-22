@@ -4,6 +4,8 @@ import '../theme/text_styles.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../data/first_verse_data.dart';
 import 'dart:math';
+import '../theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class QuranDetailScreen extends StatefulWidget {
   final int surahNumber;
@@ -156,16 +158,24 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
     final displayedVerses = widget.verses;
-
     final showBismillah = widget.surahNumber != 1 && widget.surahNumber != 9;
 
     return Scaffold(
+      backgroundColor: isDark ? Color(0xFF121212) : Colors.white,
       appBar: AppBar(
-        title: Text('Surah ${widget.surahNumber}: ${widget.surahName}', style: AppTextStyles.titleText),
+        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        elevation: 0,
+        title: Text(
+          'Surah ${widget.surahNumber}: ${widget.surahName}', 
+          style: Theme.of(context).appBarTheme.titleTextStyle,
+        ),
+        iconTheme: IconThemeData(color: isDark ? Colors.cyanAccent : Color(0xFF2D5F7C)),
         actions: [
           IconButton(
-            icon: Icon(Icons.format_list_numbered),
+            icon: Icon(Icons.format_list_numbered, color: isDark ? Colors.cyanAccent : Color(0xFF2D5F7C)),
             tooltip: 'Jump to Verse',
             onPressed: showJumpToVerseDialog,
           ),
@@ -181,7 +191,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
               itemCount: displayedVerses.length + (showBismillah ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == 0 && showBismillah) {
-                  return buildBismillahCard();
+                  return buildBismillahCard(isDark, Colors.cyanAccent);
                 }
 
                 final verseIndex = showBismillah ? index - 1 : index;
@@ -202,9 +212,17 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                 }
 
                 return Card(
-                  elevation: 2,
+                  elevation: isDark ? 2 : 2,
                   margin: EdgeInsets.only(bottom: 16),
-                  color: isHighlighted ? Colors.amber[100] : null,
+                  color: isHighlighted 
+                    ? (isDark ? Color(0xFF3A3000) : Colors.amber[100]) 
+                    : (isDark ? Color(0xFF1E1E1E) : Colors.white),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: isDark 
+                      ? BorderSide(color: Colors.grey[800]!, width: 1) 
+                      : BorderSide.none,
+                  ),
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: Column(
@@ -215,21 +233,22 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
+                                color: Colors.cyanAccent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'Verse $verseNumber',
-                                style: AppTextStyles.titleText.copyWith(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Theme.of(context).primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.cyanAccent,
                                 ),
                               ),
                             ),
                             Expanded(
                               child: Divider(
                                 indent: 10,
-                                color: Colors.grey[300],
+                                color: isDark ? Colors.grey[700] : Colors.grey[300],
                               ),
                             ),
                           ],
@@ -244,6 +263,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                                 fontFamily: 'Scheherazade',
                                 fontSize: 24,
                                 height: 1.5,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                               textAlign: TextAlign.right,
                             ),
@@ -251,9 +271,10 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                         if (arabicText != null && arabicText.isNotEmpty) SizedBox(height: 16),
                         Text(
                           verse['text'] ?? '',
-                          style: AppTextStyles.englishText.copyWith(
+                          style: TextStyle(
                             height: 1.5,
                             fontSize: 16,
+                            color: isDark ? Colors.white70 : Colors.black87,
                           ),
                         ),
                       ],
@@ -268,13 +289,16 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
     );
   }
 
-  Card buildBismillahCard() {
+  Card buildBismillahCard(bool isDark, Color accentColor) {
     return Card(
-      elevation: 2,
+      elevation: isDark ? 3 : 2,
       margin: EdgeInsets.only(bottom: 16),
-      color: Color(0xFFF8F8F8),
+      color: isDark ? Color(0xFF252525) : Color(0xFFF8F8F8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: isDark 
+          ? BorderSide(color: Colors.grey[700]!, width: 1) 
+          : BorderSide.none,
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -287,6 +311,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                 fontFamily: 'Scheherazade',
                 fontSize: 28,
                 height: 1.5,
+                color: isDark ? Colors.white : Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),

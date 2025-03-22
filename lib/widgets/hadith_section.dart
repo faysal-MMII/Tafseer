@@ -8,6 +8,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'hadith_card.dart';
 import 'expandable_explanation.dart';
 import '../widgets/formatted_text.dart';
+import 'package:provider/provider.dart';
+import '../theme/theme_provider.dart';
 
 class LoadingIndicator extends StatelessWidget {
   final String message;
@@ -36,7 +38,7 @@ class LoadingIndicator extends StatelessWidget {
         children: [
           CircularProgressIndicator(),
           SizedBox(height: 16),
-          FormattedText( // Use FormattedText here
+          FormattedText(
             message,
             style: AppTextStyles.englishText,
             textAlign: TextAlign.center,
@@ -52,12 +54,14 @@ class HadithSection extends StatefulWidget {
   final List<Hadith> hadiths;
   final OpenAiService openAiService;
   final FirestoreService? firestoreService;
+  final bool isDarkMode; // Add this parameter
 
   HadithSection({
     this.query,
     required this.hadiths,
     required this.openAiService,
     this.firestoreService,
+    this.isDarkMode = false, // Default to light mode
   });
 
   @override
@@ -132,46 +136,22 @@ class _HadithSectionState extends State<HadithSection> {
     print('=== FETCH RESULTS END ===');
   }
 
-  Widget _buildHadithItem(Hadith hadith) {
-    print('Building hadith item for: ${hadith.text}');
-    return HadithCard(
-      hadith: hadith,
-      showExpandButton: true,
-    );
-  }
-
-  Widget _buildResults() {
-    if (_response == null) {
-      return FormattedText( // Use FormattedText here
-        'No results available',
-        style: AppTextStyles.englishText,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FormattedText( // Use FormattedText here
-          'Hadith Guidance',
-          style: AppTextStyles.titleText,
-        ),
-        SizedBox(height: 16),
-        ExpandableExplanation(
-          text: _response!['hadith_results']['answer'] ?? 'No explanation available',            
-          style: AppTextStyles.englishText,
-        ),
-        SizedBox(height: 24),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = widget.isDarkMode; // Get dark mode state
+
+    // Skip if no hadiths
+    if (widget.hadiths.isEmpty && _retrievedHadiths.isEmpty) {
+      return Container();
+    }
+
+    final accentColor = isDarkMode ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: isDarkMode ? Colors.grey[800] : Colors.grey[200], // Use theme-dependent color
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -185,7 +165,163 @@ class _HadithSectionState extends State<HadithSection> {
           ? LoadingIndicator(
               message: 'Searching for guidance...',
             )
-          : _buildResults(),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: accentColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.menu_book,
+                        color: accentColor,
+                        size: 20,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Hadith Guidance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                
+                if (_response != null && _response!['hadith_results']['answer'] != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDarkMode 
+                        ? Color(0xFF252525) 
+                        : Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _response!['hadith_results']['answer'],
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        color: isDarkMode ? Color(0xFFE0E0E0) : Color(0xFF424242),
+                      ),
+                    ),
+                  ),
+                ],
+                
+                if (widget.hadiths.isNotEmpty) ...[
+                  SizedBox(height: 20),
+                  Text(
+                    'Referenced Hadiths',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  ...widget.hadiths.map((hadith) => _buildHadithItem(context, hadith, accentColor)).toList(),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHadithItem(BuildContext context, Hadith hadith, Color accentColor) {
+    final isDark = widget.isDarkMode;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF252525) : Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark 
+            ? Color(0xFF353535) 
+            : Color(0xFFE0E0E0),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hadith.narrator != null && hadith.narrator!.isNotEmpty) ...[
+            Container(
+              margin: EdgeInsets.only(bottom: 12),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'Narrator: ${hadith.narrator}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: accentColor,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+          
+          Text(
+            hadith.text,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.5,
+              color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+            ),
+          ),
+          
+          if (hadith.grade != null && hadith.grade!.isNotEmpty) ...[
+            SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? Color(0xFF1A1A1A) : Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Grade: ${hadith.grade}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Color(0xFFAAAAAA) : Color(0xFF777777),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          
+          if (hadith.arabicText != null && hadith.arabicText!.isNotEmpty) ...[
+            SizedBox(height: 16),
+            Divider(
+              color: isDark ? Color(0xFF353535) : Color(0xFFEEEEEE),
+            ),
+            SizedBox(height: 8),
+            Text(
+              hadith.arabicText!,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                fontFamily: 'Scheherazade',
+                fontSize: 18,
+                height: 1.5,
+                color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -202,7 +338,7 @@ class _HadithSectionState extends State<HadithSection> {
           ),
         ),
       ),
-      child: FormattedText( // Use FormattedText here
+      child: FormattedText(
         errorMessage ?? 'Error fetching hadiths.',
         style: AppTextStyles.englishText.copyWith(color: Color(0xFFC0392B)),
       ),

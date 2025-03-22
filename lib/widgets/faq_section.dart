@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../theme/theme_provider.dart';
 import '../theme/text_styles.dart';
 
 class FAQSection extends StatefulWidget {
@@ -40,8 +42,15 @@ class _FAQSectionState extends State<FAQSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
+    final accentColor = isDark ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+
     if (isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+        ),
+      );
     }
 
     if (error != null) {
@@ -55,80 +64,90 @@ class _FAQSectionState extends State<FAQSection> {
 
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.symmetric(vertical: 20),
-      padding: EdgeInsets.all(25),
+      margin: EdgeInsets.symmetric(horizontal: 8), // Match the search box horizontal padding
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFE6E6E6)],
-        ),
-        borderRadius: BorderRadius.circular(8),
+        color: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFD1D1D1),
-            offset: Offset(5, 5),
-            blurRadius: 10,
-          ),
-          BoxShadow(
-            color: Colors.white,
-            offset: Offset(-5, -5),
-            blurRadius: 10,
+            color: isDark 
+              ? Colors.black.withOpacity(0.5) 
+              : Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: isDark ? 12 : 10,
+            offset: Offset(0, 3),
           ),
         ],
+        border: isDark ? Border.all(color: Colors.grey[800]!, width: 1) : null, // Subtle border for more depth
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Frequently Asked Questions for Muslims',
-            style: AppTextStyles.titleText.copyWith(fontSize: 24),
+            'Frequently Asked Questions',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: accentColor,
+            ),
           ),
-          SizedBox(height: 20),
-          _buildFAQList(faqs),
+          SizedBox(height: 16),
+          ...faqs.map((faq) => _buildFAQItem(context, faq, isDark, accentColor)).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildFAQList(List<Map<String, dynamic>> faqs) {
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: Column(
-        children: faqs.map((faq) => _buildFAQItem(faq)).toList(),
-      ),
-    );
-  }
-
-  Widget _buildFAQItem(Map<String, dynamic> faq) {
+  Widget _buildFAQItem(BuildContext context, Map<String, dynamic> faq, bool isDark, Color accentColor) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
+        color: isDark ? Color(0xFF252525) : Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Color(0xFF353535) : Color(0xFFE0E0E0),
+          width: 1,
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          tilePadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
           title: Text(
             faq['question'],
-            style: AppTextStyles.englishText.copyWith(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+            ),
           ),
+          trailing: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.add,
+              size: 18,
+              color: accentColor,
+            ),
+          ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          childrenPadding: EdgeInsets.only(left: 16, right: 16, bottom: 16),
           children: [
-            Container(
-              padding: EdgeInsets.all(16),
-              width: double.infinity,
-              child: Text(
-                faq['answer'],
-                style: AppTextStyles.englishText,
+            Divider(
+              color: isDark ? Color(0xFF353535) : Color(0xFFEEEEEE),
+              height: 24,
+            ),
+            Text(
+              faq['answer'],
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: isDark ? Color(0xFFCCCCCC) : Color(0xFF666666),
               ),
             ),
           ],
