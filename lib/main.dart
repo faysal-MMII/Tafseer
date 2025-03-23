@@ -11,8 +11,10 @@ import 'services/quran_service.dart';
 import 'services/hadith_service.dart';
 import 'services/rag_services/quran_rag_service.dart';
 import 'services/rag_services/hadith_rag_service.dart';
+import 'services/prayer_time_service.dart';
+import 'services/qibla_service.dart';
 import 'theme/text_styles.dart';
-import 'theme/theme_provider.dart'; // Import your ThemeProvider
+import 'theme/theme_provider.dart';
 import '../models/hadith.dart';
 import 'dart:io';
 import 'dart:async';
@@ -23,143 +25,123 @@ import 'screens/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 FirebaseAnalytics? analytics;
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
-Future<AppData> initializeApp() async {
-  await ConfigService.loadEnvFile();
-  await dotenv.load(fileName: ".env");
-  final quranService = QuranService();
-  final hadithService = HadithService();
-  final quranRagService = QuranRAGService(apiKey: ConfigService.openAiApiKey);
-  final hadithRagService = HadithRAGService(apiKey: ConfigService.openAiApiKey);
-  final openAiService = OpenAiService(
-    quranService: quranService,
-    hadithService: hadithService,
-    quranRagService: quranRagService,
-    hadithRagService: hadithRagService,
-  );
-
-  FirestoreService? firestoreService;
-  if (isFirebaseSupported) {
-    firestoreService = FirestoreService();
-  }
-
-  AnalyticsService? analyticsService;
-  if (isFirebaseSupported) {
-    analytics = FirebaseAnalytics.instance;
-    await analytics!.setAnalyticsCollectionEnabled(true);
-    await analytics!.logEvent(
-      name: 'app_open',
-      parameters: {'build_type': 'release'},
-    );
-    analyticsService = AnalyticsService();
-  }
-
-  return AppData(
-    openAiService: openAiService,
-    analyticsService: analyticsService,
-    firestoreService: firestoreService,
-  );
-}
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  print("App starting - binding initialized");
-
-  // Set up Flutter error handling
-  FlutterError.onError = (FlutterErrorDetails details) {
-    print('Flutter error: ${details.exception}');
-  };
-
-  // Catch async errors with zone
-  runZonedGuarded(() async {
-    try {
-      if (isFirebaseSupported) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-
-        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
-        print("Flutter error handler registered with Crashlytics");
-
-        final auth = FirebaseAuth.instance;
-        if (auth.currentUser == null) {
-          print("No user logged in, signing in anonymously");
-          await auth.signInAnonymously();
-          print("Anonymous auth completed, user ID: ${auth.currentUser?.uid}");
-        } else {
-          print("User already logged in: ${auth.currentUser?.uid}");
-        }
-      }
-    } catch (e) {
-      print("Firebase initialization error: $e");
-    }
-
-    runApp(LoadingApp());
-    print("Loading screen displayed");
-
-    try {
-      final appData = await initializeApp();
-      FirestoreService? firestoreService = appData.firestoreService;
-      AnalyticsService? analyticsService = appData.analyticsService;
-
-      if (isFirebaseSupported) {
-        await analyticsService?.initialize();
-        await analyticsService?.logEvent(
-          name: 'first_open',
-          parameters: {'build_type': 'release'},
-        );
-
-        // Schedule periodic heartbeat
-        Timer.periodic(Duration(minutes: 30), (_) {
-          analyticsService?.logHeartbeat();
-        });
-      }
-
-      print("All services initialized, launching main app");
-      runApp(
-        ChangeNotifierProvider(
-          create: (context) => ThemeProvider(),
-          child: MyApp(
-            openAiService: appData.openAiService,
-            analyticsService: analyticsService,
-            firestoreService: firestoreService,
-          ),
-        ),
-      );
-    } catch (error, stackTrace) {
-      print("Error during initialization: $error");
-      print(stackTrace);
-      runApp(MyApp(
-        openAiService: OpenAiService(
-          quranService: QuranService(),
-          hadithService: HadithService(),
-          quranRagService: QuranRAGService(apiKey: ''),
-          hadithRagService: HadithRAGService(apiKey: ''),
-        ),
-        initializationError: 'Failed to initialize: $error',
-      ));
-      if (isFirebaseSupported) {
-        FirebaseCrashlytics.instance.recordError(error, stackTrace);
-      }
-    }
-  }, (error, stackTrace) {
-    print('Uncaught error: $error');
-    print(stackTrace);
-    if (isFirebaseSupported) {
-      FirebaseCrashlytics.instance.recordError(error, stackTrace);
-    }
-  });
-}
-
-class LoadingApp extends StatelessWidget {
+// Simple loading widget that just shows a spinner
+class LoadingWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: Color(0xFF001333),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set up Flutter error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    print('Flutter error: ${details.exception}');
+  };
+  
+  // Start with a simple loading indicator
+  runApp(LoadingWidget());
+  
+  try {
+    // Initialize Firebase
+    if (isFirebaseSupported) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+      
+      final auth = FirebaseAuth.instance;
+      if (auth.currentUser == null) {
+        await auth.signInAnonymously();
+      }
+    }
+    
+    // Load core services
+    await ConfigService.loadEnvFile();
+    await dotenv.load(fileName: ".env");
+    
+    final quranService = QuranService();
+    final hadithService = HadithService();
+    final quranRagService = QuranRAGService(apiKey: ConfigService.openAiApiKey);
+    final hadithRagService = HadithRAGService(apiKey: ConfigService.openAiApiKey);
+    
+    final openAiService = OpenAiService(
+      quranService: quranService,
+      hadithService: hadithService,
+      quranRagService: quranRagService,
+      hadithRagService: hadithRagService,
+    );
+    
+    // Initialize prayer and qibla services
+    final prayerTimeService = PrayerTimeService();
+    final qiblaService = QiblaService();
+    
+    // Initialize prayer time service in background
+    Timer(Duration.zero, () {
+      prayerTimeService.initialize();
+    });
+    
+    // Initialize Firebase services
+    FirestoreService? firestoreService;
+    AnalyticsService? analyticsService;
+    
+    if (isFirebaseSupported) {
+      firestoreService = FirestoreService();
+      analytics = FirebaseAnalytics.instance;
+      analyticsService = AnalyticsService();
+      await analyticsService.initialize();
+    }
+    
+    // Launch main app as quickly as possible
+    runApp(
+      ChangeNotifierProvider(
+        create: (context) => ThemeProvider(),
+        child: MyApp(
+          openAiService: openAiService,
+          analyticsService: analyticsService,
+          firestoreService: firestoreService,
+          prayerTimeService: prayerTimeService,
+          qiblaService: qiblaService,
+        ),
+      ),
+    );
+    
+  } catch (error, stackTrace) {
+    print("Error during initialization: $error");
+    
+    if (isFirebaseSupported) {
+      FirebaseCrashlytics.instance.recordError(error, stackTrace);
+    }
+    
+    // Even with errors, launch app with minimal services
+    runApp(
+      ChangeNotifierProvider(
+        create: (context) => ThemeProvider(),
+        child: MyApp(
+          openAiService: OpenAiService(
+            quranService: QuranService(),
+            hadithService: HadithService(),
+            quranRagService: QuranRAGService(apiKey: ''),
+            hadithRagService: HadithRAGService(apiKey: ''),
+          ),
+          prayerTimeService: PrayerTimeService(),
+          qiblaService: QiblaService(),
+        ),
       ),
     );
   }
@@ -169,71 +151,38 @@ class MyApp extends StatelessWidget {
   final OpenAiService openAiService;
   final AnalyticsService? analyticsService;
   final FirestoreService? firestoreService;
+  final PrayerTimeService prayerTimeService;
+  final QiblaService qiblaService;
   final String? initializationError;
 
   MyApp({
     required this.openAiService,
     this.analyticsService,
     this.firestoreService,
+    required this.prayerTimeService,
+    required this.qiblaService,
     this.initializationError,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Get ThemeProvider to access theme settings
     final themeProvider = Provider.of<ThemeProvider>(context);
     
-    return AnimatedTheme(
-      data: themeProvider.themeData,
-      duration: Duration(milliseconds: 300),
-      child: MaterialApp(
-        title: 'Tafseer',
-        navigatorObservers: [
-          if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
-        ],
-        theme: themeProvider.themeData, // Use the theme from ThemeProvider
-        home: initializationError != null
-            ? ErrorScreen(message: initializationError!)
-            : HomeScreen(
-                openAiService: openAiService,
-                analyticsService: analyticsService,
-                firestoreService: firestoreService,
-              ),
+    return MaterialApp(
+      title: 'Tafseer',
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      navigatorObservers: [
+        if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
+      ],
+      theme: themeProvider.themeData,
+      home: HomeScreen(
+        openAiService: openAiService,
+        analyticsService: analyticsService,
+        firestoreService: firestoreService,
+        prayerTimeService: prayerTimeService,
+        qiblaService: qiblaService,
       ),
     );
   }
-}
-
-class ErrorScreen extends StatelessWidget {
-  final String message;
-  const ErrorScreen({Key? key, required this.message}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Error')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Text(
-            message,
-            style: AppTextStyles.englishText.copyWith(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class AppData {
-  final OpenAiService openAiService;
-  final AnalyticsService? analyticsService;
-  final FirestoreService? firestoreService;
-
-  AppData({
-    required this.openAiService,
-    this.analyticsService,
-    this.firestoreService,
-  });
 }

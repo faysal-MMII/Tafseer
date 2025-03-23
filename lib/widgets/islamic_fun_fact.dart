@@ -109,7 +109,7 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    final accentColor = isDarkMode ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+    final accentColor = isDarkMode ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
 
     if (_currentFacts.isEmpty) {
       return Container(); // Or some fallback widget
@@ -119,19 +119,19 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
       padding: EdgeInsets.all(20),
       margin: EdgeInsets.symmetric(horizontal: 8), // Match the search box horizontal padding
       decoration: BoxDecoration(
-        color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
+        color: isDarkMode ? Color(0xFF0E2552) : Colors.white, // Updated to blue
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: isDarkMode 
-              ? Colors.black.withOpacity(0.5) 
+              ? Colors.black.withOpacity(0.3) 
               : Colors.black.withOpacity(0.05),
             spreadRadius: 0,
-            blurRadius: isDarkMode ? 12 : 10,
-            offset: Offset(0, 3),
+            blurRadius: isDarkMode ? 8 : 10,
+            offset: Offset(0, 2),
           ),
         ],
-        border: isDarkMode ? Border.all(color: Colors.grey[800]!, width: 1) : null, // Subtle border for more depth
+        border: isDarkMode ? Border.all(color: Color(0xFF1A3366), width: 1) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +177,7 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
           
           // Content
           Text(
-            _currentFacts[_currentFactIndex].description, // Changed from content to description
+            _currentFacts[_currentFactIndex].description,
             style: TextStyle(
               fontSize: 14,
               height: 1.5,

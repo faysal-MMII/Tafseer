@@ -14,6 +14,8 @@ android {
     ndkVersion = "27.0.12077973"
     
     compileOptions {
+        // Enable desugaring
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -28,6 +30,9 @@ android {
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Enable multidex support
+        multiDexEnabled = true
     }
     
     buildTypes {
@@ -56,4 +61,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
+    
+    // Add these lines for desugaring
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // Add this for multidex support
+    implementation("androidx.multidex:multidex:2.0.1")
 }

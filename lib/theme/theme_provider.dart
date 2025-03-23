@@ -75,24 +75,24 @@ class ThemeProvider extends ChangeNotifier {
     ),
   );
   
-  // Modern Dark Theme - Inspired by popular apps
+  // Updated Dark Theme - Deep Blue with Teal Accents
   final ThemeData _darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    primaryColor: Colors.cyanAccent, // Better contrast 
-    scaffoldBackgroundColor: Color(0xFF121212), // Explicitly defined background
-    cardColor: Color(0xFF1E1E1E),
-    dividerColor: Color(0xFF2C2C2C),
+    primaryColor: Color(0xFF1F9881), // Islamic teal-green
+    scaffoldBackgroundColor: Color(0xFF001333), // Deep blue background
+    cardColor: Color(0xFF0E2552), // Lighter blue for cards
+    dividerColor: Color(0xFF1A3366), // Subtle blue divider
     
     // App Bar theme
     appBarTheme: AppBarTheme(
-      backgroundColor: Color(0xFF1E1E1E),
+      backgroundColor: Color(0xFF001333), // Match scaffold
       elevation: 0,
       iconTheme: IconThemeData(
-        color: Colors.cyanAccent, // Better contrast
+        color: Color(0xFF1F9881), // Teal accent
       ),
       titleTextStyle: TextStyle(
-        color: Colors.white, // Better visibility
+        color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -100,99 +100,105 @@ class ThemeProvider extends ChangeNotifier {
     
     // Icon theme
     iconTheme: IconThemeData(
-      color: Colors.cyanAccent, // Better contrast
+      color: Color(0xFF1F9881), // Teal accent
     ),
     
-    // Text theme with better visibility
+    // Text theme with better contrast
     textTheme: TextTheme(
       displayLarge: TextStyle(color: Colors.white),
       displayMedium: TextStyle(color: Colors.white),
       displaySmall: TextStyle(color: Colors.white),
       headlineLarge: TextStyle(color: Colors.white),
-      headlineMedium: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
-      headlineSmall: TextStyle(color: Colors.cyanAccent),
-      titleLarge: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+      headlineMedium: TextStyle(color: Color(0xFF1F9881), fontWeight: FontWeight.bold),
+      headlineSmall: TextStyle(color: Color(0xFF1F9881)),
+      titleLarge: TextStyle(color: Color(0xFF1F9881), fontWeight: FontWeight.bold),
       titleMedium: TextStyle(color: Colors.white),
       titleSmall: TextStyle(color: Colors.white),
       bodyLarge: TextStyle(color: Colors.white),
-      bodyMedium: TextStyle(color: Colors.white70),
-      bodySmall: TextStyle(color: Colors.white54),
-      labelLarge: TextStyle(color: Colors.cyanAccent),
+      bodyMedium: TextStyle(color: Color(0xFFE0E0E0)),
+      bodySmall: TextStyle(color: Color(0xFFBDBDBD)),
+      labelLarge: TextStyle(color: Color(0xFF1F9881)),
     ),
     
     // Color scheme
     colorScheme: ColorScheme.dark(
-      primary: Colors.cyanAccent,
-      secondary: Color(0xFF5C8EA9),
-      surface: Color(0xFF1E1E1E),
-      background: Color(0xFF121212),
-      error: Color(0xFFCF6679),
-      onPrimary: Colors.black,
-      onSecondary: Colors.black,
+      primary: Color(0xFF1F9881), // Teal primary
+      secondary: Color(0xFF2EB086), // Lighter teal
+      tertiary: Color(0xFF81C784), // Green variant for accents
+      surface: Color(0xFF0E2552), // Lighter blue
+      background: Color(0xFF001333), // Deep blue
+      error: Color(0xFFFF6B6B), // More visible red
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
       onSurface: Color(0xFFE0E0E0),
       onBackground: Color(0xFFE0E0E0),
-      onError: Colors.black,
+      onError: Colors.white,
     ),
   );
   
   // Helper method for container decoration in light/dark mode
   BoxDecoration getContainerDecoration(BuildContext context) {
     return BoxDecoration(
-      color: _isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: _isDarkMode ? Color(0xFF0E2552) : Colors.white,
+      borderRadius: BorderRadius.circular(12), // Slightly smaller radius
       boxShadow: [
         BoxShadow(
           color: _isDarkMode
               ? Colors.black.withOpacity(0.4)
               : Colors.black.withOpacity(0.05),
-          spreadRadius: 0,
-          blurRadius: _isDarkMode ? 8 : 10,
-          offset: Offset(0, 2),
+          spreadRadius: _isDarkMode ? -2 : 0,
+          blurRadius: _isDarkMode ? 10 : 10,
+          offset: Offset(0, 3),
         ),
       ],
+      // Add a subtle border for more distinction
+      border: _isDarkMode ? Border.all(color: Color(0xFF1A3366), width: 1) : null,
     );
   }
 
   // Helper method for elevated container decoration 
   BoxDecoration getElevatedContainerDecoration(BuildContext context) {
     return BoxDecoration(
-      color: _isDarkMode ? Color(0xFF252525) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: _isDarkMode ? Color(0xFF14305F) : Colors.white, // Slightly lighter blue
+      borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
           color: _isDarkMode
-              ? Colors.black.withOpacity(0.5)
+              ? Colors.black.withOpacity(0.6)
               : Colors.black.withOpacity(0.08),
-          spreadRadius: 0,
+          spreadRadius: _isDarkMode ? -2 : 0,
           blurRadius: _isDarkMode ? 12 : 15,
-          offset: Offset(0, 3),
+          offset: Offset(0, 4),
         ),
       ],
+      // Add a subtle inner border
+      border: _isDarkMode ? Border.all(color: Color(0xFF1F9881).withOpacity(0.2), width: 1) : null,
     );
   }
-  
+
   // Helper method for card decoration
   BoxDecoration getCardDecoration(BuildContext context) {
     return BoxDecoration(
-      color: _isDarkMode ? Color(0xFF252525) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: _isDarkMode ? Color(0xFF0E2552) : Colors.white, // Updated to blue shade
+      borderRadius: BorderRadius.circular(16), // Updated radius
       boxShadow: [
         BoxShadow(
           color: _isDarkMode
               ? Colors.black.withOpacity(0.3)
               : Colors.black.withOpacity(0.06),
           spreadRadius: 0,
-          blurRadius: _isDarkMode ? 6 : 8,
+          blurRadius: 8,
           offset: Offset(0, 2),
         ),
       ],
+      border: _isDarkMode ? Border.all(color: Color(0xFF1A3366), width: 1) : null,
     );
   }
-  
+
   // Helper method for gradients
   List<Color> getHeaderGradient() {
     return _isDarkMode 
-      ? [Color(0xFF252A30), Color(0xFF1A1D21)] 
+      ? [Color(0xFF001333), Color(0xFF0A1F4C)] // Deep blue gradient
       : [Color(0xFFF0F5FA), Color(0xFFE6EEF5)];
   }
   

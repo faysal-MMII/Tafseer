@@ -168,6 +168,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   Widget _buildBody() {
     final theme = Theme.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     
     if (_isLoading) {
       return Center(
@@ -184,14 +185,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
-    return SingleChildScrollView(
-      child: ResponsiveLayout(
-        child: Column(
-          children: [
-            _buildQueryContainer(),
-            SizedBox(height: isSmallScreen ? 16 : 24),
-            _buildResultsContainer(),
-          ],
+    return Container(
+      color: isDarkMode ? Color(0xFF001333) : theme.scaffoldBackgroundColor,
+      child: SingleChildScrollView(
+        child: ResponsiveLayout(
+          child: Column(
+            children: [
+              _buildQueryContainer(),
+              SizedBox(height: isSmallScreen ? 16 : 24),
+              _buildResultsContainer(),
+            ],
+          ),
         ),
       ),
     );

@@ -2,16 +2,27 @@ import 'package:flutter/material.dart';
 import '../services/quran_service.dart';
 import '../services/openai_service.dart';
 import '../services/rag_services/quran_rag_service.dart';
-import '../services/firestore_service.dart';
+import '../services/hadith_service.dart';
 import '../services/config_service.dart';
+import '../services/rag_services/hadith_rag_service.dart';
+import '../models/hadith.dart';
+import '../services/firestore_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../theme/text_styles.dart';
 import '../widgets/formatted_text.dart'; 
 import 'dart:math';
+import 'dart:convert';
+import 'package:provider/provider.dart';
 import '../theme/theme_provider.dart';
 
 String stripHtmlTags(String text) {
   text = text.replaceAll(RegExp(r'<[^>]*>'), '');
   text = text.replaceAll(RegExp(r'\s+'), ' ');
+  text = text.replaceAll('"', '"')
+      .replaceAll('&', '&')
+      .replaceAll('<', '<')
+      .replaceAll('>', '>')
+      .replaceAll(' ', ' ');
   return text.trim();
 }
 
@@ -22,8 +33,8 @@ class QuranSection extends StatefulWidget {
   final QuranService quranService;
   final QuranRAGService quranRAGService;
   final FirestoreService? firestoreService;
-  final Function(String)? onVerseSelected; // Add this parameter
-  final bool isDarkMode; // Add this parameter
+  final Function(String)? onVerseSelected;
+  final bool isDarkMode;
 
   const QuranSection({
     super.key,
@@ -34,7 +45,7 @@ class QuranSection extends StatefulWidget {
     required this.quranRAGService,
     this.firestoreService,
     this.onVerseSelected,
-    this.isDarkMode = false, // Default to light mode
+    this.isDarkMode = false,
   });
 
   @override
@@ -49,6 +60,9 @@ class _QuranSectionState extends State<QuranSection> {
   @override
   void initState() {
     super.initState();
+    print('QuranSection initState called');
+    print('Initial Query: ${widget.query}');
+
     if (widget.query != null && widget.query!.isNotEmpty) {
       _searchVerses(widget.query!);
     }
@@ -146,12 +160,19 @@ class _QuranSectionState extends State<QuranSection> {
     }
   }
 
-  String _cleanContent(String content) {
-    return stripHtmlTags(content);
+  String _cleanContent(String text) {
+    // Remove numbered list format (e.g., "1. ", "2. ")
+    return text.replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '');
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
+    final containerBackgroundColor = isDark ? Color(0xFF0E2552) : Colors.white;
+    final contentBackgroundColor = isDark ? Color(0xFF0A1F4C) : Color(0xFFF8F9FA);
+    final textColor = isDark ? Color(0xFFE0E0E0) : Color(0xFF424242);
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -176,19 +197,14 @@ class _QuranSectionState extends State<QuranSection> {
         ? widget.verses
         : _response?['quran_results']?['verses'] ?? [];
 
-    // Get theme from provider
-    final theme = Theme.of(context);
-    final isDark = widget.isDarkMode;
-    final accentColor = isDark ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
-
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.all(25),
+      margin: const EdgeInsets.symmetric(vertical: 20),
       constraints: const BoxConstraints(minHeight: 100),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: containerBackgroundColor,
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: isDark 
@@ -203,22 +219,9 @@ class _QuranSectionState extends State<QuranSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.auto_stories,
-                  color: accentColor,
-                  size: 20,
-                ),
-              ),
-              SizedBox(width: 12),
               Text(
                 'Quranic Evidence',
                 style: TextStyle(
@@ -240,14 +243,12 @@ class _QuranSectionState extends State<QuranSection> {
                 color: accentColor,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 15),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: isDark 
-                  ? Color(0xFF252525) 
-                  : Color(0xFFF8F9FA),
+                color: contentBackgroundColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -255,7 +256,7 @@ class _QuranSectionState extends State<QuranSection> {
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
+                  color: textColor,
                 ),
               ),
             ),
@@ -271,76 +272,59 @@ class _QuranSectionState extends State<QuranSection> {
                 color: accentColor,
               ),
             ),
-            const SizedBox(height: 12),
-            ...verses.map((verse) => _buildVerseItem(context, verse, accentColor)).toList(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVerseItem(BuildContext context, String verse, Color accentColor) {
-    final isDark = widget.isDarkMode;
-    
-    // Extract verse reference
-    final regExp = RegExp(r'\((.*?)\)$');
-    final match = regExp.firstMatch(verse);
-    final verseKey = match?.group(1) ?? '';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF252525) : Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark 
-            ? Color(0xFF353535) 
-            : Color(0xFFE0E0E0),
-          width: 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (widget.onVerseSelected != null && verseKey.isNotEmpty) {
-            widget.onVerseSelected!(verseKey);
-          }
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              verse,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.5,
-                color: isDark ? Color(0xFFE0E0E0) : Color(0xFF424242),
-              ),
-            ),
-            if (verseKey.isNotEmpty && widget.onVerseSelected != null) ...[
-              SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    'View in Quran',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: accentColor,
+            const SizedBox(height: 15),
+            // Using the original approach of rendering just verse references
+            Column(
+              children: List<Widget>.from(verses.map((verse) {
+                // Extract verse reference
+                final regExp = RegExp(r'\((.*?)\)$');
+                final match = regExp.firstMatch(verse);
+                final verseKey = match?.group(1) ?? '';
+                
+                if (verseKey.isEmpty) return Container();
+                
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: contentBackgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? Color(0xFF1A3366) : Color(0xFFE0E0E0),
+                      width: 1,
                     ),
                   ),
-                  SizedBox(width: 4),
-                  Icon(
-                    Icons.navigate_next,
-                    color: accentColor,
-                    size: 14,
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.onVerseSelected != null) {
+                        widget.onVerseSelected!(verseKey);
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Verse $verseKey",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: textColor,
+                          ),
+                        ),
+                        Icon(
+                          Icons.navigate_next,
+                          color: accentColor,
+                          size: 18,
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ],
+                );
+              })),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -366,15 +350,14 @@ class _QuranSectionState extends State<QuranSection> {
   }
 }
 
-// This helps bridge between your existing code and the new implementation
 class QuranSectionAdapter extends StatelessWidget {
   final String? query;
   final String answer;
   final List<String> verses;
-  final dynamic openAiService; // Keep this to match existing parameter
+  final dynamic openAiService;
   final FirestoreService? firestoreService;
-  final Function(String)? onVerseSelected; // Add this parameter
-  final bool isDarkMode; // Add this parameter
+  final Function(String)? onVerseSelected;
+  final bool isDarkMode;
 
   const QuranSectionAdapter({
     Key? key,
@@ -384,17 +367,15 @@ class QuranSectionAdapter extends StatelessWidget {
     required this.openAiService,
     this.firestoreService,
     this.onVerseSelected,
-    this.isDarkMode = false, // Default to light mode
+    this.isDarkMode = false,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Create QuranRAGService instance
     final quranRAGService = QuranRAGService(
       apiKey: ConfigService.openAiApiKey,
     );
     
-    // Create QuranService instance
     final quranService = QuranService();
     
     return QuranSection(
@@ -405,7 +386,7 @@ class QuranSectionAdapter extends StatelessWidget {
       quranService: quranService,
       firestoreService: firestoreService,
       onVerseSelected: onVerseSelected,
-      isDarkMode: isDarkMode, // Pass the dark mode parameter
+      isDarkMode: isDarkMode,
     );
   }
 }

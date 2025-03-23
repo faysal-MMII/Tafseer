@@ -63,5 +63,13 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	
+	<!-- Added keys for background modes and notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app needs to send you prayer time notifications</string>
 </dict>
 </plist>

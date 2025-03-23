@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
+import '../services/prayer_time_service.dart';
+import '../services/qibla_service.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/islamic_fun_fact.dart';
 import '../widgets/faq_section.dart';
@@ -14,6 +16,7 @@ import 'search_results_screen.dart';
 import 'quran_screen.dart';
 import 'hadith_screen.dart';
 import 'history_screen.dart';
+import 'islamic_tools_screen.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -23,11 +26,15 @@ class HomeScreen extends StatefulWidget {
   final OpenAiService openAiService;
   final AnalyticsService? analyticsService;
   final FirestoreService? firestoreService;
+  final PrayerTimeService prayerTimeService;
+  final QiblaService qiblaService;
 
   HomeScreen({
     required this.openAiService,
     this.analyticsService,
     this.firestoreService,
+    required this.prayerTimeService,
+    required this.qiblaService,
   });
 
   @override
@@ -116,13 +123,14 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: isDarkMode ? Color(0xFF121212) : Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         toolbarHeight: 70,
-        backgroundColor: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: isDarkMode ? Color(0xFF001333) : Colors.white,
         title: SizedBox(
           width: double.infinity,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             mainAxisSize: MainAxisSize.max,
             children: [
+              // Home Button
               Expanded(
                 child: TextButton(
                   onPressed: () => setState(() => _currentIndex = 0),
@@ -147,7 +155,44 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              // Repeat similar changes for other navigation icons
+              // Islamic Tools Button (New)
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    widget.analyticsService?.logFeatureUsed('islamic_tools_screen');
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(
+                        builder: (context) => IslamicToolsScreen(
+                          prayerTimeService: widget.prayerTimeService,
+                          qiblaService: widget.qiblaService,
+                          analyticsService: widget.analyticsService,
+                        )
+                      )
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FontAwesomeIcons.mosque, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
+                      Text(
+                        'Tools',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
+                          fontSize: 11,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Quran Button
               Expanded(
                 child: TextButton(
                   onPressed: () {
@@ -175,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              // Hadith Button
               Expanded(
                 child: TextButton(
                   onPressed: () {
@@ -202,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              // History Button
               Expanded(
                 child: TextButton(
                   onPressed: () {
@@ -242,91 +289,95 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDarkMode = themeProvider.isDarkMode;
 
     return ResponsiveLayout(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title and Theme Toggle
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Tafseer',
-                    style: TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
+      child: Container(
+        color: isDarkMode ? Color(0xFF001333) : Theme.of(context).scaffoldBackgroundColor,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title and Theme Toggle
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Tafseer',
+                      style: TextStyle(
+                        fontSize: 44,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
-                  ),
-                  // Theme toggle button
-                  Consumer<ThemeProvider>(
-                    builder: (context, themeProvider, _) {
-                      return IconButton(
-                        icon: AnimatedSwitcher(
-                          duration: Duration(milliseconds: 300),
-                          child: Icon(
-                            key: ValueKey<bool>(themeProvider.isDarkMode),
-                            themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                            color: themeProvider.isDarkMode ? Colors.cyanAccent : Color(0xFF2D5F7C),
+                    // Theme toggle button
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) {
+                        return IconButton(
+                          icon: AnimatedSwitcher(
+                            duration: Duration(milliseconds: 300),
+                            child: Icon(
+                              key: ValueKey<bool>(themeProvider.isDarkMode),
+                              themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                              color: themeProvider.isDarkMode ? Color(0xFF1F9881) : Color(0xFF2D5F7C),
+                            ),
                           ),
-                        ),
-                        onPressed: () {
-                          themeProvider.toggleTheme();
-                        },
-                      );
-                    },
-                  ),
-                ],
+                          onPressed: () {
+                            themeProvider.toggleTheme();
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-            
-            SizedBox(height: 24),
-            
-            // Fun fact card with modern styling
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              decoration: themeProvider.getCardDecoration(context),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: IslamicFunFact(),
+              
+              // Rest of the content...
+              SizedBox(height: 24),
+              
+              // Fun fact card
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                decoration: themeProvider.getCardDecoration(context),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: IslamicFunFact(),
+                ),
               ),
-            ),
-            
-            SizedBox(height: 24),
-            
-            // Search box with modern styling
-            _buildQuestionInput(context, themeProvider),
-            
-            SizedBox(height: 24),
-            
-            // FAQ section with modern styling
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              decoration: themeProvider.getCardDecoration(context),
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Frequently Asked Questions',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 16),
-                  FAQSection(),
-                ],
+              
+              SizedBox(height: 24),
+              
+              // Search box
+              _buildQuestionInput(context, themeProvider),
+              
+              SizedBox(height: 24),
+              
+              // FAQ section
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                decoration: themeProvider.getCardDecoration(context),
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Frequently Asked Questions',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    SizedBox(height: 16),
+                    FAQSection(),
+                  ],
+                ),
               ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            if (_error != null) ...[
-              _buildErrorBox(),
-            ] else if (_showResults) ...[
-              _buildQuranicEvidenceSection(),
+              
+              SizedBox(height: 20),
+              
+              if (_error != null) ...[
+                _buildErrorBox(),
+              ] else if (_showResults) ...[
+                _buildQuranicEvidenceSection(),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -344,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark 
-              ? [Color(0xFF1E1E1E), Color(0xFF252525)] 
+              ? [Color(0xFF0E2552), Color(0xFF0A1F4C)] // Updated to blue shades
               : [Colors.white, Color(0xFFF0F0F0)],
           ),
           borderRadius: BorderRadius.circular(24),
@@ -355,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
               blurRadius: 6,
             ),
             BoxShadow(
-              color: isDark ? Color(0xFF2A2A2A) : Colors.white,
+              color: isDark ? Color(0xFF001333) : Colors.white,
               offset: Offset(-3, -3),
               blurRadius: 6,
             ),
@@ -384,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 14,
                 ),
                 minLines: 1,
-                maxLines: 6, // Limit to 6 lines to prevent excessive expansion
+                maxLines: 6,
                 textAlignVertical: TextAlignVertical.center,
               ),
             ),
@@ -397,7 +448,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    // Clear text after sending to mimic WhatsApp behavior
                     final text = _controller.text.trim();
                     if (text.isNotEmpty) {
                       _askQuestion(text);

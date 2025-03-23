@@ -43,7 +43,7 @@ class _FAQSectionState extends State<FAQSection> {
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
-    final accentColor = isDark ? Color(0xFF81B3D2) : Color(0xFF2D5F7C);
+    final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
 
     if (isLoading) {
       return Center(
@@ -103,10 +103,10 @@ class _FAQSectionState extends State<FAQSection> {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF252525) : Color(0xFFF8F9FA),
+        color: isDark ? Color(0xFF0A1F4C) : Color(0xFFF8F9FA), // Updated to blue shade
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? Color(0xFF353535) : Color(0xFFE0E0E0),
+          color: isDark ? Color(0xFF1A3366) : Color(0xFFE0E0E0),
           width: 1,
         ),
       ),
