@@ -4,6 +4,7 @@ import '../services/prayer_time_service.dart';
 import '../services/analytics_service.dart';
 import '../theme/text_styles.dart';
 import 'package:hijri/hijri_calendar.dart';
+import 'package:flutter/services.dart'; // Import for SystemSound and HapticFeedback
 
 class PrayerTimeScreen extends StatefulWidget {
   final PrayerTimeService prayerTimeService;

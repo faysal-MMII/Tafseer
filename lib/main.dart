@@ -88,7 +88,19 @@ void main() async {
     );
     
     // Initialize prayer and qibla services
-    final prayerTimeService = PrayerTimeService();
+    final prayerTimeService = PrayerTimeService(
+      onPrayerTime: (prayer) {
+        // This will be called when it's prayer time
+        if (navigatorKey.currentState != null && navigatorKey.currentState!.context != null) {
+          ScaffoldMessenger.of(navigatorKey.currentState!.context).showSnackBar(
+            SnackBar(
+              content: Text('It\'s time for ${prayer.name} prayer'),
+              duration: Duration(seconds: 10),
+            ),
+          );
+        }
+      }
+    );
     final qiblaService = QiblaService();
     
     // Initialize prayer time service in background

@@ -118,6 +118,37 @@ class _HadithSectionState extends State<HadithSection> {
     }
   }
 
+  // Updated clean markdown formatting function
+  String _cleanMarkdownFormatting(String text) {
+    text = text.replaceAllMapped(
+      RegExp(r'\*\*(.*?)\*\*'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'__(.*?)__'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'\*(.*?)\*'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'_(.*?)_'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    // Remove numbered lists with period
+    text = text.replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '');
+
+    // Remove bullet points
+    text = text.replaceAll(RegExp(r'^\s*[\*\-\•]\s+', multiLine: true), '');
+
+    return text.trim();
+  }
+
   Widget _buildResults() {
     final isDark = widget.isDarkMode;
     final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
@@ -168,16 +199,17 @@ class _HadithSectionState extends State<HadithSection> {
             color: isDark ? Color(0xFF0A1F4C) : Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(
-            _response!['hadith_results']['answer'] ?? 'No explanation available',
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.5,
-              color: textColor,
+          child: SingleChildScrollView( // Add this wrapper
+            child: Text(
+              _cleanMarkdownFormatting(_response!['hadith_results']['answer'] ?? 'No explanation available'), // Clean the explanation
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: textColor,
+              ),
             ),
           ),
         ),
-        // No Referenced Hadiths section - keeping your desired functionality
       ],
     );
   }

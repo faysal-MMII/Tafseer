@@ -57,6 +57,37 @@ class _QuranSectionState extends State<QuranSection> {
   Map<String, dynamic>? _response;
   String? _error;
 
+  // Updated clean markdown formatting function
+  String _cleanMarkdownFormatting(String text) {
+    text = text.replaceAllMapped(
+      RegExp(r'\*\*(.*?)\*\*'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'__(.*?)__'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'\*(.*?)\*'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    text = text.replaceAllMapped(
+      RegExp(r'_(.*?)_'), 
+      (match) => match.group(1) ?? ''
+    );
+
+    // Remove numbered lists with period
+    text = text.replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '');
+
+    // Remove bullet points
+    text = text.replaceAll(RegExp(r'^\s*[\*\-\•]\s+', multiLine: true), '');
+
+    return text.trim();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -252,7 +283,7 @@ class _QuranSectionState extends State<QuranSection> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _cleanContent(explanation),
+                _cleanMarkdownFormatting(_cleanContent(explanation)), // Clean the explanation
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
