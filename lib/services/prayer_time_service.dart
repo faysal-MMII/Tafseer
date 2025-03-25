@@ -86,12 +86,14 @@ class PrayerTimeService {
     try {
       await getPrayerTimes();
       print("Prayer times retrieved");
+      await setupScheduledNotifications();
+      print("All notifications scheduled");
     } catch (e) {
       print("Failed to get prayer times: $e");
     }
 
-    _startPrayerCheckTimer();
-    print("Prayer check timer started");
+    await _initializeTimezone();
+    print("Timezone initialized");
   }
 
   Future<void> _initializeNotifications() async {
@@ -124,21 +126,25 @@ class PrayerTimeService {
       },
     );
 
-    // Request permissions (add this block)
+    // Request permissions
     if (Platform.isIOS || Platform.isMacOS) {
-      await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+      final plugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      if (plugin != null) {
+        await plugin.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
     }
 
     if (Platform.isAndroid) {
-      await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final plugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (plugin != null) {
+        await plugin.requestNotificationsPermission();
+      }
     }
 
     // Set local timezone
@@ -147,90 +153,204 @@ class PrayerTimeService {
     }
   }
 
-  Future<void> testNotification() async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'prayer_time_channel',
-      'Prayer Times',
-      channelDescription: 'Notifications for prayer times',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
+  Future<void> setupScheduledNotifications() async {
+    // First, cancel all existing notifications
+    await _notificationsPlugin.cancelAll();
+    print("Previous notifications canceled");
 
-    const DarwinNotificationDetails darwinDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    final now = DateTime.now();
+    print("Current time when scheduling: ${now.toString()}");
 
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: darwinDetails,
-      macOS: darwinDetails,
-    );
+    // Day 0 (today)
+    await _schedulePrayersForDate(DateTime.now(), 0);
 
-    // Show an immediate test notification
-    await _notificationsPlugin.show(
-      0,
-      'Prayer Time Test',
-      'This is a test prayer time notification',
-      notificationDetails,
-    );
+    // Day 1 (tomorrow)
+    await _schedulePrayersForDate(DateTime.now().add(Duration(days: 1)), 1);
+
+    // Day 2 (day after tomorrow)
+    await _schedulePrayersForDate(DateTime.now().add(Duration(days: 2)), 2);
   }
 
-  void _startPrayerCheckTimer() {
-    // Cancel existing timer if any
-    _prayerCheckTimer?.cancel();
+  // This method schedules prayers for a specific date
+  Future<void> _schedulePrayersForDate(DateTime date, int dayOffset) async {
+    print("Scheduling prayers for ${date.toString().split(' ')[0]}");
 
-    // Check every minute if it's time for prayer
-    _prayerCheckTimer = Timer.periodic(Duration(minutes: 1), (timer) {
-      final now = DateTime.now();
+    // Get prayer times for this date
+    List<PrayerTime> prayerTimes = [];
 
-      // Check if any prayer time matches current time (within 1 minute)
-      for (final prayer in _prayerTimes) {
-        if (prayer.dateTime.difference(now).inMinutes.abs() <= 1) {
-          // It's prayer time! Show notification
-          _showPrayerNotification(prayer);
-          break;
+    // If it's today, use the existing prayer times
+    if (dayOffset == 0) {
+      prayerTimes = _prayerTimes;
+    } else {
+      // Otherwise, fetch prayer times for the specified date
+      try {
+        final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+        final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
+
+        final response = await http.get(Uri.parse(url));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final timings = data['data']['timings'];
+
+          prayerTimes = [];
+          _addPrayerTimeToList(prayerTimes, 'Fajr', timings['Fajr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Dhuhr', timings['Dhuhr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Asr', timings['Asr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Maghrib', timings['Maghrib'], date);
+          _addPrayerTimeToList(prayerTimes, 'Isha', timings['Isha'], date);
+
+          prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        }
+      } catch (e) {
+        print("Error fetching prayer times for ${date.toString().split(' ')[0]}: $e");
+        return;
+      }
+    }
+
+    // Now schedule notifications for this date's prayers
+    final now = DateTime.now();
+    int scheduledCount = 0;
+
+    for (final prayer in prayerTimes) {
+      // Only schedule if the prayer time is in the future
+      if (prayer.dateTime.isAfter(now)) {
+        try {
+          final scheduledTime = tz.TZDateTime.from(prayer.dateTime, tz.local);
+          print("Scheduling ${prayer.name} at ${prayer.formattedTime} (${prayer.dateTime})");
+
+          // Create unique ID for each prayer based on name and date
+          final notificationId = prayer.name.hashCode + (dayOffset * 1000);
+
+          await _notificationsPlugin.zonedSchedule(
+            notificationId,
+            'Prayer Time',
+            'It\'s time for ${prayer.name} prayer',
+            scheduledTime,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'prayer_time_channel',
+                'Prayer Times',
+                channelDescription: 'Notifications for prayer times',
+                importance: Importance.high,
+                priority: Priority.high,
+                playSound: true,
+                enableVibration: true,
+              ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          );
+
+          print("Successfully scheduled notification for ${prayer.name}");
+          scheduledCount++;
+        } catch (e) {
+          print("Error scheduling notification for ${prayer.name}: $e");
         }
       }
-    });
+    }
+
+    print("Scheduled $scheduledCount notifications for day $dayOffset");
   }
 
-  Future<void> _showPrayerNotification(PrayerTime prayer) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'prayer_time_channel',
-      'Prayer Times',
-      channelDescription: 'Notifications for prayer times',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
+  // Helper method to add prayer time to a list
+  void _addPrayerTimeToList(List<PrayerTime> list, String name, String timeString, DateTime date) {
+    final parts = timeString.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+
+    final time = TimeOfDay(hour: hour, minute: minute);
+
+    final dateTime = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      hour,
+      minute,
     );
 
-    const DarwinNotificationDetails darwinDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    list.add(PrayerTime(
+      name: name,
+      time: time,
+      dateTime: dateTime,
+    ));
+  }
 
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: darwinDetails,
-      macOS: darwinDetails,
-    );
+  Future<void> _initializeTimezone() async {
+    tz_data.initializeTimeZones();
 
-    // Show notification
     try {
-      await _notificationsPlugin.show(
-        prayer.name.hashCode, // Use name hash as ID
-        'Prayer Time',
-        'It\'s time for ${prayer.name} prayer',
-        notificationDetails,
-      );
+      // First try: Use device timezone name directly
+      final deviceTimeZone = DateTime.now().timeZoneName;
+      print("Device timezone name: $deviceTimeZone");
+
+      try {
+        tz.setLocalLocation(tz.getLocation(deviceTimeZone));
+        print("Set timezone to device timezone: $deviceTimeZone");
+        return;
+      } catch (e) {
+        print("Could not use device timezone name: $e");
+      }
+
+      // Second try: Use device timezone offset
+      final nowUtc = DateTime.now().toUtc();
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset;
+
+      // Find a timezone with the same offset
+      for (final locationName in tz.timeZoneDatabase.locations.keys) {
+        final location = tz.getLocation(locationName);
+        final testDateTime = tz.TZDateTime.from(nowUtc, location);
+        if (testDateTime.timeZoneOffset == offset) {
+          tz.setLocalLocation(location);
+          print("Set timezone based on offset: $locationName");
+          return;
+        }
+      }
+
+      // Third try: Use a common timezone based on rough location
+      if (_position != null) {
+        final lat = _position!.latitude;
+        final lng = _position!.longitude;
+
+        String regionGuess;
+
+        // Very rough regions based on coordinates
+        if (lat > 30 && lng > -10 && lng < 40) {
+          regionGuess = 'Europe/London';
+        } else if (lat > 20 && lng > -130 && lng < -50) {
+          regionGuess = 'America/New_York';
+        } else if (lat > -35 && lng > 100 && lng < 150) {
+          regionGuess = 'Australia/Sydney';
+        } else if (lat > 0 && lat < 40 && lng > 60 && lng < 140) {
+          regionGuess = 'Asia/Shanghai';
+        } else if (lat > -35 && lat < 35 && lng > 0 && lng < 50) {
+          regionGuess = 'Africa/Lagos';
+        } else {
+          regionGuess = 'Etc/UTC';
+        }
+
+        try {
+          tz.setLocalLocation(tz.getLocation(regionGuess));
+          print("Set timezone based on coordinates: $regionGuess");
+          return;
+        } catch (e) {
+          print("Could not set timezone from coordinates: $e");
+        }
+      }
+
+      // Last resort: Use UTC
+      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      print("Falling back to UTC timezone");
+
     } catch (e) {
-      print('Error showing notification: $e');
+      print("Error in timezone initialization: $e");
+      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
     }
   }
 
@@ -338,6 +458,7 @@ class PrayerTimeService {
 
         if (_isToday(date)) {
           _findNextPrayer();
+          await setupScheduledNotifications(); 
         }
       }
     } catch (e) {
