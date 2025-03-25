@@ -267,7 +267,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                     },
                   ),
           ),
-          
+
           // Bottom spacer for better UI balance
           SizedBox(height: 16),
         ],
