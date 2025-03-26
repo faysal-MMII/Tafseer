@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
-import 'dart:io' show Platform; // Import for Platform
+import 'dart:io' show Platform;
 
 class PrayerTime {
   final String name;
@@ -25,40 +25,30 @@ class PrayerTime {
   }
 }
 
-// Create a callback typedef for prayer notifications
 typedef PrayerNotificationCallback = void Function(PrayerTime prayer);
 
 class PrayerTimeService {
-  // API endpoint for prayer times
   final String apiUrl = 'https://api.aladhan.com/v1/timingsByCity';
   final String dateApiUrl = 'https://api.aladhan.com/v1/timingsByCity';
 
-  // Notification plugin
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  // Prayer times for the current day
   List<PrayerTime> _prayerTimes = [];
   List<PrayerTime> get prayerTimes => _prayerTimes;
 
-  // Next prayer time
   PrayerTime? _nextPrayer;
   PrayerTime? get nextPrayer => _nextPrayer;
 
-  // Current location
   String? _city;
   String? _country;
   Position? _position;
 
-  // Timer for checking prayer times
   Timer? _prayerCheckTimer;
 
-  // Notification callback
   final PrayerNotificationCallback? onPrayerTime;
 
-  // Basic constructor with optional callback
   PrayerTimeService({this.onPrayerTime});
 
-  // Initialize the service
   Future<void> initialize() async {
     try {
       await _initializeNotifications();
@@ -66,14 +56,12 @@ class PrayerTimeService {
     } catch (e) {
       print("Failed to initialize notifications: $e");
     }
-
     try {
       await _checkLocationPermission();
       print("Location permission checked");
     } catch (e) {
       print("Location permission check failed: $e");
     }
-
     try {
       await _loadSavedLocation();
       print("Saved location loaded");
@@ -82,7 +70,6 @@ class PrayerTimeService {
       _city = "Default";
       _country = "Default";
     }
-
     try {
       await getPrayerTimes();
       print("Prayer times retrieved");
@@ -91,45 +78,35 @@ class PrayerTimeService {
     } catch (e) {
       print("Failed to get prayer times: $e");
     }
-
     await _initializeTimezone();
     print("Timezone initialized");
   }
 
   Future<void> _initializeNotifications() async {
-    // Initialize timezone
     tz_data.initializeTimeZones();
 
-    // Initialize notification settings for Android
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings(
       requestSoundPermission: true,
       requestBadgePermission: true,
       requestAlertPermission: true,
     );
 
-    // Combined initialization settings
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: darwinSettings,
       macOS: darwinSettings,
     );
 
-    // Initialize notifications plugin
     await _notificationsPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse details) async {
-        // Handle notification tap
         print('Notification tapped with payload: ${details.payload}');
       },
     );
 
-    // Request permissions
     if (Platform.isIOS || Platform.isMacOS) {
-      final plugin = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      final plugin = _notificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
       if (plugin != null) {
         await plugin.requestPermissions(
           alert: true,
@@ -138,68 +115,73 @@ class PrayerTimeService {
         );
       }
     }
-
     if (Platform.isAndroid) {
-      final plugin = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final plugin = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (plugin != null) {
         await plugin.requestNotificationsPermission();
       }
     }
 
-    // Set local timezone
     if (tz.local == null) {
       tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+    }
+
+    await _createNotificationChannels();
+  }
+
+  Future<void> _createNotificationChannels() async {
+    if (Platform.isAndroid) {
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'prayer_time_channel',
+        'Prayer Times',
+        description: 'Notifications for prayer times',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+        enableLights: true,
+      );
+
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+      print("Created high-priority notification channel");
     }
   }
 
   Future<void> setupScheduledNotifications() async {
-    // First, cancel all existing notifications
     await _notificationsPlugin.cancelAll();
     print("Previous notifications canceled");
 
     final now = DateTime.now();
     print("Current time when scheduling: ${now.toString()}");
 
-    // Day 0 (today)
     await _schedulePrayersForDate(DateTime.now(), 0);
-
-    // Day 1 (tomorrow)
     await _schedulePrayersForDate(DateTime.now().add(Duration(days: 1)), 1);
-
-    // Day 2 (day after tomorrow)
     await _schedulePrayersForDate(DateTime.now().add(Duration(days: 2)), 2);
   }
 
-  // This method schedules prayers for a specific date
   Future<void> _schedulePrayersForDate(DateTime date, int dayOffset) async {
     print("Scheduling prayers for ${date.toString().split(' ')[0]}");
 
-    // Get prayer times for this date
     List<PrayerTime> prayerTimes = [];
 
-    // If it's today, use the existing prayer times
     if (dayOffset == 0) {
       prayerTimes = _prayerTimes;
     } else {
-      // Otherwise, fetch prayer times for the specified date
       try {
         final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
         final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
-
         final response = await http.get(Uri.parse(url));
-
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           final timings = data['data']['timings'];
-
           prayerTimes = [];
           _addPrayerTimeToList(prayerTimes, 'Fajr', timings['Fajr'], date);
           _addPrayerTimeToList(prayerTimes, 'Dhuhr', timings['Dhuhr'], date);
           _addPrayerTimeToList(prayerTimes, 'Asr', timings['Asr'], date);
           _addPrayerTimeToList(prayerTimes, 'Maghrib', timings['Maghrib'], date);
           _addPrayerTimeToList(prayerTimes, 'Isha', timings['Isha'], date);
-
           prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
         }
       } catch (e) {
@@ -208,20 +190,15 @@ class PrayerTimeService {
       }
     }
 
-    // Now schedule notifications for this date's prayers
     final now = DateTime.now();
     int scheduledCount = 0;
-
     for (final prayer in prayerTimes) {
-      // Only schedule if the prayer time is in the future
       if (prayer.dateTime.isAfter(now)) {
         try {
           final scheduledTime = tz.TZDateTime.from(prayer.dateTime, tz.local);
           print("Scheduling ${prayer.name} at ${prayer.formattedTime} (${prayer.dateTime})");
 
-          // Create unique ID for each prayer based on name and date
           final notificationId = prayer.name.hashCode + (dayOffset * 1000);
-
           await _notificationsPlugin.zonedSchedule(
             notificationId,
             'Prayer Time',
@@ -233,9 +210,14 @@ class PrayerTimeService {
                 'Prayer Times',
                 channelDescription: 'Notifications for prayer times',
                 importance: Importance.high,
-                priority: Priority.high,
+                priority: Priority.max,
                 playSound: true,
                 enableVibration: true,
+                visibility: NotificationVisibility.public,
+                autoCancel: false,
+                ongoing: true,
+                fullScreenIntent: true,
+                category: AndroidNotificationCategory.alarm,
               ),
               iOS: DarwinNotificationDetails(
                 presentAlert: true,
@@ -246,7 +228,6 @@ class PrayerTimeService {
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           );
-
           print("Successfully scheduled notification for ${prayer.name}");
           scheduledCount++;
         } catch (e) {
@@ -254,41 +235,23 @@ class PrayerTimeService {
         }
       }
     }
-
     print("Scheduled $scheduledCount notifications for day $dayOffset");
   }
 
-  // Helper method to add prayer time to a list
   void _addPrayerTimeToList(List<PrayerTime> list, String name, String timeString, DateTime date) {
     final parts = timeString.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
-
     final time = TimeOfDay(hour: hour, minute: minute);
-
-    final dateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour,
-      minute,
-    );
-
-    list.add(PrayerTime(
-      name: name,
-      time: time,
-      dateTime: dateTime,
-    ));
+    final dateTime = DateTime(date.year, date.month, date.day, hour, minute);
+    list.add(PrayerTime(name: name, time: time, dateTime: dateTime));
   }
 
   Future<void> _initializeTimezone() async {
     tz_data.initializeTimeZones();
-
     try {
-      // First try: Use device timezone name directly
       final deviceTimeZone = DateTime.now().timeZoneName;
       print("Device timezone name: $deviceTimeZone");
-
       try {
         tz.setLocalLocation(tz.getLocation(deviceTimeZone));
         print("Set timezone to device timezone: $deviceTimeZone");
@@ -297,12 +260,10 @@ class PrayerTimeService {
         print("Could not use device timezone name: $e");
       }
 
-      // Second try: Use device timezone offset
       final nowUtc = DateTime.now().toUtc();
       final now = DateTime.now();
       final offset = now.timeZoneOffset;
 
-      // Find a timezone with the same offset
       for (final locationName in tz.timeZoneDatabase.locations.keys) {
         final location = tz.getLocation(locationName);
         final testDateTime = tz.TZDateTime.from(nowUtc, location);
@@ -313,14 +274,11 @@ class PrayerTimeService {
         }
       }
 
-      // Third try: Use a common timezone based on rough location
       if (_position != null) {
         final lat = _position!.latitude;
         final lng = _position!.longitude;
-
         String regionGuess;
 
-        // Very rough regions based on coordinates
         if (lat > 30 && lng > -10 && lng < 40) {
           regionGuess = 'Europe/London';
         } else if (lat > 20 && lng > -130 && lng < -50) {
@@ -334,7 +292,6 @@ class PrayerTimeService {
         } else {
           regionGuess = 'Etc/UTC';
         }
-
         try {
           tz.setLocalLocation(tz.getLocation(regionGuess));
           print("Set timezone based on coordinates: $regionGuess");
@@ -344,10 +301,8 @@ class PrayerTimeService {
         }
       }
 
-      // Last resort: Use UTC
       tz.setLocalLocation(tz.getLocation('Etc/UTC'));
       print("Falling back to UTC timezone");
-
     } catch (e) {
       print("Error in timezone initialization: $e");
       tz.setLocalLocation(tz.getLocation('Etc/UTC'));
@@ -363,15 +318,10 @@ class PrayerTimeService {
           return;
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
         return;
       }
-
-      _position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-
+      _position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
       await _getAddressFromLatLng(_position!);
     } catch (e) {
       print('Error getting location: $e');
@@ -383,10 +333,8 @@ class PrayerTimeService {
     try {
       final latitude = position.latitude.toStringAsFixed(3);
       final longitude = position.longitude.toStringAsFixed(3);
-
       _city = "Location ${latitude}";
       _country = "Location ${longitude}";
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('city', _city!);
       await prefs.setString('country', _country!);
@@ -400,7 +348,6 @@ class PrayerTimeService {
     final prefs = await SharedPreferences.getInstance();
     _city = prefs.getString('city');
     _country = prefs.getString('country');
-
     if (_city == null || _country == null) {
       try {
         await _checkLocationPermission();
@@ -420,7 +367,6 @@ class PrayerTimeService {
     await getPrayerTimes();
   }
 
-  // Get prayer times for today
   Future<void> getPrayerTimes() async {
     return getPrayerTimesForDate(DateTime.now());
   }
@@ -434,31 +380,23 @@ class PrayerTimeService {
         _country = "Unknown";
       }
     }
-
     final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-
     final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
-
     try {
       final response = await http.get(Uri.parse(url));
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data['data']['timings'];
-
         _prayerTimes = [];
-
         _addPrayerTime('Fajr', timings['Fajr'], date);
         _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
         _addPrayerTime('Asr', timings['Asr'], date);
         _addPrayerTime('Maghrib', timings['Maghrib'], date);
         _addPrayerTime('Isha', timings['Isha'], date);
-
         _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-
         if (_isToday(date)) {
           _findNextPrayer();
-          await setupScheduledNotifications(); 
+          await setupScheduledNotifications();
         }
       }
     } catch (e) {
@@ -475,66 +413,88 @@ class PrayerTimeService {
     final parts = timeString.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
-
     final time = TimeOfDay(hour: hour, minute: minute);
-
-    final dateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour,
-      minute,
-    );
-
-    _prayerTimes.add(PrayerTime(
-      name: name,
-      time: time,
-      dateTime: dateTime,
-    ));
+    final dateTime = DateTime(date.year, date.month, date.day, hour, minute);
+    _prayerTimes.add(PrayerTime(name: name, time: time, dateTime: dateTime));
   }
 
   void _findNextPrayer() {
     final now = DateTime.now();
     _nextPrayer = null;
-
     for (var prayer in _prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         _nextPrayer = prayer;
         break;
       }
     }
-
     if (_nextPrayer == null && _prayerTimes.isNotEmpty) {
       final tomorrow = DateTime.now().add(Duration(days: 1));
       final firstPrayer = _prayerTimes.first;
-
       _nextPrayer = PrayerTime(
         name: firstPrayer.name,
         time: firstPrayer.time,
-        dateTime: DateTime(
-          tomorrow.year,
-          tomorrow.month,
-          tomorrow.day,
-          firstPrayer.time.hour,
-          firstPrayer.time.minute,
-        ),
+        dateTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, firstPrayer.time.hour, firstPrayer.time.minute),
       );
     }
   }
 
   String getTimeUntilNextPrayer() {
     if (_nextPrayer == null) return 'Unknown';
-
     final now = DateTime.now();
     final difference = _nextPrayer!.dateTime.difference(now);
-
     final hours = difference.inHours;
     final minutes = difference.inMinutes % 60;
-
     if (hours > 0) {
       return '$hours h $minutes min';
     } else {
       return '$minutes min';
+    }
+  }
+
+  Future<void> testRealNotification() async {
+    // Schedule notification for 30 seconds from now
+    final now = DateTime.now();
+    final notificationTime = now.add(Duration(seconds: 30));
+
+    try {
+      final scheduledTime = tz.TZDateTime.from(notificationTime, tz.local);
+      print("Scheduling forced test notification for 30 seconds from now");
+
+      await _notificationsPlugin.zonedSchedule(
+        9999, // Unique ID for test
+        'Prayer Time Test',
+        'This is a critical test notification',
+        scheduledTime,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'prayer_time_channel',
+            'Prayer Times',
+            channelDescription: 'Notifications for prayer times',
+            importance: Importance.high,
+            priority: Priority.max,
+            playSound: true,
+            enableVibration: true,
+            visibility: NotificationVisibility.public,
+            autoCancel: false,
+            ongoing: true,
+            fullScreenIntent: true,
+            category: AndroidNotificationCategory.alarm,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+
+      print("Forced test notification scheduled");
+      return Future.value(true);
+    } catch (e) {
+      print("Error scheduling forced test: $e");
+      return Future.error(e);
     }
   }
 
