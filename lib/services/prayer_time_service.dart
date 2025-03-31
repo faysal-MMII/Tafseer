@@ -5,10 +5,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
-import 'dart:io' show Platform;
 
 class PrayerTime {
   final String name;
@@ -31,8 +30,6 @@ class PrayerTimeService {
   final String apiUrl = 'https://api.aladhan.com/v1/timingsByCity';
   final String dateApiUrl = 'https://api.aladhan.com/v1/timingsByCity';
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-
   List<PrayerTime> _prayerTimes = [];
   List<PrayerTime> get prayerTimes => _prayerTimes;
 
@@ -46,6 +43,8 @@ class PrayerTimeService {
   Timer? _prayerCheckTimer;
 
   final PrayerNotificationCallback? onPrayerTime;
+
+  final Map<String, DateTime> _lastRequestTimes = {};
 
   PrayerTimeService({this.onPrayerTime});
 
@@ -83,74 +82,33 @@ class PrayerTimeService {
   }
 
   Future<void> _initializeNotifications() async {
-    tz_data.initializeTimeZones();
-
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-      requestAlertPermission: true,
+    await AwesomeNotifications().initialize(
+      'resource://drawable/ic_notification',
+      [
+        NotificationChannel(
+          channelKey: 'prayer_time_channel',
+          channelName: 'Prayer Times',
+          channelDescription: 'Notifications for prayer times',
+          defaultColor: Color(0xFF001333),
+          ledColor: Colors.white,
+          importance: NotificationImportance.High,
+          defaultPrivacy: NotificationPrivacy.Public,
+          defaultRingtoneType: DefaultRingtoneType.Notification,
+          channelShowBadge: false,
+        ),
+      ],
     );
 
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: darwinSettings,
-      macOS: darwinSettings,
-    );
-
-    await _notificationsPlugin.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse details) async {
-        print('Notification tapped with payload: ${details.payload}');
-      },
-    );
-
-    if (Platform.isIOS || Platform.isMacOS) {
-      final plugin = _notificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-      if (plugin != null) {
-        await plugin.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    // Request permission
+    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+      if (!isAllowed) {
+        AwesomeNotifications().requestPermissionToSendNotifications();
       }
-    }
-    if (Platform.isAndroid) {
-      final plugin = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      if (plugin != null) {
-        await plugin.requestNotificationsPermission();
-      }
-    }
-
-    if (tz.local == null) {
-      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
-    }
-
-    await _createNotificationChannels();
-  }
-
-  Future<void> _createNotificationChannels() async {
-    if (Platform.isAndroid) {
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'prayer_time_channel',
-        'Prayer Times',
-        description: 'Notifications for prayer times',
-        importance: Importance.high,
-        playSound: true,
-        enableVibration: true,
-        showBadge: true,
-        enableLights: true,
-      );
-
-      await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
-      print("Created high-priority notification channel");
-    }
+    });
   }
 
   Future<void> setupScheduledNotifications() async {
-    await _notificationsPlugin.cancelAll();
+    await AwesomeNotifications().cancelAll();
     print("Previous notifications canceled");
 
     final now = DateTime.now();
@@ -195,39 +153,20 @@ class PrayerTimeService {
     for (final prayer in prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         try {
-          final scheduledTime = tz.TZDateTime.from(prayer.dateTime, tz.local);
-          print("Scheduling ${prayer.name} at ${prayer.formattedTime} (${prayer.dateTime})");
-
+          // Create unique ID for each prayer
           final notificationId = prayer.name.hashCode + (dayOffset * 1000);
-          await _notificationsPlugin.zonedSchedule(
-            notificationId,
-            'Prayer Time',
-            'It\'s time for ${prayer.name} prayer',
-            scheduledTime,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'prayer_time_channel',
-                'Prayer Times',
-                channelDescription: 'Notifications for prayer times',
-                importance: Importance.high,
-                priority: Priority.max,
-                playSound: true,
-                enableVibration: true,
-                visibility: NotificationVisibility.public,
-                autoCancel: false,
-                ongoing: true,
-                fullScreenIntent: true,
-                category: AndroidNotificationCategory.alarm,
-              ),
-              iOS: DarwinNotificationDetails(
-                presentAlert: true,
-                presentBadge: true,
-                presentSound: true,
-              ),
+          
+          await AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: notificationId,
+              channelKey: 'prayer_time_channel',
+              title: 'Prayer Time',
+              body: 'It\'s time for ${prayer.name} prayer',
+              notificationLayout: NotificationLayout.Default,
             ),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            schedule: NotificationCalendar.fromDate(date: prayer.dateTime),
           );
+
           print("Successfully scheduled notification for ${prayer.name}");
           scheduledCount++;
         } catch (e) {
@@ -331,17 +270,77 @@ class PrayerTimeService {
 
   Future<void> _getAddressFromLatLng(Position position) async {
     try {
-      final latitude = position.latitude.toStringAsFixed(3);
-      final longitude = position.longitude.toStringAsFixed(3);
-      _city = "Location ${latitude}";
-      _country = "Location ${longitude}";
+      final latitude = position.latitude.toStringAsFixed(6);
+      final longitude = position.longitude.toStringAsFixed(6);
+      
+      // Check if we have a cached address
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('city', _city!);
-      await prefs.setString('country', _country!);
+      final cachedCity = prefs.getString('city');
+      final cachedCountry = prefs.getString('country');
+      final cacheKey = '$latitude,$longitude';
+
+      if (cachedCity != null && cachedCountry != null && _lastRequestTimes[cacheKey] != null) {
+        final lastRequestTime = _lastRequestTimes[cacheKey]!;
+        if (DateTime.now().difference(lastRequestTime).inMinutes < 10) {
+          _city = cachedCity;
+          _country = cachedCountry;
+          print("Using cached location: $_city, $_country");
+          return;
+        }
+      }
+
+      // Use Nominatim for geocoding
+      final url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}&zoom=10';
+      final response = await _makeRateLimitedRequest(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // Extract city and country from Nominatim response
+        String city = data['address']['city'] ?? 
+                     data['address']['town'] ?? 
+                     data['address']['village'] ?? 
+                     data['address']['county'] ?? 
+                     "Unknown";
+
+        String country = data['address']['country'] ?? "Unknown";
+
+        _city = city;
+        _country = country;
+
+        await prefs.setString('city', _city!);
+        await prefs.setString('country', _country!);
+        _lastRequestTimes[cacheKey] = DateTime.now();
+
+        print("Geocoded location: $_city, $_country");
+      } else {
+        throw Exception('Failed to geocode location');
+      }
     } catch (e) {
       print('Error handling location: $e');
       await _loadSavedLocation();
     }
+  }
+
+  Future<http.Response> _makeRateLimitedRequest(String url) async {
+    // Check if we need to wait to respect rate limits
+    final now = DateTime.now();
+    final lastRequestTime = _lastRequestTimes['nominatim'] ?? DateTime(2000);
+    final timeSinceLastRequest = now.difference(lastRequestTime).inMilliseconds;
+
+    // If last request was less than 1 second ago, wait
+    if (timeSinceLastRequest < 1000) {
+      await Future.delayed(Duration(milliseconds: 1000 - timeSinceLastRequest));
+    }
+
+    final response = await http.get(Uri.parse(url), headers: {
+      'User-Agent': 'TafseerApp/1.0'
+    });
+
+    // Update last request time
+    _lastRequestTimes['nominatim'] = DateTime.now();
+
+    return response;
   }
 
   Future<void> _loadSavedLocation() async {
@@ -457,37 +456,15 @@ class PrayerTimeService {
     final notificationTime = now.add(Duration(seconds: 30));
 
     try {
-      final scheduledTime = tz.TZDateTime.from(notificationTime, tz.local);
-      print("Scheduling forced test notification for 30 seconds from now");
-
-      await _notificationsPlugin.zonedSchedule(
-        9999, // Unique ID for test
-        'Prayer Time Test',
-        'This is a critical test notification',
-        scheduledTime,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'prayer_time_channel',
-            'Prayer Times',
-            channelDescription: 'Notifications for prayer times',
-            importance: Importance.high,
-            priority: Priority.max,
-            playSound: true,
-            enableVibration: true,
-            visibility: NotificationVisibility.public,
-            autoCancel: false,
-            ongoing: true,
-            fullScreenIntent: true,
-            category: AndroidNotificationCategory.alarm,
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 9999, // Unique ID for test
+          channelKey: 'prayer_time_channel',
+          title: 'Prayer Time Test',
+          body: 'This is a critical test notification',
+          notificationLayout: NotificationLayout.Default,
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        schedule: NotificationCalendar.fromDate(date: notificationTime),
       );
 
       print("Forced test notification scheduled");

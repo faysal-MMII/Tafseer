@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math'; 
 import 'package:flutter/material.dart';
 import '../models/hadith.dart';
 import '../theme/text_styles.dart';
@@ -39,6 +41,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<String> _quranVerses = [];
   List<Hadith> _hadiths = [];
   bool _isSearching = false;
+  StreamSubscription? _openAISubscription; // Declare StreamSubscription
 
   @override
   void initState() {
@@ -51,13 +54,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   Future<void> _fetchResults() async {
     if (_isSearching) {
-      print('Search already in progress, skipping');
+      print('[DEBUG] Search already in progress, skipping');
       return;
     }
 
     _isSearching = true;
-
-    print('=== Performance Tracking ===');
+    print('[PERF] === Performance Tracking Started ===');
     final startTime = DateTime.now();
 
     setState(() {
@@ -69,53 +71,122 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     });
 
     try {
-      print('Starting API request: ${DateTime.now()}');
-      final response = await widget.openAiService.generateResponse(widget.query);
-      print('API request completed: ${DateTime.now()}');
+      print('[PERF] Starting data fetch: ${DateTime.now()}');
+      // Fetch verses first
+      final verses = await widget.openAiService.quranService.fetchQuranVerses(widget.query);
+      print('[DEBUG] Verses count: ${verses.length}');
 
-      if (!mounted) return;
+      if (!mounted) {
+        print('[DEBUG] Widget not mounted after data fetch');
+        return;
+      }
 
+      // Format verses for display
+      final formattedVerses = verses.map((v) {
+        String text = '';
+        if (v.containsKey('translations') && v['translations'] is List && v['translations'].isNotEmpty) {
+          text = v['translations'][0]['text'] ?? '';
+        } else {
+          text = v['text'] ?? '';
+        }
+        String reference = v['verse_key'] ?? v['reference'] ?? '';
+        print('[DEBUG] Formatted verse: $reference');
+        return "$text ($reference)";
+      }).toList();
+
+      // Update UI with verses immediately
+      print('[DEBUG] Updating UI with ${formattedVerses.length} verses');
       setState(() {
-        _aiResponse = response['quran_results']['answer'] ?? '';
-        _quranVerses = List<String>.from(response['quran_results']['verses'] ?? []);
-        _hadiths = List<Hadith>.from(
-          (response['hadith_results']['hadiths'] ?? []).map((h) => Hadith.fromMap({
-            'id': 0,
-            'collection_id': 0,
-            'chapter_id': 0,
-            'hadith_number': '',
-            'text': h['text'] ?? '',
-            'arabic_text': h['arabic'] ?? null,
-            'grade': h['grade'] ?? null,
-            'narrator': h['narrator'] ?? null,
-            'keywords': null,
-          })),
-        );
-        _isLoading = false;
+        _quranVerses = formattedVerses;
+        print('[DEBUG] _quranVerses length after update: ${_quranVerses.length}');
       });
 
-      widget.firestoreService?.saveQA(
-        question: widget.query,
-        answer: response['quran_results']['answer'] ?? '',
-        quranVerses: List<String>.from(response['quran_results']['verses'] ?? []),
-        hadiths: (response['hadith_results']['hadiths'] as List? ?? []).map((h) => h['text'] as String).toList(),
-      ).catchError((e) => print('Firestore save error: $e'));
+      // Stream the interpretation
+      final stream = await widget.openAiService.streamQuranResponse(widget.query, verses);
+      String accumulatedResponse = '';
+
+      _openAISubscription = stream.listen(
+        (chunk) {
+          accumulatedResponse += chunk;
+          setState(() {
+            _aiResponse = accumulatedResponse;
+            _isLoading = false;
+          });
+        },
+        onError: (error) {
+          print("[ERROR] OpenAI Stream error: $error");
+        },
+        onDone: () {
+          print("[PERF] Streaming completed at: ${DateTime.now()}");
+          print("[DEBUG] Final streaming response length: ${accumulatedResponse.length}");
+        }
+      );
+
+      // Get full response for hadiths in background
+      print('[PERF] Starting full generateResponse call: ${DateTime.now()}');
+      widget.openAiService.generateResponse(widget.query).then((response) {
+        print('[PERF] Full response completed: ${DateTime.now()}');
+
+        if (!mounted) {
+          print('[DEBUG] Widget not mounted after full response');
+          return;
+        }
+
+        final hadithsCount = (response['hadith_results']['hadiths'] as List?)?.length ?? 0;
+        print('[DEBUG] Hadiths received: $hadithsCount');
+
+        setState(() {
+          // Only update _aiResponse if streaming didn't provide a good response
+          if (_aiResponse.length < 50) {
+            print('[DEBUG] Using full response for _aiResponse as streaming response was insufficient');
+            _aiResponse = response['quran_results']['answer'] ?? '';
+          }
+
+          // Update hadiths
+          _hadiths = List<Hadith>.from(
+            (response['hadith_results']['hadiths'] ?? []).map((h) {
+              print('[DEBUG] Processing hadith: ${h['text'].toString().substring(0, min(20, h['text'].toString().length))}...');
+              return Hadith.fromMap({
+                'id': 0,
+                'collection_id': 0,
+                'chapter_id': 0,
+                'hadith_number': '',
+                'text': h['text'] ?? '',
+                'arabic_text': h['arabic'] ?? null,
+                'grade': h['grade'] ?? null,
+                'narrator': h['narrator'] ?? null,
+                'keywords': null,
+              });
+            }),
+          );
+          print('[DEBUG] _hadiths length after update: ${_hadiths.length}');
+          _isLoading = false;
+        });
+
+        print('[PERF] Total response time: ${DateTime.now().difference(startTime).inMilliseconds}ms');
+
+      }).catchError((e) {
+        print('[ERROR] Error in generateResponse: $e');
+      }).whenComplete(() {
+        _isSearching = false;
+        print('[DEBUG] Search completed, _isSearching set to false');
+      });
 
     } catch (e) {
-      print('Error in _fetchResults: $e');
+      print('[ERROR] Error in _fetchResults: $e');
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
+        _isSearching = false;
       });
-    } finally {
-      _isSearching = false;
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
+  }
+
+  @override
+  void dispose() {
+    _openAISubscription?.cancel(); // Cancel the subscription
+    super.dispose();
   }
 
   @override

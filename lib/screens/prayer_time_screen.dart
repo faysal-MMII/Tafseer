@@ -145,20 +145,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
 
-  // New method to trigger the test notification
-  Future<void> _triggerTestNotification() async {
-    try {
-      await widget.prayerTimeService.testRealNotification();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Test notification scheduled!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to schedule test notification: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final prayerTimes = widget.prayerTimeService.prayerTimes;
@@ -250,21 +236,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                   onPressed: _goToNextDay,
                 ),
               ],
-            ),
-          ),
-          
-          SizedBox(height: 24),
-          
-          // Button to trigger test notification
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: ElevatedButton(
-              onPressed: _triggerTestNotification,
-              child: Text('Trigger Test Notification'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange[300], 
-                foregroundColor: Colors.black,
-              ),
             ),
           ),
           

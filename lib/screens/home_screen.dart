@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // Import the flutter_svg package
 import 'package:provider/provider.dart';
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
@@ -155,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              // Islamic Tools Button (New)
+              // Islamic Tools Button (Updated)
               Expanded(
                 child: TextButton(
                   onPressed: () {
@@ -177,7 +178,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(FontAwesomeIcons.mosque, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
+                      // Replace the FontAwesome icon with your custom SVG image
+                      SizedBox(
+                        height: 20, // Match the current icon size
+                        width: 20,
+                        child: SvgPicture.asset(
+                          'assets/icon/compass_needle.svg', // Use the SVG file
+                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], // Apply the same color treatment
+                        ),
+                      ),
                       Text(
                         'Tools',
                         style: TextStyle(

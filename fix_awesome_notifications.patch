@@ -1,0 +1,19 @@
+--- a/android/src/main/java/me/carda/awesome_notifications/DartBackgroundExecutor.java
++++ b/android/src/main/java/me/carda/awesome_notifications/DartBackgroundExecutor.java
+@@ -71,7 +71,7 @@
+     private static Context applicationContext;
+ 
+     // Delegate to handle plugin registrations.
+-    private static io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback
++    private static Object
+             pluginRegistrantCallback;
+ 
+     public static void setApplicationContext(@NonNull Context context) {
+@@ -83,7 +83,7 @@
+     }
+ 
+     public static void setPluginRegistrant(
+-            io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback callback) {
++            Object callback) {
+         pluginRegistrantCallback = callback;
+     }
