@@ -1,5 +1,8 @@
 platform :ios, '13.0'
 
+$PODS_DIR = Pathname.new(File.join(File.dirname(__FILE__), 'Pods'))
+$FLUTTER_ROOT = File.dirname(File.dirname(File.expand_path(File.join(File.dirname(__FILE__), '.flutter-plugins'))))
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
