@@ -36,6 +36,6 @@ Our app does not specifically target children under 13. We do not knowingly coll
 We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.
 
 ## Contact Us
-If you have any questions about this Privacy Policy, please contact us at: [Your Email Address]
+If you have any questions about this Privacy Policy, please contact us at: [eccodg02@proton.me]
 
 Last updated: May 8, 2025
