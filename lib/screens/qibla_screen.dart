@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
 import '../services/qibla_service.dart';
 import '../services/analytics_service.dart';
+import '../theme/theme_provider.dart';
 
 class QiblaScreen extends StatefulWidget {
   final QiblaService qiblaService;
@@ -81,53 +83,64 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    
+    // Match HomeScreen theme colors exactly
+    final backgroundColor = isDark ? Color(0xFF001333) : Theme.of(context).scaffoldBackgroundColor;
+    final surfaceColor = isDark ? Color(0xFF001333) : Colors.white;
+    final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
+    final primaryTextColor = isDark ? Colors.white : Colors.black87;
+    final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
+    final cardColor = isDark ? Color(0xFF0E2552) : Colors.grey[50];
+    
     return Scaffold(
-      backgroundColor: Color(0xFF001333), // Dark blue background like screenshot
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: Color(0xFF001333),
+        backgroundColor: surfaceColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.amber[100]),
+          icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white70 : Colors.blueGrey[800]),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.amber[100]),
+            icon: Icon(Icons.refresh, color: accentColor),
             onPressed: _initialize,
           ),
         ],
       ),
       body: _error.isNotEmpty
-          ? _buildErrorView()
+          ? _buildErrorView(primaryTextColor, secondaryTextColor, accentColor)
           : _isCalibrating
-              ? _buildCalibrationView()
-              : _buildCompassView(),
+              ? _buildCalibrationView(primaryTextColor, secondaryTextColor)
+              : _buildCompassView(isDark, primaryTextColor, secondaryTextColor, accentColor, cardColor),
     );
   }
 
-  Widget _buildCalibrationView() {
+  Widget _buildCalibrationView(Color primaryTextColor, Color secondaryTextColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: Colors.white),
+          CircularProgressIndicator(color: primaryTextColor),
           SizedBox(height: 24),
           Text(
             'Calibrating compass...',
-            style: TextStyle(fontSize: 18, color: Colors.white),
+            style: TextStyle(fontSize: 18, color: primaryTextColor),
           ),
           SizedBox(height: 12),
           Text(
             'Please wave your device in a figure-8 pattern',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey),
+            style: TextStyle(fontSize: 14, color: secondaryTextColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(Color primaryTextColor, Color secondaryTextColor, Color accentColor) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -142,13 +155,13 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
             SizedBox(height: 24),
             Text(
               'Error',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryTextColor),
             ),
             SizedBox(height: 16),
             Text(
               _error,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.white70),
+              style: TextStyle(fontSize: 16, color: secondaryTextColor),
             ),
             SizedBox(height: 24),
             ElevatedButton.icon(
@@ -156,6 +169,8 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
               label: Text('Try Again'),
               onPressed: _initialize,
               style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
@@ -165,7 +180,7 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildCompassView() {
+  Widget _buildCompassView(bool isDark, Color primaryTextColor, Color secondaryTextColor, Color accentColor, Color? cardColor) {
     return StreamBuilder<double>(
       stream: widget.qiblaService.compassStream,
       builder: (context, snapshot) {
@@ -181,14 +196,14 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
                   Text(
                     'LOCATION',
                     style: TextStyle(
-                      color: Colors.grey[400],
+                      color: secondaryTextColor,
                       fontSize: 14,
                     ),
                   ),
                   SizedBox(width: 8),
                   Icon(
                     Icons.location_on,
-                    color: Colors.grey[400],
+                    color: secondaryTextColor,
                     size: 16,
                   ),
                 ],
@@ -203,21 +218,23 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Color(0xFF0E2552),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(24),
+                  border: isDark ? Border.all(color: Colors.grey[800]!, width: 1) : null,
                 ),
                 child: Text(
-                  _locationName,
+                  _locationName.isNotEmpty ? _locationName : 'Loading location...',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
+                    color: primaryTextColor,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
             
-            SizedBox(height: 16),
+            SizedBox(height: 32),
             
             // Compass
             Expanded(
@@ -231,26 +248,34 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
                       height: 280,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white,
+                        color: isDark ? Colors.white.withOpacity(0.9) : Colors.white,
+                        border: isDark ? Border.all(color: Colors.grey[300]!, width: 2) : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                     ),
                     
                     // Direction labels
                     Positioned(
                       top: 20,
-                      child: Text('N', style: TextStyle(color: Colors.grey[400], fontSize: 20)),
+                      child: Text('N', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
                     ),
                     Positioned(
                       right: 20,
-                      child: Text('E', style: TextStyle(color: Colors.grey[400], fontSize: 20)),
+                      child: Text('E', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
                     ),
                     Positioned(
                       bottom: 20,
-                      child: Text('S', style: TextStyle(color: Colors.grey[400], fontSize: 20)),
+                      child: Text('S', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
                     ),
                     Positioned(
                       left: 20,
-                      child: Text('W', style: TextStyle(color: Colors.grey[400], fontSize: 20)),
+                      child: Text('W', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
                     ),
                     
                     // Needle (using Transform to rotate it)
@@ -260,7 +285,7 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
                         width: 40,
                         height: 120,
                         child: CustomPaint(
-                          painter: CompassNeedlePainter(),
+                          painter: CompassNeedlePainter(accentColor),
                         ),
                       ),
                     ),
@@ -275,7 +300,13 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
                           height: 30,
                           decoration: BoxDecoration(
                             color: Colors.black,
-                            border: Border.all(color: Colors.amber, width: 1),
+                            border: Border.all(color: accentColor, width: 2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Icon(
+                            Icons.location_city,
+                            color: accentColor,
+                            size: 16,
                           ),
                         ),
                       ),
@@ -287,13 +318,20 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
             
             // Direction instruction
             Container(
-              padding: EdgeInsets.symmetric(vertical: 24),
+              margin: EdgeInsets.symmetric(horizontal: 24),
+              padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: isDark ? Border.all(color: Colors.grey[800]!, width: 1) : null,
+              ),
               child: Text(
                 _getDirectionText(_qiblaAngle),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 20,
+                  color: primaryTextColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -319,12 +357,16 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
 
 // Custom painter for the compass needle
 class CompassNeedlePainter extends CustomPainter {
+  final Color accentColor;
+  
+  CompassNeedlePainter(this.accentColor);
+  
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     
-    // Draw the needle pointing north (orange)
-    final needlePaint = Paint()..color = Colors.orange[300]!;
+    // Draw the needle pointing north
+    final needlePaint = Paint()..color = accentColor;
     
     final needlePath = Path();
     needlePath.moveTo(center.dx, center.dy - size.height / 2); // Top point
@@ -333,6 +375,10 @@ class CompassNeedlePainter extends CustomPainter {
     needlePath.close();
     
     canvas.drawPath(needlePath, needlePaint);
+    
+    // Draw center circle
+    final centerPaint = Paint()..color = accentColor;
+    canvas.drawCircle(center, 6, centerPaint);
   }
   
   @override

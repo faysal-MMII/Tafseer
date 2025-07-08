@@ -40,14 +40,26 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final isDark = themeProvider.isDarkMode;
+    
+    // Match HomeScreen theme colors exactly
+    final backgroundColor = isDark ? Color(0xFF001333) : Theme.of(context).scaffoldBackgroundColor;
+    final surfaceColor = isDark ? Color(0xFF001333) : Colors.white;
+    final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
+    final primaryTextColor = isDark ? Colors.white : Colors.black87;
+    final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
+    final cardColor = isDark ? Color(0xFF0E2552) : Colors.grey[50];
 
     return Scaffold(
-      backgroundColor: Color(0xFF001333), // Dark blue background like screenshot
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: Text('Islamic Tools'),
-        backgroundColor: Color(0xFF001333),
+        title: Text(
+          'Islamic Tools',
+          style: TextStyle(color: primaryTextColor),
+        ),
+        backgroundColor: surfaceColor,
         elevation: 0,
+        iconTheme: IconThemeData(color: isDark ? Colors.white70 : Colors.blueGrey[800]),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -57,7 +69,7 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
             Text(
               'Select a Tool',
               style: TextStyle(
-                color: Colors.amber[100],
+                color: primaryTextColor,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -69,6 +81,11 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
               title: 'Prayer Times',
               description: 'Get accurate prayer times based on your location',
               icon: Icons.access_time,
+              isDark: isDark,
+              accentColor: accentColor,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+              cardColor: cardColor,
               onTap: () {
                 widget.analyticsService?.logFeatureUsed('prayer_time_screen');
                 Navigator.push(
@@ -90,6 +107,11 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
               title: 'Qibla Compass',
               description: 'Find the direction to Mecca for your prayers',
               icon: Icons.explore,
+              isDark: isDark,
+              accentColor: accentColor,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+              cardColor: cardColor,
               onTap: () {
                 widget.analyticsService?.logFeatureUsed('qibla_screen');
                 Navigator.push(
@@ -113,6 +135,11 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
     required String title,
     required String description,
     required IconData icon,
+    required bool isDark,
+    required Color accentColor,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+    required Color? cardColor,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -120,13 +147,14 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
       child: Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Color(0xFF0E2552),
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
+          border: isDark ? Border.all(color: Colors.grey[800]!, width: 1) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: Offset(0, 4),
+              color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+              blurRadius: isDark ? 8 : 6,
+              offset: Offset(0, 3),
             ),
           ],
         ),
@@ -135,12 +163,13 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[800],
+                color: accentColor.withOpacity(0.1),
                 shape: BoxShape.circle,
+                border: Border.all(color: accentColor.withOpacity(0.3)),
               ),
               child: Icon(
                 icon,
-                color: Colors.white,
+                color: accentColor,
                 size: 28,
               ),
             ),
@@ -152,7 +181,7 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: primaryTextColor,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -161,7 +190,7 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
                   Text(
                     description,
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: secondaryTextColor,
                       fontSize: 14,
                     ),
                   ),
@@ -170,7 +199,7 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white70,
+              color: accentColor,
               size: 16,
             ),
           ],

@@ -39,46 +39,48 @@ class PrayerTimeService {
   String? _city;
   String? _country;
   Position? _position;
+  double? _latitude;
+  double? _longitude;
 
   Timer? _prayerCheckTimer;
 
   final PrayerNotificationCallback? onPrayerTime;
 
   final Map<String, DateTime> _lastRequestTimes = {};
+  bool _isInitializing = false;
+  DateTime? _lastScheduleTime;
 
   PrayerTimeService({this.onPrayerTime});
 
   Future<void> initialize() async {
+    if (_isInitializing) return;
+    _isInitializing = true;
+    
     try {
       await _initializeNotifications();
       print("Notifications initialized");
-    } catch (e) {
-      print("Failed to initialize notifications: $e");
-    }
-    try {
+      
       await _checkLocationPermission();
       print("Location permission checked");
-    } catch (e) {
-      print("Location permission check failed: $e");
-    }
-    try {
+      
       await _loadSavedLocation();
       print("Saved location loaded");
-    } catch (e) {
-      print("Failed to load saved location: $e");
-      _city = "Default";
-      _country = "Default";
-    }
-    try {
+      
       await getPrayerTimes();
       print("Prayer times retrieved");
+      
       await setupScheduledNotifications();
       print("All notifications scheduled");
+      
+      await _initializeTimezone();
+      print("Timezone initialized");
     } catch (e) {
-      print("Failed to get prayer times: $e");
+      print("Error during initialization: $e");
+      _city ??= "Default";
+      _country ??= "Default";
+    } finally {
+      _isInitializing = false;
     }
-    await _initializeTimezone();
-    print("Timezone initialized");
   }
 
   Future<void> _initializeNotifications() async {
@@ -99,7 +101,6 @@ class PrayerTimeService {
       ],
     );
 
-    // Request permission
     await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
       if (!isAllowed) {
         AwesomeNotifications().requestPermissionToSendNotifications();
@@ -108,10 +109,17 @@ class PrayerTimeService {
   }
 
   Future<void> setupScheduledNotifications() async {
+    final now = DateTime.now();
+    if (_lastScheduleTime != null && 
+        now.difference(_lastScheduleTime!).inSeconds < 60) {
+      print("Skipping notification scheduling - too soon");
+      return;
+    }
+    _lastScheduleTime = now;
+
     await AwesomeNotifications().cancelAll();
     print("Previous notifications canceled");
 
-    final now = DateTime.now();
     print("Current time when scheduling: ${now.toString()}");
 
     await _schedulePrayersForDate(DateTime.now(), 0);
@@ -153,7 +161,6 @@ class PrayerTimeService {
     for (final prayer in prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         try {
-          // Create unique ID for each prayer
           final notificationId = prayer.name.hashCode + (dayOffset * 1000);
           
           await AwesomeNotifications().createNotification(
@@ -270,10 +277,12 @@ class PrayerTimeService {
 
   Future<void> _getAddressFromLatLng(Position position) async {
     try {
+      _latitude = position.latitude;
+      _longitude = position.longitude;
+      
       final latitude = position.latitude.toStringAsFixed(6);
       final longitude = position.longitude.toStringAsFixed(6);
       
-      // Check if we have a cached address
       final prefs = await SharedPreferences.getInstance();
       final cachedCity = prefs.getString('city');
       final cachedCountry = prefs.getString('country');
@@ -289,14 +298,12 @@ class PrayerTimeService {
         }
       }
 
-      // Use Nominatim for geocoding
       final url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}&zoom=10';
       final response = await _makeRateLimitedRequest(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // Extract city and country from Nominatim response
         String city = data['address']['city'] ?? 
                      data['address']['town'] ?? 
                      data['address']['village'] ?? 
@@ -323,12 +330,10 @@ class PrayerTimeService {
   }
 
   Future<http.Response> _makeRateLimitedRequest(String url) async {
-    // Check if we need to wait to respect rate limits
     final now = DateTime.now();
     final lastRequestTime = _lastRequestTimes['nominatim'] ?? DateTime(2000);
     final timeSinceLastRequest = now.difference(lastRequestTime).inMilliseconds;
 
-    // If last request was less than 1 second ago, wait
     if (timeSinceLastRequest < 1000) {
       await Future.delayed(Duration(milliseconds: 1000 - timeSinceLastRequest));
     }
@@ -337,9 +342,7 @@ class PrayerTimeService {
       'User-Agent': 'TafseerApp/1.0'
     });
 
-    // Update last request time
     _lastRequestTimes['nominatim'] = DateTime.now();
-
     return response;
   }
 
@@ -371,41 +374,78 @@ class PrayerTimeService {
   }
 
   Future<void> getPrayerTimesForDate(DateTime date) async {
-    if (_city == null || _country == null) {
-      try {
-        await _checkLocationPermission();
-      } catch (e) {
-        _city = "Unknown";
-        _country = "Unknown";
-      }
-    }
-    final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-    final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
     try {
-      final response = await http.get(Uri.parse(url));
+      final formattedDate = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      
+      print('Fetching prayer times for date: $formattedDate');
+      
+      String apiUrl;
+      if (_latitude != null && _longitude != null) {
+        apiUrl = 'https://api.aladhan.com/v1/timings/$formattedDate?latitude=$_latitude&longitude=$_longitude&method=2';
+      } else {
+        if (_city == null || _country == null) {
+          await _checkLocationPermission();
+        }
+        apiUrl = 'https://api.aladhan.com/v1/timingsByCity/$formattedDate?city=$_city&country=$_country&method=2';
+      }
+      
+      print('API URL: $apiUrl');
+      
+      final response = await http.get(Uri.parse(apiUrl));
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final timings = data['data']['timings'];
-        _prayerTimes = [];
-        _addPrayerTime('Fajr', timings['Fajr'], date);
-        _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
-        _addPrayerTime('Asr', timings['Asr'], date);
-        _addPrayerTime('Maghrib', timings['Maghrib'], date);
-        _addPrayerTime('Isha', timings['Isha'], date);
-        _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-        if (_isToday(date)) {
-          _findNextPrayer();
-          await setupScheduledNotifications();
+        
+        // Debugging output to check API response
+        print('API Response for $formattedDate:');
+        if (data['data'] != null && data['data']['timings'] != null) {
+          final timings = data['data']['timings'];
+          print('  Fajr: ${timings['Fajr']}');
+          print('  Dhuhr: ${timings['Dhuhr']}');
+          print('  Asr: ${timings['Asr']}');
+          print('  Maghrib: ${timings['Maghrib']}');
+          print('  Isha: ${timings['Isha']}');
+        } else {
+          print('  No timings data found in response');
         }
+        
+        if (data['code'] == 200 && data['data'] != null) {
+          final timings = data['data']['timings'];
+          
+          _prayerTimes = [];
+          
+          _addPrayerTime('Fajr', timings['Fajr'], date);
+          _addPrayerTime('Sunrise', timings['Sunrise'], date);
+          _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
+          _addPrayerTime('Asr', timings['Asr'], date);
+          _addPrayerTime('Maghrib', timings['Maghrib'], date);
+          _addPrayerTime('Isha', timings['Isha'], date);
+          
+          _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+          
+          print('Successfully loaded ${_prayerTimes.length} prayer times for $formattedDate');
+          
+          if (_isToday(date)) {
+            _findNextPrayer();
+            await setupScheduledNotifications();
+          }
+        } else {
+          throw Exception('Invalid API response for date $formattedDate');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to fetch prayer times for $formattedDate');
       }
     } catch (e) {
-      print('Error fetching prayer times: $e');
+      print('Error fetching prayer times for date $date: $e');
+      rethrow;
     }
   }
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year && 
+           date.month == now.month && 
+           date.day == now.day;
   }
 
   void _addPrayerTime(String name, String timeString, DateTime date) {
@@ -451,14 +491,13 @@ class PrayerTimeService {
   }
 
   Future<void> testRealNotification() async {
-    // Schedule notification for 30 seconds from now
     final now = DateTime.now();
     final notificationTime = now.add(Duration(seconds: 30));
 
     try {
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
-          id: 9999, // Unique ID for test
+          id: 9999,
           channelKey: 'prayer_time_channel',
           title: 'Prayer Time Test',
           body: 'This is a critical test notification',
