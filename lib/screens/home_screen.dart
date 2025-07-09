@@ -43,7 +43,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _currentIndex = 2; // Center Ka'aba button
+  int _currentIndex = 2; // Center Ka'aba is active by default
   final TextEditingController _controller = TextEditingController();
   String? currentQuery;
   String _aiResponse = '';
@@ -52,26 +52,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _error;
   bool _isExpanded = false;
+  bool _isScrolling = false;
   late AnimationController _fabAnimationController;
+  late AnimationController _scrollAnimationController;
   late Animation<double> _fabAnimation;
+  late Animation<double> _navOpacity;
+  final ScrollController _scrollController = ScrollController();
+
+  // Modern blue theme colors
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Color(0xFFF8FBFF);
+  static const Color cardColor = Colors.white;
 
   @override
   void initState() {
     super.initState();
     _logScreenView();
+    
     _fabAnimationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
+    _scrollAnimationController = AnimationController(
+      duration: Duration(milliseconds: 200),
+      vsync: this,
+    );
+    
     _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
     );
+    
+    _navOpacity = Tween<double>(begin: 1.0, end: 0.7).animate(
+      CurvedAnimation(parent: _scrollAnimationController, curve: Curves.easeInOut),
+    );
+
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.offset > 50 && !_isScrolling) {
+      setState(() => _isScrolling = true);
+      _scrollAnimationController.forward();
+    } else if (_scrollController.offset <= 50 && _isScrolling) {
+      setState(() => _isScrolling = false);
+      _scrollAnimationController.reverse();
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _fabAnimationController.dispose();
+    _scrollAnimationController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -137,56 +171,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
     return Scaffold(
-      backgroundColor: isDarkMode ? Color(0xFF001333) : Color(0xFFE8F5E8), // Reference background
+      backgroundColor: backgroundColor,
       extendBody: true,
       body: _buildMainContent(context),
-      bottomNavigationBar: _buildBottomNavigation(isDarkMode),
-      floatingActionButton: _buildFloatingActionButton(isDarkMode),
+      bottomNavigationBar: _buildBottomNavigation(),
+      floatingActionButton: _buildFloatingActionButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 
   Widget _buildMainContent(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDarkMode 
-              ? [Color(0xFF001333), Color(0xFF0E2552)]
-              : [Color(0xFFE8F5E8), Color(0xFFF0F8F0)], // Reference gradient
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [backgroundColor, Color(0xFFEEF7FF)],
         ),
+      ),
+      child: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: EdgeInsets.fromLTRB(16, 16, 16, 100), // Bottom padding for nav
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with title and theme toggle
-              _buildHeader(themeProvider),
+              _buildHeader(),
               
               SizedBox(height: 24),
               
-              // Islamic Fun Fact Card (Reference Style)
-              _buildFunFactCard(isDarkMode),
+              // Islamic Fun Fact Card
+              _buildFunFactCard(),
               
               SizedBox(height: 24),
               
-              // Search Box (Reference Style)
-              _buildSearchCard(isDarkMode),
+              // Search Box
+              _buildSearchCard(),
               
               SizedBox(height: 24),
               
-              // FAQ Section (Reference Style)
-              _buildFAQCard(isDarkMode),
+              // FAQ Section
+              _buildFAQCard(),
               
               SizedBox(height: 20),
               
@@ -202,11 +229,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHeader(ThemeProvider themeProvider) {
+  Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -216,59 +243,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tafseer',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF28C76F), // Reference green
-                ),
-              ),
-              Text(
-                'Islamic Knowledge & Guidance',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
+          Text(
+            'Tafseer',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: primaryBlue,
+            ),
           ),
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, _) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFF28C76F).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 300),
-                    child: Icon(
-                      key: ValueKey<bool>(themeProvider.isDarkMode),
-                      themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: Color(0xFF28C76F),
-                    ),
-                  ),
-                  onPressed: () => themeProvider.toggleTheme(),
-                ),
-              );
-            },
+          Text(
+            'Islamic Knowledge & Guidance',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFunFactCard(bool isDarkMode) {
+  Widget _buildFunFactCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -285,11 +286,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSearchCard(bool isDarkMode) {
+  Widget _buildSearchCard() {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -307,12 +308,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Color(0xFF28C76F).withOpacity(0.1),
+                  color: primaryBlue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.search,
-                  color: Color(0xFF28C76F),
+                  color: primaryBlue,
                   size: 20,
                 ),
               ),
@@ -347,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 suffixIcon: Container(
                   margin: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Color(0xFF28C76F),
+                    color: primaryBlue,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
@@ -374,11 +375,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFAQCard(bool isDarkMode) {
+  Widget _buildFAQCard() {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -396,12 +397,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Color(0xFF28C76F).withOpacity(0.1),
+                  color: primaryBlue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.help_outline,
-                  color: Color(0xFF28C76F),
+                  color: primaryBlue,
                   size: 20,
                 ),
               ),
@@ -423,29 +424,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBottomNavigation(bool isDarkMode) {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: Offset(0, -2),
+  Widget _buildBottomNavigation() {
+    return AnimatedBuilder(
+      animation: _navOpacity,
+      builder: (context, child) {
+        return Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: cardColor.withOpacity(_navOpacity.value),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: Offset(0, -2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(Icons.history, 'History', 0),
-          _buildNavItem(FontAwesomeIcons.bookQuran, 'Quran', 1),
-          SizedBox(width: 60), // Space for FAB
-          _buildNavItem(FontAwesomeIcons.bookOpen, 'Hadith', 3),
-          _buildNavItem(Icons.explore, 'Tools', 4),
-        ],
-      ),
+          child: Center(
+            child: SizedBox(width: 60), // Just space for the FAB - no other icons
+          ),
+        );
+      },
     );
   }
 
@@ -464,14 +463,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Icon(
               icon,
-              color: isActive ? Color(0xFF28C76F) : Colors.grey[400],
+              color: isActive ? primaryBlue : Colors.grey[400],
               size: 20,
             ),
             SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? Color(0xFF28C76F) : Colors.grey[400],
+                color: isActive ? primaryBlue : Colors.grey[400],
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -482,71 +481,182 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFloatingActionButton(bool isDarkMode) {
+  Widget _buildFloatingActionButton() {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Orbit buttons
+        // Navigation icons AROUND the Ka'aba button when expanded
         if (_isExpanded) ...[
-          AnimatedBuilder(
-            animation: _fabAnimation,
-            builder: (context, child) {
-              return Stack(
-                children: [
-                  // Search button (top)
-                  Transform.translate(
-                    offset: Offset(0, -80 * _fabAnimation.value),
-                    child: _buildOrbitButton(
-                      Icons.search,
-                      'Search',
-                      () {
-                        _toggleFAB();
-                        // Quick search overlay
-                        showModalBottomSheet(
-                          context: context,
-                          builder: (context) => Container(height: 200, child: Center(child: Text('Quick Search'))),
-                        );
-                      },
+          // Quran button (top) - Enhanced clickability
+          AnimatedPositioned(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            top: _isExpanded ? -80 : 0,
+            left: 0,
+            child: GestureDetector(
+              onTap: () {
+                print("Quran button tapped!"); // Debug
+                _toggleFAB();
+                setState(() => _currentIndex = 1);
+                widget.analyticsService?.logFeatureUsed('quran_screen');
+                Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: primaryBlue.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
-                  ),
-                  // Dhikr button (bottom left)
-                  Transform.translate(
-                    offset: Offset(-60 * _fabAnimation.value, 40 * _fabAnimation.value),
-                    child: _buildOrbitButton(
-                      Icons.favorite,
-                      'Dhikr',
-                      () {
-                        _toggleFAB();
-                        // Quick dhikr counter
-                      },
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FontAwesomeIcons.bookQuran, color: primaryBlue, size: 16),
+                    Text('Quran', style: TextStyle(fontSize: 8, color: primaryBlue)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // History button (left)
+          AnimatedPositioned(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _isExpanded ? -80 : 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () {
+                print("History button tapped!"); // Debug
+                _toggleFAB();
+                setState(() => _currentIndex = 0);
+                widget.analyticsService?.logFeatureUsed('history_screen');
+                Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: widget.firestoreService)));
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
-                  ),
-                  // Qibla button (bottom right)
-                  Transform.translate(
-                    offset: Offset(60 * _fabAnimation.value, 40 * _fabAnimation.value),
-                    child: _buildOrbitButton(
-                      Icons.explore,
-                      'Qibla',
-                      () {
-                        _toggleFAB();
-                        // Quick qibla
-                      },
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.history, color: lightBlue, size: 16),
+                    Text('History', style: TextStyle(fontSize: 8, color: lightBlue)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Hadith button (right)
+          AnimatedPositioned(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            right: _isExpanded ? -80 : 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () {
+                print("Hadith button tapped!"); // Debug
+                _toggleFAB();
+                setState(() => _currentIndex = 3);
+                widget.analyticsService?.logFeatureUsed('hadith_screen');
+                Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FontAwesomeIcons.bookOpen, color: lightBlue, size: 16),
+                    Text('Hadith', style: TextStyle(fontSize: 8, color: lightBlue)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Tools button (bottom)
+          AnimatedPositioned(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            bottom: _isExpanded ? -60 : 0,
+            left: 0,
+            child: GestureDetector(
+              onTap: () {
+                print("Tools button tapped!"); // Debug
+                _toggleFAB();
+                setState(() => _currentIndex = 4);
+                widget.analyticsService?.logFeatureUsed('islamic_tools_screen');
+                Navigator.push(context, MaterialPageRoute(builder: (context) => IslamicToolsScreen(
+                  prayerTimeService: widget.prayerTimeService,
+                  qiblaService: widget.qiblaService,
+                  analyticsService: widget.analyticsService,
+                )));
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.explore, color: lightBlue, size: 16),
+                    Text('Tools', style: TextStyle(fontSize: 8, color: lightBlue)),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
-        // Main FAB (Ka'aba)
+        // Main FAB (Ka'aba) - Use Ka'aba icon
         FloatingActionButton(
           onPressed: _toggleFAB,
-          backgroundColor: Color(0xFF28C76F),
+          backgroundColor: primaryBlue,
           child: AnimatedRotation(
             turns: _isExpanded ? 0.125 : 0,
             duration: Duration(milliseconds: 300),
             child: Text(
-              '🕋', // Ka'aba emoji or use custom icon
+              '🕋', // Ka'aba emoji
               style: TextStyle(fontSize: 24),
             ),
           ),
@@ -556,15 +666,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildOrbitButton(IconData icon, String tooltip, VoidCallback onTap) {
+  Widget _buildOrbitButton(IconData icon, String tooltip, Color color, VoidCallback onTap) {
     return Container(
       width: 45,
       height: 45,
       child: FloatingActionButton(
         mini: true,
         onPressed: onTap,
-        backgroundColor: Colors.white,
-        child: Icon(icon, color: Color(0xFF28C76F), size: 20),
+        backgroundColor: cardColor,
+        child: Icon(icon, color: color, size: 20),
         tooltip: tooltip,
         elevation: 4,
       ),
@@ -597,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       margin: EdgeInsets.only(top: 16),
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
