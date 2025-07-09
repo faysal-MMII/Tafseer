@@ -19,6 +19,7 @@ import 'hadith_screen.dart';
 import 'history_screen.dart';
 import 'islamic_tools_screen.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
@@ -59,11 +60,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _navOpacity;
   final ScrollController _scrollController = ScrollController();
 
-  // Modern blue theme colors
+  // Modern blue theme colors - Enhanced for better contrast
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
-  static const Color backgroundColor = Color(0xFFF8FBFF);
-  static const Color cardColor = Colors.white;
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF); // Better contrast - soothing bluish tint
 
   @override
   void initState() {
@@ -232,16 +233,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader() {
-    return Container(
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 600),
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        gradient: LinearGradient(
+          colors: [cardColor, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryBlue.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            color: primaryBlue.withOpacity(0.08),
+            blurRadius: 15,
+            offset: Offset(0, 5),
           ),
         ],
       ),
@@ -251,16 +258,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Text(
             'Tafseer',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
               color: primaryBlue,
+              letterSpacing: -1.0,
             ),
           ),
           Text(
             'Islamic Knowledge & Guidance',
             style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
+              fontSize: 13,
+              color: Colors.grey[500],
+              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -273,6 +282,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!, width: 1), // Added border for contrast
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -289,16 +299,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSearchCard() {
-    return Container(
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 600),
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        gradient: LinearGradient(
+          colors: [cardColor, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryBlue.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            color: primaryBlue.withOpacity(0.08),
+            blurRadius: 15,
+            offset: Offset(0, 5),
           ),
         ],
       ),
@@ -308,14 +324,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: primaryBlue.withOpacity(0.1),
+                  gradient: LinearGradient(
+                    colors: [primaryBlue, lightBlue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.search,
-                  color: primaryBlue,
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
@@ -333,9 +353,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
-              color: Color(0xFFF8F9FA),
+              color: Color(0xFFEAF3FB), // Better contrast
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: primaryBlue.withOpacity(0.2)),
             ),
             child: TextField(
               controller: _controller,
@@ -350,7 +370,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 suffixIcon: Container(
                   margin: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: primaryBlue,
+                    gradient: LinearGradient(
+                      colors: [primaryBlue, lightBlue],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
@@ -433,7 +457,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return Container(
           height: 80,
           decoration: BoxDecoration(
-            color: cardColor.withOpacity(_navOpacity.value),
+            color: cardColor.withOpacity(_navOpacity.value), // Light blue nav bar
+            border: Border(
+              top: BorderSide(color: Colors.grey[300]!, width: 1), // Added top border
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -485,24 +512,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildFloatingActionButton() {
     return SizedBox(
-      width: 200, // Give more space for orbit buttons
-      height: 200,
+      width: 240, // Even larger for perfect spacing
+      height: 240,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Navigation icons AROUND the Ka'aba button when expanded
           if (_isExpanded) ...[
-            // Quran button (top)
+            // Quran button (top) - Perfectly centered above Ka'aba
             Positioned(
               top: 20,
-              left: 75,
+              left: 90, // (240-60)/2 = 90 for perfect center
               child: Container(
-                width: 50,
-                height: 50,
+                width: 60,
+                height: 60,
                 child: FloatingActionButton(
-                  mini: true,
-                  heroTag: "quran_fab", // Unique tag
-                  backgroundColor: cardColor,
+                  mini: false,
+                  heroTag: "quran_fab",
+                  backgroundColor: lightBlue,
+                  elevation: 8,
                   onPressed: () {
                     print("Quran button tapped!");
                     _toggleFAB();
@@ -511,24 +539,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(FontAwesomeIcons.bookQuran, color: primaryBlue, size: 14),
-                      Text('Quran', style: TextStyle(fontSize: 6, color: primaryBlue)),
+                      Icon(FontAwesomeIcons.bookQuran, color: Colors.white, size: 18),
+                      SizedBox(height: 2),
+                      Text('QURAN', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
             ),
-            // History button (left)
+            // History button (left) - Perfectly aligned left of Ka'aba
             Positioned(
-              top: 75,
-              left: 0,
+              top: 90, // (240-60)/2 = 90 for perfect vertical center
+              left: 20,
               child: Container(
-                width: 50,
-                height: 50,
+                width: 60,
+                height: 60,
                 child: FloatingActionButton(
-                  mini: true,
-                  heroTag: "history_fab", // Unique tag
-                  backgroundColor: cardColor,
+                  mini: false,
+                  heroTag: "history_fab",
+                  backgroundColor: lightBlue,
+                  elevation: 8,
                   onPressed: () {
                     print("History button tapped!");
                     _toggleFAB();
@@ -537,24 +567,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.history, color: lightBlue, size: 14),
-                      Text('History', style: TextStyle(fontSize: 6, color: lightBlue)),
+                      Icon(Icons.history, color: Colors.white, size: 18),
+                      SizedBox(height: 2),
+                      Text('HISTORY', style: TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
             ),
-            // Hadith button (right)
+            // Hadith button (right) - Perfectly aligned right of Ka'aba
             Positioned(
-              top: 75,
-              right: 0,
+              top: 90, // Same vertical position as History
+              left: 160, // 240-60-20 = 160 for right alignment
               child: Container(
-                width: 50,
-                height: 50,
+                width: 60,
+                height: 60,
                 child: FloatingActionButton(
-                  mini: true,
-                  heroTag: "hadith_fab", // Unique tag
-                  backgroundColor: cardColor,
+                  mini: false,
+                  heroTag: "hadith_fab",
+                  backgroundColor: lightBlue,
+                  elevation: 8,
                   onPressed: () {
                     print("Hadith button tapped!");
                     _toggleFAB();
@@ -563,24 +595,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(FontAwesomeIcons.bookOpen, color: lightBlue, size: 14),
-                      Text('Hadith', style: TextStyle(fontSize: 6, color: lightBlue)),
+                      Icon(FontAwesomeIcons.bookOpen, color: Colors.white, size: 18),
+                      SizedBox(height: 2),
+                      Text('HADITH', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
             ),
-            // Tools button (bottom)
+            // Tools button (bottom) - Perfectly centered below Ka'aba
             Positioned(
-              bottom: 20,
-              left: 75,
+              top: 160, // 240-60-20 = 160 for bottom alignment
+              left: 90, // Same horizontal position as Quran
               child: Container(
-                width: 50,
-                height: 50,
+                width: 60,
+                height: 60,
                 child: FloatingActionButton(
-                  mini: true,
-                  heroTag: "tools_fab", // Unique tag
-                  backgroundColor: cardColor,
+                  mini: false,
+                  heroTag: "tools_fab",
+                  backgroundColor: lightBlue,
+                  elevation: 8,
                   onPressed: () {
                     print("Tools button tapped!");
                     _toggleFAB();
@@ -593,20 +627,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.explore, color: lightBlue, size: 14),
-                      Text('Tools', style: TextStyle(fontSize: 6, color: lightBlue)),
+                      Icon(Icons.explore, color: Colors.white, size: 18),
+                      SizedBox(height: 2),
+                      Text('TOOLS', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
             ),
           ],
-          // Main FAB (Ka'aba) - Center
+          // Main FAB (Ka'aba) - Dead center of 240x240 container
           Positioned(
-            top: 75,
-            left: 75,
+            top: 90, // (240-60)/2 = 90
+            left: 90, // (240-60)/2 = 90
             child: FloatingActionButton(
-              heroTag: "main_fab", // Unique tag
+              heroTag: "main_fab",
               onPressed: _toggleFAB,
               backgroundColor: primaryBlue,
               child: AnimatedRotation(
