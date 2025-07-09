@@ -158,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _toggleFAB() {
+    print("FAB toggle called! Current expanded: $_isExpanded"); // Debug
     setState(() {
       _isExpanded = !_isExpanded;
     });
@@ -167,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } else {
       _fabAnimationController.reverse();
     }
+    print("New expanded state: $_isExpanded"); // Debug
   }
 
   @override
@@ -482,187 +484,144 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildFloatingActionButton() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Navigation icons AROUND the Ka'aba button when expanded
-        if (_isExpanded) ...[
-          // Quran button (top) - Enhanced clickability
-          AnimatedPositioned(
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            top: _isExpanded ? -80 : 0,
-            left: 0,
-            child: GestureDetector(
-              onTap: () {
-                print("Quran button tapped!"); // Debug
-                _toggleFAB();
-                setState(() => _currentIndex = 1);
-                widget.analyticsService?.logFeatureUsed('quran_screen');
-                Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
-              },
+    return SizedBox(
+      width: 200, // Give more space for orbit buttons
+      height: 200,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Navigation icons AROUND the Ka'aba button when expanded
+          if (_isExpanded) ...[
+            // Quran button (top)
+            Positioned(
+              top: 20,
+              left: 75,
               child: Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: primaryBlue.withOpacity(0.3), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FontAwesomeIcons.bookQuran, color: primaryBlue, size: 16),
-                    Text('Quran', style: TextStyle(fontSize: 8, color: primaryBlue)),
-                  ],
+                child: FloatingActionButton(
+                  mini: true,
+                  heroTag: "quran_fab", // Unique tag
+                  backgroundColor: cardColor,
+                  onPressed: () {
+                    print("Quran button tapped!");
+                    _toggleFAB();
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(FontAwesomeIcons.bookQuran, color: primaryBlue, size: 14),
+                      Text('Quran', style: TextStyle(fontSize: 6, color: primaryBlue)),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // History button (left)
-          AnimatedPositioned(
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            left: _isExpanded ? -80 : 0,
-            top: 0,
-            child: GestureDetector(
-              onTap: () {
-                print("History button tapped!"); // Debug
-                _toggleFAB();
-                setState(() => _currentIndex = 0);
-                widget.analyticsService?.logFeatureUsed('history_screen');
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: widget.firestoreService)));
-              },
+            // History button (left)
+            Positioned(
+              top: 75,
+              left: 0,
               child: Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.history, color: lightBlue, size: 16),
-                    Text('History', style: TextStyle(fontSize: 8, color: lightBlue)),
-                  ],
+                child: FloatingActionButton(
+                  mini: true,
+                  heroTag: "history_fab", // Unique tag
+                  backgroundColor: cardColor,
+                  onPressed: () {
+                    print("History button tapped!");
+                    _toggleFAB();
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: widget.firestoreService)));
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history, color: lightBlue, size: 14),
+                      Text('History', style: TextStyle(fontSize: 6, color: lightBlue)),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Hadith button (right)
-          AnimatedPositioned(
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            right: _isExpanded ? -80 : 0,
-            top: 0,
-            child: GestureDetector(
-              onTap: () {
-                print("Hadith button tapped!"); // Debug
-                _toggleFAB();
-                setState(() => _currentIndex = 3);
-                widget.analyticsService?.logFeatureUsed('hadith_screen');
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
-              },
+            // Hadith button (right)
+            Positioned(
+              top: 75,
+              right: 0,
               child: Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FontAwesomeIcons.bookOpen, color: lightBlue, size: 16),
-                    Text('Hadith', style: TextStyle(fontSize: 8, color: lightBlue)),
-                  ],
+                child: FloatingActionButton(
+                  mini: true,
+                  heroTag: "hadith_fab", // Unique tag
+                  backgroundColor: cardColor,
+                  onPressed: () {
+                    print("Hadith button tapped!");
+                    _toggleFAB();
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(FontAwesomeIcons.bookOpen, color: lightBlue, size: 14),
+                      Text('Hadith', style: TextStyle(fontSize: 6, color: lightBlue)),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Tools button (bottom)
-          AnimatedPositioned(
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            bottom: _isExpanded ? -60 : 0,
-            left: 0,
-            child: GestureDetector(
-              onTap: () {
-                print("Tools button tapped!"); // Debug
-                _toggleFAB();
-                setState(() => _currentIndex = 4);
-                widget.analyticsService?.logFeatureUsed('islamic_tools_screen');
-                Navigator.push(context, MaterialPageRoute(builder: (context) => IslamicToolsScreen(
-                  prayerTimeService: widget.prayerTimeService,
-                  qiblaService: widget.qiblaService,
-                  analyticsService: widget.analyticsService,
-                )));
-              },
+            // Tools button (bottom)
+            Positioned(
+              bottom: 20,
+              left: 75,
               child: Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.explore, color: lightBlue, size: 16),
-                    Text('Tools', style: TextStyle(fontSize: 8, color: lightBlue)),
-                  ],
+                child: FloatingActionButton(
+                  mini: true,
+                  heroTag: "tools_fab", // Unique tag
+                  backgroundColor: cardColor,
+                  onPressed: () {
+                    print("Tools button tapped!");
+                    _toggleFAB();
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => IslamicToolsScreen(
+                      prayerTimeService: widget.prayerTimeService,
+                      qiblaService: widget.qiblaService,
+                      analyticsService: widget.analyticsService,
+                    )));
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.explore, color: lightBlue, size: 14),
+                      Text('Tools', style: TextStyle(fontSize: 6, color: lightBlue)),
+                    ],
+                  ),
                 ),
               ),
+            ),
+          ],
+          // Main FAB (Ka'aba) - Center
+          Positioned(
+            top: 75,
+            left: 75,
+            child: FloatingActionButton(
+              heroTag: "main_fab", // Unique tag
+              onPressed: _toggleFAB,
+              backgroundColor: primaryBlue,
+              child: AnimatedRotation(
+                turns: _isExpanded ? 0.125 : 0,
+                duration: Duration(milliseconds: 300),
+                child: Text(
+                  '🕋',
+                  style: TextStyle(fontSize: 24),
+                ),
+              ),
+              elevation: 6,
             ),
           ),
         ],
-        // Main FAB (Ka'aba) - Use Ka'aba icon
-        FloatingActionButton(
-          onPressed: _toggleFAB,
-          backgroundColor: primaryBlue,
-          child: AnimatedRotation(
-            turns: _isExpanded ? 0.125 : 0,
-            duration: Duration(milliseconds: 300),
-            child: Text(
-              '🕋', // Ka'aba emoji
-              style: TextStyle(fontSize: 24),
-            ),
-          ),
-          elevation: 6,
-        ),
-      ],
+      ),
     );
   }
 
