@@ -6,6 +6,13 @@ import '../theme/theme_provider.dart';
 class HadithDetailScreen extends StatelessWidget {
   final Map<String, dynamic> hadith;
   final String searchQuery;
+
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
   
   const HadithDetailScreen({
     Key? key,
@@ -15,23 +22,16 @@ class HadithDetailScreen extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final theme = Theme.of(context);
-    final accentColor = isDark ? Colors.cyanAccent : Color(0xFF2D5F7C);
-    
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF121212) : Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
           'Hadith ${hadith['number']}',
-          style: theme.appBarTheme.titleTextStyle,
+          style: TextStyle(color: Colors.black87),
         ),
-        iconTheme: IconThemeData(
-          color: accentColor,
-        ),
+        iconTheme: IconThemeData(color: primaryBlue),
       ),
       body: Container(
         width: double.infinity,
@@ -41,23 +41,26 @@ class HadithDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isDark ? Color(0xFF1E1E1E) : Colors.white,
+                  color: cardColor.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: cardColor.withOpacity(0.6),
+                    width: 1.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: isDark 
-                        ? Colors.black.withOpacity(0.5) 
-                        : Colors.black.withOpacity(0.05),
-                      spreadRadius: 0,
-                      blurRadius: isDark ? 12 : 10,
-                      offset: Offset(0, 3),
+                      color: primaryBlue.withOpacity(0.15),
+                      blurRadius: 30,
+                      offset: Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: Offset(0, -5),
                     ),
                   ],
-                  border: isDark 
-                    ? Border.all(color: Colors.grey[800]!, width: 1) 
-                    : null,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,68 +68,98 @@ class HadithDetailScreen extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.all(10),
+                          padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.15),
+                            gradient: LinearGradient(
+                              colors: [primaryBlue, lightBlue],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                blurRadius: 15,
+                                color: primaryBlue.withOpacity(0.4),
+                                offset: Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Icon(
                             Icons.menu_book,
-                            color: accentColor,
+                            color: Colors.white,
                             size: 20,
                           ),
                         ),
-                        SizedBox(width: 12),
+                        SizedBox(width: 16),
                         Text(
                           'Hadith ${hadith['number']}',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: accentColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 16),
-                    Divider(
-                      color: isDark ? Colors.grey[800] : Colors.grey[300],
-                    ),
+                    Divider(color: Colors.grey[300]),
                     SizedBox(height: 16),
                     Container(
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF252525) : Color(0xFFF5F5F5),
+                        color: backgroundColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isDark 
-                            ? Colors.grey[700]! 
-                            : Colors.grey[300]!,
+                          color: softAccent.withOpacity(0.5),
                           width: 1,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         hadith['text'] ?? 'No text available',
                         style: TextStyle(
-                          height: 1.5,
+                          height: 1.6,
                           fontSize: 16,
-                          color: isDark ? Colors.white : Color(0xFF333333),
+                          color: Colors.black87,
                         ),
                       ),
                     ),
                     if (searchQuery.isNotEmpty) ...[
                       SizedBox(height: 16),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.15),
+                          color: primaryBlue.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          'Search: "$searchQuery"',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: accentColor,
+                          border: Border.all(
+                            color: primaryBlue.withOpacity(0.3),
+                            width: 1,
                           ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.search,
+                              size: 16,
+                              color: primaryBlue,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Search: "$searchQuery"',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: primaryBlue,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

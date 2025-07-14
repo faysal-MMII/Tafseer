@@ -115,99 +115,74 @@ class _IslamicFunFactState extends State<IslamicFunFact> {
       return Container(); // Or some fallback widget
     }
 
-    return Container(
-      padding: EdgeInsets.all(20),
-      margin: EdgeInsets.symmetric(horizontal: 8), // Match the search box horizontal padding
-      decoration: BoxDecoration(
-        color: isDarkMode ? Color(0xFF0E2552) : Colors.white, // Updated to blue
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: isDarkMode 
-              ? Colors.black.withOpacity(0.3) 
-              : Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: isDarkMode ? 8 : 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-        border: isDarkMode ? Border.all(color: Color(0xFF1A3366), width: 1) : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header section with icon
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.lightbulb_outline,
-                  color: accentColor,
-                  size: 24,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header section with icon
+        Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.15),
+                shape: BoxShape.circle,
               ),
-              SizedBox(width: 12),
-              Text(
-                "Islamic Fun Fact",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: accentColor,
-                ),
+              child: Icon(
+                Icons.lightbulb_outline,
+                color: accentColor,
+                size: 24,
               ),
-            ],
-          ),
-          SizedBox(height: 16),
-          
-          // Title
-          Text(
-            _currentFacts[_currentFactIndex].title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDarkMode ? Color(0xFFE0E0E0) : Color(0xFF424242),
             ),
-          ),
-          SizedBox(height: 8),
-          
-          // Content
-          Text(
-            _currentFacts[_currentFactIndex].description,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: isDarkMode ? Color(0xFFCCCCCC) : Color(0xFF666666),
-            ),
-          ),
-          
-          SizedBox(height: 12),
-          
-          // Subtitle (month or general fact)
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              _showingMonthFact
-                  ? 'Current Islamic Month: ${IslamicMonths.months[_hijriDate.hMonth]}'
-                  : _recentInteractions.isNotEmpty
-                      ? 'Based on your interests: ${_recentInteractions.first}'
-                      : 'General Islamic Fact',
+            SizedBox(width: 12),
+            Text(
+              "Islamic Fun Fact",
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
                 color: accentColor,
               ),
             ),
+          ],
+        ),
+        SizedBox(height: 16),
+        
+        // Title
+        Text(
+          _currentFacts[_currentFactIndex].title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Color(0xFFE0E0E0) : Color(0xFF424242),
           ),
-        ],
-      ),
+        ),
+        SizedBox(height: 8),
+        
+        // Content
+        Text(
+          _currentFacts[_currentFactIndex].description,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDarkMode ? Color(0xFFCCCCCC) : Color(0xFF666666),
+          ),
+        ),
+        
+        SizedBox(height: 12),
+        
+        // Subtitle (month or general fact)
+        Text(
+          _showingMonthFact
+              ? 'Current Islamic Month: ${IslamicMonths.months[_hijriDate.hMonth]}'
+              : _recentInteractions.isNotEmpty
+                  ? 'Based on your interests: ${_recentInteractions.first}'
+                  : 'General Islamic Fact',
+          style: TextStyle(
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
     );
   }
 }

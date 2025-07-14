@@ -6,6 +6,7 @@ import '../theme/text_styles.dart';
 import '../theme/theme_provider.dart';
 import 'package:hijri/hijri_calendar.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui'; // Needed for BackdropFilter
 
 class PrayerTimeScreen extends StatefulWidget {
   final PrayerTimeService prayerTimeService;
@@ -22,18 +23,46 @@ class PrayerTimeScreen extends StatefulWidget {
 
 class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
   String _timeUntilNextPrayer = '';
-  String _currentLocation = 'Current Location';
+  String _currentLocation = 'Getting location...';
   bool _isLoadingLocation = false;
   bool _isLoadingPrayerTimes = false;
   
   final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
+  
+  Widget glassyBlueContainer({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Color(0xFF4A90E2).withOpacity(0.2), // translucent blue
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
   
   @override
   void initState() {
     super.initState();
     _logScreenView();
-    _updateTimeRemaining();
-    _loadCurrentLocation();
+    _initializePrayerService();
   }
   
   @override
@@ -49,23 +78,40 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
   
+  Future<void> _initializePrayerService() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _isLoadingPrayerTimes = true;
+    });
+    
+    try {
+      final locationName = await widget.prayerTimeService.getLocationDisplayName();
+      setState(() {
+        _currentLocation = locationName;
+      });
+      
+      _updateTimeRemaining();
+      
+    } catch (e) {
+      print("Prayer service initialization failed: $e");
+      setState(() {
+        _currentLocation = "Tap to set location";
+      });
+    } finally {
+      setState(() {
+        _isLoadingLocation = false;
+        _isLoadingPrayerTimes = false;
+      });
+    }
+  }
+  
   void _updateTimeRemaining() {
     setState(() {
       _timeUntilNextPrayer = widget.prayerTimeService.getTimeUntilNextPrayer();
     });
   }
   
-  // Removed all broken date navigation methods and cache
-  
-  Future<void> _loadCurrentLocation() async {
-    // Load current location display name
-    setState(() {
-      _currentLocation = 'Current Location'; // Will be enhanced with actual location
-    });
-  }
-  
-  // Modern location selection with auto-refresh
-  void _showModernLocationSearch(bool isDark, Color accentColor) {
+  void _showModernLocationSearch() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -73,111 +119,121 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF0E2552) : Colors.white,
+          color: backgroundColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
-            // Handle bar
             Container(
               margin: EdgeInsets.only(top: 12),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[400] : Colors.grey[300],
+                color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             
-            // Header
             Padding(
               padding: EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Icon(Icons.location_on, color: accentColor, size: 24),
+                  Icon(Icons.location_on, color: primaryBlue, size: 24),
                   SizedBox(width: 12),
                   Text(
                     'Choose Your Location',
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: Colors.black87,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Spacer(),
                   IconButton(
-                    icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.black54),
+                    icon: Icon(Icons.close, color: Colors.black54),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
             
-            // Search field - removed non-functional search
-            // Only show manual entry and popular cities that actually work
+            SizedBox(height: 16),
             
-            // Manual Entry Option
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: _buildLocationOption(
-                icon: Icons.edit_location,
-                title: 'Enter Your Location',
-                subtitle: 'Type your city and country',
-                accentColor: accentColor,
-                isDark: isDark,
-                onTap: () {
-                  Navigator.pop(context);
-                  _showManualLocationEntry(isDark, accentColor);
-                },
-              ),
-            ),
-            
-            SizedBox(height: 30),
-            
-            // Popular cities
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Popular Cities',
-                style: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.black54,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            
-            SizedBox(height: 12),
-            
-            Container(
-              height: 60,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 20),
+            Expanded(
+              child: Column(
                 children: [
-                  _buildPopularCityChip('Mecca', 'Saudi Arabia', accentColor, isDark),
-                  _buildPopularCityChip('Istanbul', 'Turkey', accentColor, isDark),
-                  _buildPopularCityChip('London', 'UK', accentColor, isDark),
-                  _buildPopularCityChip('New York', 'USA', accentColor, isDark),
-                  _buildPopularCityChip('Lagos', 'Nigeria', accentColor, isDark),
-                  _buildPopularCityChip('Dubai', 'UAE', accentColor, isDark),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildLocationOption(
+                      icon: Icons.edit_location,
+                      title: 'Enter Your Location',
+                      subtitle: 'Type your city and country',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showManualLocationEntry();
+                      },
+                    ),
+                  ),
+                  
+                  SizedBox(height: 30),
+                  
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'Popular Cities',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: 12),
+                  
+                  Container(
+                    height: 60,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildPopularCityChip('Mecca', 'Saudi Arabia', 21.4225, 39.8262),
+                        _buildPopularCityChip('Istanbul', 'Turkey', 41.0082, 28.9784),
+                        _buildPopularCityChip('London', 'UK', 51.5074, -0.1278),
+                        _buildPopularCityChip('New York', 'USA', 40.7128, -74.0060),
+                        _buildPopularCityChip('Lagos', 'Nigeria', 6.5244, 3.3792),
+                        _buildPopularCityChip('Dubai', 'UAE', 25.2048, 55.2708),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            
-            SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
   
+  Future<void> _refreshPrayerTimes() async {
+    setState(() {
+      _isLoadingPrayerTimes = true;
+    });
+    
+    try {
+      await widget.prayerTimeService.refreshPrayerTimes();
+      _updateTimeRemaining();
+    } finally {
+      setState(() {
+        _isLoadingPrayerTimes = false;
+      });
+    }
+  }
+
   Widget _buildLocationOption({
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color accentColor,
-    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -186,21 +242,19 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
       child: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A3A5C) : Colors.grey[50],
+          color: Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? Colors.grey[600]! : Colors.grey[200]!,
-          ),
+          border: Border.all(color: Colors.grey[200]!),
         ),
         child: Row(
           children: [
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: primaryBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: accentColor, size: 24),
+              child: Icon(icon, color: primaryBlue, size: 24),
             ),
             SizedBox(width: 16),
             Expanded(
@@ -210,7 +264,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: Colors.black87,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -219,7 +273,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: isDark ? Colors.white60 : Colors.black54,
+                      color: Colors.black54,
                       fontSize: 13,
                     ),
                   ),
@@ -228,7 +282,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: isDark ? Colors.white30 : Colors.black26,
+              color: Colors.black26,
               size: 16,
             ),
           ],
@@ -237,74 +291,70 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
   
-  Widget _buildPopularCityChip(String city, String country, Color accentColor, bool isDark) {
+  Widget _buildPopularCityChip(String city, String country, double lat, double lng) {
     return Container(
       margin: EdgeInsets.only(right: 12),
       child: ActionChip(
         label: Text('$city, $country'),
         onPressed: () async {
           Navigator.pop(context);
-          await _setLocationAndRefresh(city, country, accentColor);
+          await _setLocationByCoordinates(lat, lng, '$city, $country');
         },
-        backgroundColor: isDark ? Color(0xFF1A3A5C) : Colors.grey[100],
+        backgroundColor: Colors.grey[100],
         labelStyle: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
+          color: Colors.black87,
           fontSize: 13,
         ),
-        side: BorderSide(
-          color: isDark ? Colors.grey[500]! : Colors.grey[300]!,
-        ),
+        side: BorderSide(color: Colors.grey[300]!),
       ),
     );
   }
   
-  // Removed _useCurrentLocation method - was just a placeholder
-  
-  void _showManualLocationEntry(bool isDark, Color accentColor) {
+  void _showManualLocationEntry() {
     final cityController = TextEditingController();
     final countryController = TextEditingController();
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF0E2552) : Colors.white,
+        backgroundColor: backgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Enter Location',
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          style: TextStyle(color: Colors.black87),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: cityController,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              style: TextStyle(color: Colors.black87),
               decoration: InputDecoration(
                 labelText: 'City',
-                labelStyle: TextStyle(color: accentColor),
+                labelStyle: TextStyle(color: primaryBlue),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: accentColor),
+                  borderSide: BorderSide(color: primaryBlue),
                 ),
                 filled: true,
-                fillColor: isDark ? Color(0xFF1A3A5C) : Colors.grey[50],
+                fillColor: Colors.grey[50],
               ),
             ),
             SizedBox(height: 16),
             TextField(
               controller: countryController,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              style: TextStyle(color: Colors.black87),
               decoration: InputDecoration(
                 labelText: 'Country',
-                labelStyle: TextStyle(color: accentColor),
+                labelStyle: TextStyle(color: primaryBlue),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: accentColor),
+                  borderSide: BorderSide(color: primaryBlue),
                 ),
                 filled: true,
-                fillColor: isDark ? Color(0xFF1A3A5C) : Colors.grey[50],
+                fillColor: Colors.grey[50],
               ),
             ),
           ],
@@ -312,7 +362,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
+            child: Text('Cancel', style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -321,12 +371,12 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
               
               if (city.isNotEmpty && country.isNotEmpty) {
                 Navigator.pop(context);
-                await _setLocationAndRefresh(city, country, accentColor);
+                await _setLocationManually(city, country);
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              foregroundColor: isDark ? Colors.black : Colors.white,
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: Text('Set Location'),
@@ -336,22 +386,22 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
   
-  Future<void> _setLocationAndRefresh(String city, String country, Color accentColor) async {
+  Future<void> _setLocationByCoordinates(double lat, double lng, String displayName) async {
     setState(() {
       _isLoadingLocation = true;
       _isLoadingPrayerTimes = true;
-      _currentLocation = '$city, $country';
+      _currentLocation = displayName;
     });
     
     try {
-      await widget.prayerTimeService.saveLocation(city, country);
-      await _refreshPrayerTimes();
+      await widget.prayerTimeService.setLocationByCoordinates(lat, lng, displayName);
+      _updateTimeRemaining();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Location set to $city, $country'),
-            backgroundColor: accentColor,
+            content: Text('Location set to $displayName'),
+            backgroundColor: primaryBlue,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -369,20 +419,44 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     } finally {
       setState(() {
         _isLoadingLocation = false;
+        _isLoadingPrayerTimes = false;
       });
     }
   }
   
-  Future<void> _refreshPrayerTimes() async {
+  Future<void> _setLocationManually(String city, String country) async {
     setState(() {
+      _isLoadingLocation = true;
       _isLoadingPrayerTimes = true;
+      _currentLocation = '$city, $country';
     });
     
     try {
-      await widget.prayerTimeService.getPrayerTimes();
+      await widget.prayerTimeService.saveLocation(city, country);
       _updateTimeRemaining();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location set to $city, $country'),
+            backgroundColor: primaryBlue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error setting location'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       setState(() {
+        _isLoadingLocation = false;
         _isLoadingPrayerTimes = false;
       });
     }
@@ -390,39 +464,28 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
     final prayerTimes = widget.prayerTimeService.prayerTimes;
     final today = DateTime.now();
     
-    // Match HomeScreen theme colors exactly
-    final backgroundColor = isDark ? Color(0xFF001333) : Theme.of(context).scaffoldBackgroundColor;
-    final surfaceColor = isDark ? Color(0xFF001333) : Colors.white;
-    final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
-    final primaryTextColor = isDark ? Colors.white : Colors.black87;
-    final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
-    final cardColor = isDark ? Color(0xFF0E2552) : Colors.grey[50];
-    
-    // Get Islamic date using hijri package
     final hijri = HijriCalendar.fromDate(today);
     final islamicDate = "${_getIslamicMonthName(hijri.hMonth)} ${hijri.hDay}, ${hijri.hYear} AH";
     
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: surfaceColor,
+        backgroundColor: backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white70 : Colors.blueGrey[800]),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.blueGrey[800]),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Prayer Times',
-          style: TextStyle(color: primaryTextColor),
+          style: TextStyle(color: Colors.black87),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: accentColor),
+            icon: Icon(Icons.refresh, color: primaryBlue),
             onPressed: () async {
               await _refreshPrayerTimes();
             },
@@ -432,23 +495,30 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
       ),
       body: Column(
         children: [
-          // Smart Location Card (Modern UI)
           Container(
             margin: EdgeInsets.all(16),
             child: InkWell(
-              onTap: () => _showModernLocationSearch(isDark, accentColor),
+              onTap: () => _showModernLocationSearch(),
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: cardColor,
+                  color: cardColor.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(16),
-                  border: isDark ? Border.all(color: Colors.grey[700]!, width: 1) : null,
+                  border: Border.all(
+                    color: cardColor.withOpacity(0.6),
+                    width: 1.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
+                      color: primaryBlue.withOpacity(0.15),
+                      blurRadius: 30,
+                      offset: Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: Offset(0, -5),
                     ),
                   ],
                 ),
@@ -457,7 +527,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                     Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.1),
+                        color: primaryBlue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: _isLoadingLocation
@@ -466,10 +536,10 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
                               ),
                             )
-                          : Icon(Icons.location_on, color: accentColor, size: 20),
+                          : Icon(Icons.location_on, color: primaryBlue, size: 20),
                     ),
                     SizedBox(width: 16),
                     Expanded(
@@ -479,7 +549,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                           Text(
                             _currentLocation,
                             style: TextStyle(
-                              color: primaryTextColor,
+                              color: Colors.black87,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -488,7 +558,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                           Text(
                             'Tap to change location',
                             style: TextStyle(
-                              color: secondaryTextColor,
+                              color: Colors.black54,
                               fontSize: 13,
                             ),
                           ),
@@ -497,7 +567,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                     ),
                     Icon(
                       Icons.arrow_forward_ios,
-                      color: accentColor,
+                      color: primaryBlue,
                       size: 16,
                     ),
                   ],
@@ -506,7 +576,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
             ),
           ),
           
-          // Date header (today only - remove broken navigation)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
@@ -514,7 +583,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                 Text(
                   '${today.day}${_getDaySuffix(today.day)} ${_getMonthName(today.month)}',
                   style: TextStyle(
-                    color: primaryTextColor,
+                    color: Colors.black87,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -523,7 +592,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                 Text(
                   islamicDate,
                   style: TextStyle(
-                    color: secondaryTextColor,
+                    color: Colors.black54,
                     fontSize: 14,
                   ),
                 ),
@@ -531,19 +600,56 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
             ),
           ),
           
-          // Next prayer info
+          // Add the glassy blue container here
+          Container(
+            color: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: glassyBlueContainer(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.search, color: Colors.white, size: 28),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ask Islamic Questions',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Get answers from Quran and Hadith',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
           if (_timeUntilNextPrayer.isNotEmpty && widget.prayerTimeService.nextPrayer != null)
             Container(
               margin: EdgeInsets.symmetric(horizontal: 16),
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: primaryBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: accentColor.withOpacity(0.3)),
+                border: Border.all(color: primaryBlue.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.schedule, color: accentColor),
+                  Icon(Icons.schedule, color: primaryBlue),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -552,7 +658,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                         Text(
                           'Next: ${widget.prayerTimeService.nextPrayer!.name}',
                           style: TextStyle(
-                            color: primaryTextColor,
+                            color: Colors.black87,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -560,7 +666,7 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                         Text(
                           'in $_timeUntilNextPrayer',
                           style: TextStyle(
-                            color: secondaryTextColor,
+                            color: Colors.black54,
                             fontSize: 14,
                           ),
                         ),
@@ -573,7 +679,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
           
           SizedBox(height: 16),
           
-          // Prayer times list
           Expanded(
             child: _isLoadingPrayerTimes
                 ? Center(
@@ -581,12 +686,12 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                          valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
                         ),
                         SizedBox(height: 16),
                         Text(
                           'Loading prayer times...',
-                          style: TextStyle(color: secondaryTextColor),
+                          style: TextStyle(color: Colors.black54),
                         ),
                       ],
                     ),
@@ -596,15 +701,15 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.schedule, size: 48, color: secondaryTextColor),
+                            Icon(Icons.schedule, size: 48, color: Colors.black54),
                             SizedBox(height: 16),
                             Text(
                               'No prayer times available',
-                              style: TextStyle(color: secondaryTextColor),
+                              style: TextStyle(color: Colors.black54),
                             ),
                             SizedBox(height: 8),
                             TextButton(
-                              onPressed: () => _showModernLocationSearch(isDark, accentColor),
+                              onPressed: () => _showModernLocationSearch(),
                               child: Text('Set your location'),
                             ),
                           ],
@@ -612,9 +717,8 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                       )
                     : ListView.builder(
                         physics: AlwaysScrollableScrollPhysics(),
-                        itemCount: 5, // Only show the 5 main prayers
+                        itemCount: 5,
                         itemBuilder: (context, index) {
-                          // Filter for only the main 5 prayers
                           final prayers = prayerTimes.where((p) => 
                               p.name == "Fajr" || 
                               p.name == "Dhuhr" || 
@@ -625,25 +729,20 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                           if (index >= prayers.length) return Container();
                           
                           final prayer = prayers[index];
-                          // Highlight next prayer for today
                           final isNext = widget.prayerTimeService.nextPrayer != null && 
                                          prayer.name == widget.prayerTimeService.nextPrayer!.name;
                           
-                          return _buildPrayerCard(prayer, isNext, isDark, accentColor, primaryTextColor, cardColor);
+                          return _buildPrayerCard(prayer, isNext);
                         },
                       ),
           ),
 
-          // Bottom spacer for better UI balance
           SizedBox(height: 16),
         ],
       ),
     );
   }
   
-  // Removed _getCurrentPrayerTimes method - using service directly
-  
-  // Helper function to get day suffix (1st, 2nd, 3rd, etc.)
   String _getDaySuffix(int day) {
     if (day >= 11 && day <= 13) {
       return 'th';
@@ -656,7 +755,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     }
   }
   
-  // Helper function to get month name
   String _getMonthName(int month) {
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -665,73 +763,63 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     return monthNames[month - 1];
   }
   
-  // Method to get Islamic month name
   String _getIslamicMonthName(int month) {
     const islamicMonths = [
-      'Muharram',
-      'Safar',
-      'Rabi al-Awwal',
-      'Rabi al-Thani',
-      'Jumada al-Awwal',
-      'Jumada al-Thani',
-      'Rajab',
-      'Sha\'ban',
-      'Ramadan',
-      'Shawwal',
-      'Dhu al-Qi\'dah',
-      'Dhu al-Hijjah'
+      'Muharram', 'Safar', 'Rabi al-Awwal', 'Rabi al-Thani',
+      'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', 'Sha\'ban',
+      'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
     ];
     
     return islamicMonths[month - 1];
   }
   
-  Widget _buildPrayerCard(PrayerTime prayer, bool isNext, bool isDark, Color accentColor, Color textColor, Color? cardColor) {
+  Widget _buildPrayerCard(PrayerTime prayer, bool isNext) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: cardColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
         border: isNext 
-          ? Border.all(color: accentColor, width: 2) 
-          : (isDark ? Border.all(color: Colors.grey[700]!, width: 1) : null),
+          ? Border.all(color: primaryBlue, width: 2) 
+          : Border.all(
+              color: cardColor.withOpacity(0.5),
+              width: 1,
+            ),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.1),
             spreadRadius: 0,
-            blurRadius: isDark ? 6 : 4,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Prayer icon or indicator
           Container(
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: isNext ? accentColor : (isDark ? Colors.white70 : Colors.grey[400]),
+              color: isNext ? primaryBlue : Colors.grey[400],
               shape: BoxShape.circle,
             ),
           ),
           SizedBox(width: 16),
-          // Prayer name
           Expanded(
             child: Text(
               prayer.name,
               style: TextStyle(
-                color: textColor,
+                color: Colors.black87,
                 fontSize: 18,
                 fontWeight: isNext ? FontWeight.bold : FontWeight.w500,
               ),
             ),
           ),
-          // Prayer time
           Text(
             prayer.formattedTime,
             style: TextStyle(
-              color: isNext ? accentColor : textColor,
+              color: isNext ? primaryBlue : Colors.black87,
               fontSize: 18,
               fontWeight: isNext ? FontWeight.bold : FontWeight.w500,
             ),
