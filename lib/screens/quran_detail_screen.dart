@@ -32,13 +32,18 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   int? highlightedVerse;
   Timer? highlightTimer;
 
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
+
   @override
   void initState() {
     super.initState();
 
-    // Handle the initial verse parameter
     if (widget.initialVerse != null) {
-      // Use a slightly longer delay for mobile to ensure everything is loaded
       Future.delayed(Duration(milliseconds: 500), () {
         if (mounted) {
           jumpToVerse(widget.initialVerse!);
@@ -60,17 +65,37 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Jump to Verse'),
+        backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Jump to Verse',
+          style: TextStyle(color: Colors.black87),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Enter verse number (1-$maxVerse):'),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Verse number',
+            Text(
+              'Enter verse number (1-$maxVerse):',
+              style: TextStyle(color: Colors.black87),
+            ),
+            SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: cardColor.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: softAccent),
+              ),
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                style: TextStyle(color: Colors.black87),
+                decoration: InputDecoration(
+                  hintText: 'Verse number',
+                  hintStyle: TextStyle(color: Colors.black54),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
             ),
           ],
@@ -78,9 +103,14 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(color: Colors.black54)),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               final int? verseNumber = int.tryParse(controller.text);
               if (verseNumber != null && verseNumber >= 1 && verseNumber <= maxVerse) {
@@ -105,7 +135,10 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
     _scrollToVerse(verseNumber);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigating to verse $verseNumber')),
+      SnackBar(
+        content: Text('Navigating to verse $verseNumber'),
+        backgroundColor: primaryBlue,
+      ),
     );
 
     highlightTimer?.cancel();
@@ -123,7 +156,6 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
 
     print('QuranDetailScreen: Scrolling to verse $verseNumber');
 
-    // Debug: Print structure of the first few verses
     for (int i = 0; i < min(5, widget.verses.length); i++) {
       final verse = widget.verses[i] as Map<String, dynamic>;
       print('Verse at index $i: verse number ${verse['verse']}');
@@ -158,24 +190,22 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
     final displayedVerses = widget.verses;
     final showBismillah = widget.surahNumber != 1 && widget.surahNumber != 9;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF121212) : Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
           'Surah ${widget.surahNumber}: ${widget.surahName}', 
-          style: Theme.of(context).appBarTheme.titleTextStyle,
+          style: TextStyle(color: Colors.black87),
         ),
-        iconTheme: IconThemeData(color: isDark ? Colors.cyanAccent : Color(0xFF2D5F7C)),
+        iconTheme: IconThemeData(color: primaryBlue),
         actions: [
           IconButton(
-            icon: Icon(Icons.format_list_numbered, color: isDark ? Colors.cyanAccent : Color(0xFF2D5F7C)),
+            icon: Icon(Icons.format_list_numbered, color: primaryBlue),
             tooltip: 'Jump to Verse',
             onPressed: showJumpToVerseDialog,
           ),
@@ -191,7 +221,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
               itemCount: displayedVerses.length + (showBismillah ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == 0 && showBismillah) {
-                  return buildBismillahCard(isDark, Colors.cyanAccent);
+                  return buildBismillahCard();
                 }
 
                 final verseIndex = showBismillah ? index - 1 : index;
@@ -211,74 +241,81 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                   arabicText = verse['arabic'] as String?;
                 }
 
-                return Card(
-                  elevation: isDark ? 2 : 2,
+                return Container(
                   margin: EdgeInsets.only(bottom: 16),
-                  color: isHighlighted 
-                    ? (isDark ? Color(0xFF3A3000) : Colors.amber[100]) 
-                    : (isDark ? Color(0xFF1E1E1E) : Colors.white),
-                  shape: RoundedRectangleBorder(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isHighlighted 
+                      ? Colors.amber[100] 
+                      : cardColor.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(12),
-                    side: isDark 
-                      ? BorderSide(color: Colors.grey[800]!, width: 1) 
-                      : BorderSide.none,
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.cyanAccent.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Verse $verseNumber',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.cyanAccent,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                indent: 10,
-                                color: isDark ? Colors.grey[700] : Colors.grey[300],
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        if (arabicText != null && arabicText.isNotEmpty)
-                          Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: Text(
-                              arabicText,
-                              style: TextStyle(
-                                fontFamily: 'Scheherazade',
-                                fontSize: 24,
-                                height: 1.5,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        if (arabicText != null && arabicText.isNotEmpty) SizedBox(height: 16),
-                        Text(
-                          verse['text'] ?? '',
-                          style: TextStyle(
-                            height: 1.5,
-                            fontSize: 16,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                      ],
+                    border: Border.all(
+                      color: isHighlighted 
+                        ? Colors.amber 
+                        : cardColor.withOpacity(0.5),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryBlue.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: primaryBlue.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Verse $verseNumber',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: primaryBlue,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              indent: 10,
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      if (arabicText != null && arabicText.isNotEmpty)
+                        Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Text(
+                            arabicText,
+                            style: TextStyle(
+                              fontFamily: 'Scheherazade',
+                              fontSize: 24,
+                              height: 1.5,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      if (arabicText != null && arabicText.isNotEmpty) SizedBox(height: 16),
+                      Text(
+                        verse['text'] ?? '',
+                        style: TextStyle(
+                          height: 1.5,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -289,34 +326,67 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
     );
   }
 
-  Card buildBismillahCard(bool isDark, Color accentColor) {
-    return Card(
-      elevation: isDark ? 3 : 2,
+  Widget buildBismillahCard() {
+    return Container(
       margin: EdgeInsets.only(bottom: 16),
-      color: isDark ? Color(0xFF252525) : Color(0xFFF8F8F8),
-      shape: RoundedRectangleBorder(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
         borderRadius: BorderRadius.circular(12),
-        side: isDark 
-          ? BorderSide(color: Colors.grey[700]!, width: 1) 
-          : BorderSide.none,
+        border: Border.all(
+          color: primaryBlue.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.15),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        child: Center(
-          child: Directionality(
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Bismillah',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: primaryBlue,
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Directionality(
             textDirection: TextDirection.rtl,
             child: Text(
-              "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
+              'بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ',
               style: TextStyle(
                 fontFamily: 'Scheherazade',
                 fontSize: 28,
                 height: 1.5,
-                color: isDark ? Colors.white : Colors.black87,
+                color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
           ),
-        ),
+          SizedBox(height: 12),
+          Text(
+            'In the name of Allah, the Most Gracious, the Most Merciful',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

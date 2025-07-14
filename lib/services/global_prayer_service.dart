@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'package:flutter/services.dart';
+import 'package:flutter/system.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -57,7 +57,6 @@ class PrayerTimeService {
   String? _country;
   Position? _position;
   
-  // New coordinate-based variables
   double? _latitude;
   double? _longitude;
   bool _useCoordinates = false;
@@ -70,7 +69,6 @@ class PrayerTimeService {
 
   PrayerTimeService({this.onPrayerTime});
 
-  // ENHANCED INITIALIZATION with global support
   Future<void> initialize() async {
     try {
       await _initializeNotifications();
@@ -79,7 +77,6 @@ class PrayerTimeService {
       print("Failed to initialize notifications: $e");
     }
     
-    // Try to get GPS coordinates first (most accurate)
     try {
       await _checkLocationPermission();
       print("Location permission checked and coordinates obtained");
@@ -95,7 +92,6 @@ class PrayerTimeService {
       print("GPS location failed: $e");
     }
     
-    // Fallback to cached coordinates
     try {
       await _loadCachedCoordinates();
       if (_latitude != null && _longitude != null) {
@@ -109,7 +105,6 @@ class PrayerTimeService {
       print("Cached coordinates failed: $e");
     }
     
-    // Fallback to city-based approach (your original method)
     try {
       await _loadSavedLocation();
       if (_city != null && _country != null) {
@@ -119,7 +114,6 @@ class PrayerTimeService {
       }
     } catch (e) {
       print("City-based approach failed: $e");
-      // Set reasonable default
       _city = "London";
       _country = "United Kingdom";
       await _getPrayerTimesByCity(DateTime.now());
@@ -129,53 +123,45 @@ class PrayerTimeService {
     print("Prayer time service initialized");
   }
 
-  // MAIN GLOBAL PRAYER TIME CALCULATION
   Future<void> getPrayerTimesGlobally(double lat, double lng, DateTime date) async {
     try {
-      // First, try standard coordinate-based calculation
       if (await _tryStandardCalculation(lat, lng, date)) {
         print('Standard prayer calculation successful for $lat, $lng');
         return;
       }
       
-      // If standard fails, use appropriate fallback method
       if (_isExtremePolarRegion(lat)) {
         await _handleExtremePolarRegion(lat, lng, date);
       } else if (_isHighLatitudeRegion(lat)) {
         await _handleHighLatitudeRegion(lat, lng, date);
       } else {
-        // Should not happen, but fallback to nearest major city
         await _fallbackToNearestCity(lat, lng, date);
       }
       
     } catch (e) {
       print('All prayer time calculations failed: $e');
-      // Final fallback - use Mecca times (universal Islamic reference)
       await _useMeccaTimes(date);
     }
   }
 
-  // Try standard coordinate-based calculation first
   Future<bool> _tryStandardCalculation(double lat, double lng, DateTime date) async {
     try {
-      final timestamp = (date.millisecondsSinceEpoch / 1000).round();
-      final url = 'https://api.aladhan.com/v1/timings/$timestamp?latitude=$lat&longitude=$lng&method=2';
+      final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      final url = 'https://api.aladhan.com/v1/timings?latitude=$lat&longitude=$lng&method=2&date=$formattedDate';
       
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data['data']['timings'];
         
-        // Check if all prayer times are valid (not "--:--")
         final requiredPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
         for (String prayer in requiredPrayers) {
           if (timings[prayer] == null || timings[prayer] == "--:--" || timings[prayer].isEmpty) {
             print('Invalid $prayer time: ${timings[prayer]}');
-            return false; // Standard calculation failed
+            return false;
           }
         }
         
-        // All times valid - use them
         _prayerTimes = [];
         _addPrayerTime('Fajr', timings['Fajr'], date);
         _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
@@ -187,7 +173,6 @@ class PrayerTimeService {
         _findNextPrayer();
         _useCoordinates = true;
         
-        // Cache successful coordinates
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('prayer_method', 'coordinates');
         
@@ -201,26 +186,21 @@ class PrayerTimeService {
     }
   }
 
-  // Check if location is in extreme polar region
   bool _isExtremePolarRegion(double latitude) {
     return latitude.abs() > 66.5;
   }
   
-  // Check if location is in high latitude region  
   bool _isHighLatitudeRegion(double latitude) {
     return latitude.abs() > 48.0 && latitude.abs() <= 66.5;
   }
 
-  // Handle extreme polar regions (Arctic/Antarctic Circle)
   Future<void> _handleExtremePolarRegion(double lat, double lng, DateTime date) async {
     print('Handling extreme polar region: $lat, $lng');
     
-    // Use nearest city with normal day/night cycle
     try {
       final nearestCity = _findNearestNormalCity(lat, lng);
       await _getPrayerTimesForCity(nearestCity['city']!, nearestCity['country']!, date);
       
-      // Cache that we're using alternative method
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('prayer_method', 'nearest_city');
       await prefs.setString('reference_city', '${nearestCity['city']}, ${nearestCity['country']}');
@@ -231,19 +211,14 @@ class PrayerTimeService {
       print('Nearest city method failed: $e');
     }
     
-    // Fallback to Mecca times
     await _useMeccaTimes(date);
   }
 
-  // Handle high latitude regions (48°-66°)
   Future<void> _handleHighLatitudeRegion(double lat, double lng, DateTime date) async {
     print('Handling high latitude region: $lat, $lng');
-    
-    // Use nearest normal city method for now
     await _handleExtremePolarRegion(lat, lng, date);
   }
 
-  // Find nearest city with normal day/night cycles
   Map<String, String> _findNearestNormalCity(double lat, double lng) {
     final normalCities = [
       {'city': 'Riyadh', 'country': 'Saudi Arabia', 'lat': 24.7136, 'lng': 46.6753},
@@ -270,10 +245,8 @@ class PrayerTimeService {
     return nearestCity;
   }
 
-  // Use Mecca times as universal Islamic reference
   Future<void> _useMeccaTimes(DateTime date) async {
     print('Using Mecca times as universal reference');
-    
     await _getPrayerTimesForCity('Mecca', 'Saudi Arabia', date);
     
     final prefs = await SharedPreferences.getInstance();
@@ -281,13 +254,11 @@ class PrayerTimeService {
     await prefs.setString('reference_city', 'Mecca, Saudi Arabia');
   }
 
-  // Fallback to nearest major city
   Future<void> _fallbackToNearestCity(double lat, double lng, DateTime date) async {
     final nearestCity = _findNearestNormalCity(lat, lng);
     await _getPrayerTimesForCity(nearestCity['city']!, nearestCity['country']!, date);
   }
 
-  // ENHANCED LOCATION DETECTION with coordinates
   Future<void> _checkLocationPermission() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -303,17 +274,14 @@ class PrayerTimeService {
       
       _position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
       
-      // Store coordinates for coordinate-based prayer times
       _latitude = _position!.latitude;
       _longitude = _position!.longitude;
       
-      // Cache coordinates
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('cached_latitude', _latitude!);
       await prefs.setDouble('cached_longitude', _longitude!);
       await prefs.setString('coordinates_updated', DateTime.now().toIso8601String());
       
-      // Also try to get city name for display purposes (non-critical)
       try {
         await _getAddressFromLatLng(_position!);
       } catch (e) {
@@ -326,7 +294,6 @@ class PrayerTimeService {
     }
   }
 
-  // Load cached coordinates
   Future<void> _loadCachedCoordinates() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -335,7 +302,6 @@ class PrayerTimeService {
       final lastUpdate = prefs.getString('coordinates_updated');
       
       if (cachedLat != null && cachedLng != null) {
-        // Use cached coordinates if they're not too old (7 days)
         if (lastUpdate != null) {
           final lastUpdateTime = DateTime.parse(lastUpdate);
           final daysSinceUpdate = DateTime.now().difference(lastUpdateTime).inDays;
@@ -355,13 +321,11 @@ class PrayerTimeService {
     }
   }
 
-  // FREE GEOCODING for location display names
   Future<String> getLocationDisplayName() async {
     if (_latitude != null && _longitude != null) {
       return await _getLocationDisplayNameFromCoords(_latitude!, _longitude!);
     }
     
-    // Fallback to city/country if available
     if (_city != null && _country != null) {
       return '$_city, $_country';
     }
@@ -370,12 +334,10 @@ class PrayerTimeService {
   }
 
   Future<String> _getLocationDisplayNameFromCoords(double lat, double lng) async {
-    // Check cache first
     final prefs = await SharedPreferences.getInstance();
     final cachedName = prefs.getString('location_display_name');
     if (cachedName != null) return cachedName;
     
-    // Try BigDataCloud first (most reliable free service)
     try {
       final bigDataResult = await _tryBigDataCloudGeocoding(lat, lng);
       if (bigDataResult != null) {
@@ -386,7 +348,6 @@ class PrayerTimeService {
       print('BigDataCloud geocoding failed: $e');
     }
 
-    // Try GeoNames as backup
     try {
       final geoNamesResult = await _tryGeoNamesGeocoding(lat, lng);
       if (geoNamesResult != null) {
@@ -397,13 +358,11 @@ class PrayerTimeService {
       print('GeoNames geocoding failed: $e');
     }
 
-    // Fallback to coordinates
     final coordsName = '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
     await prefs.setString('location_display_name', coordsName);
     return coordsName;
   }
 
-  // BigDataCloud - Free reverse geocoding
   Future<String?> _tryBigDataCloudGeocoding(double lat, double lng) async {
     final url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lng&localityLanguage=en';
     
@@ -434,7 +393,6 @@ class PrayerTimeService {
     return null;
   }
 
-  // GeoNames - Free geocoding
   Future<String?> _tryGeoNamesGeocoding(double lat, double lng) async {
     final url = 'http://api.geonames.org/findNearbyPlaceNameJSON?lat=$lat&lng=$lng&username=demo';
     
@@ -461,7 +419,6 @@ class PrayerTimeService {
     return null;
   }
 
-  // FREE CITY SEARCH for manual input
   Future<List<CitySearchResult>> searchCitiesFreely(String query) async {
     if (query.length < 2) return [];
     
@@ -492,13 +449,11 @@ class PrayerTimeService {
     return [];
   }
 
-  // Manual location setting with coordinates
   Future<void> setLocationByCoordinates(double lat, double lng, String displayName) async {
     try {
       _latitude = lat;
       _longitude = lng;
       
-      // Cache the coordinates
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('cached_latitude', lat);
       await prefs.setDouble('cached_longitude', lng);
@@ -506,7 +461,6 @@ class PrayerTimeService {
       await prefs.setString('location_display_name', displayName);
       await prefs.setBool('location_set_manually', true);
       
-      // Get fresh prayer times
       await getPrayerTimesGlobally(lat, lng, DateTime.now());
       
       print('Location set manually: $displayName ($lat, $lng)');
@@ -516,7 +470,6 @@ class PrayerTimeService {
     }
   }
 
-  // Get current prayer calculation method for user information
   Future<String> getPrayerCalculationMethod() async {
     final prefs = await SharedPreferences.getInstance();
     final method = prefs.getString('prayer_method') ?? 'standard';
@@ -536,15 +489,11 @@ class PrayerTimeService {
     }
   }
 
-  // EXISTING METHODS - Enhanced versions of your original code
-
-  // Enhanced getPrayerTimes with fallbacks
   Future<void> getPrayerTimes() async {
     return getPrayerTimesForDate(DateTime.now());
   }
 
   Future<void> getPrayerTimesForDate(DateTime date) async {
-    // Try coordinate-based approach first (more accurate)
     if (_latitude != null && _longitude != null) {
       try {
         await getPrayerTimesGlobally(_latitude!, _longitude!, date);
@@ -554,11 +503,9 @@ class PrayerTimeService {
       }
     }
 
-    // Fallback to city-based approach
     await _getPrayerTimesByCity(date);
   }
 
-  // Your original city-based method (kept for compatibility)
   Future<void> _getPrayerTimesByCity(DateTime date) async {
     if (_city == null || _country == null) {
       await _loadSavedLocation();
@@ -595,7 +542,6 @@ class PrayerTimeService {
     }
   }
 
-  // Get prayer times for specific city (used by fallback methods)
   Future<void> _getPrayerTimesForCity(String city, String country, DateTime date) async {
     final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
     final url = '$dateApiUrl?city=$city&country=$country&method=2&date=$formattedDate';
@@ -623,7 +569,6 @@ class PrayerTimeService {
     }
   }
 
-  // Your original methods (preserved)
   Future<void> _initializeNotifications() async {
     await AwesomeNotifications().initialize(
       'resource://drawable/ic_notification',
@@ -657,8 +602,6 @@ class PrayerTimeService {
     print("Current time when scheduling: ${now.toString()}");
 
     await _schedulePrayersForDate(DateTime.now(), 0);
-    await _schedulePrayersForDate(DateTime.now().add(Duration(days: 1)), 1);
-    await _schedulePrayersForDate(DateTime.now().add(Duration(days: 2)), 2);
   }
 
   Future<void> _schedulePrayersForDate(DateTime date, int dayOffset) async {
@@ -669,11 +612,15 @@ class PrayerTimeService {
     if (dayOffset == 0) {
       prayerTimes = _prayerTimes;
     } else {
+      final savedPrayerTimes = List<PrayerTime>.from(_prayerTimes);
+      
       try {
-        // Use coordinate-based if available, otherwise city-based
         if (_latitude != null && _longitude != null) {
           await getPrayerTimesGlobally(_latitude!, _longitude!, date);
           prayerTimes = _prayerTimes;
+          
+          _prayerTimes = savedPrayerTimes;
+          _findNextPrayer();
         } else {
           final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
           final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
@@ -692,6 +639,7 @@ class PrayerTimeService {
         }
       } catch (e) {
         print("Error fetching prayer times for ${date.toString().split(' ')[0]}: $e");
+        _prayerTimes = savedPrayerTimes;
         return;
       }
     }
@@ -813,7 +761,6 @@ class PrayerTimeService {
         }
       }
 
-      // Try free geocoding services
       final locationName = await _getLocationDisplayNameFromCoords(position.latitude, position.longitude);
       if (locationName.contains(',')) {
         final parts = locationName.split(',');
@@ -828,7 +775,6 @@ class PrayerTimeService {
       }
     } catch (e) {
       print('Error handling location: $e');
-      // Don't set defaults - let coordinate-based approach handle it
     }
   }
 
@@ -840,14 +786,12 @@ class PrayerTimeService {
       try {
         await _checkLocationPermission();
       } catch (e) {
-        // Set reasonable defaults for fallback
         _city = "London";
         _country = "United Kingdom";
       }
     }
   }
 
-  // Keep your original saveLocation method for backward compatibility
   Future<void> saveLocation(String city, String country) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('city', city);
@@ -855,7 +799,6 @@ class PrayerTimeService {
     _city = city;
     _country = country;
     
-    // Clear coordinates to force city-based approach
     _latitude = null;
     _longitude = null;
     await prefs.remove('cached_latitude');
@@ -935,7 +878,6 @@ class PrayerTimeService {
     }
   }
 
-  // Helper methods
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
     final dx = lat1 - lat2;
     final dy = lng1 - lng2;

@@ -24,11 +24,11 @@ class IslamicToolsScreen extends StatefulWidget {
 }
 
 class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
-  // Modern blue theme colors
+  // Updated colors to match home screen
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
-  static const Color backgroundColor = Color(0xFFF8FBFF);
-  static const Color cardColor = Colors.white;
+  static const Color backgroundColor = Colors.white; // Pure white background
+  static const Color cardColor = Color(0xFFF0F7FF); // Glassy blue for boxes
 
   @override
   void initState() {
@@ -46,105 +46,63 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [backgroundColor, Color(0xFFEEF7FF)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildToolCard(
-                        title: 'Prayer Times',
-                        description: 'Get accurate prayer times based on your location',
-                        icon: Icons.access_time,
-                        color: primaryBlue,
-                        onTap: () {
-                          widget.analyticsService?.logFeatureUsed('prayer_time_screen');
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PrayerTimeScreen(
-                                prayerTimeService: widget.prayerTimeService,
-                                analyticsService: widget.analyticsService,
-                              ),
+      backgroundColor: backgroundColor, // Pure white background
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Only Prayer Times - Digital Tasbeeh and Islamic Calendar REMOVED
+                    _buildToolCard(
+                      title: 'Prayer Times',
+                      description: 'Get accurate prayer times based on your location',
+                      icon: Icons.access_time,
+                      color: primaryBlue,
+                      onTap: () {
+                        widget.analyticsService?.logFeatureUsed('prayer_time_screen');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PrayerTimeScreen(
+                              prayerTimeService: widget.prayerTimeService,
+                              analyticsService: widget.analyticsService,
                             ),
-                          );
-                        },
-                      ),
-                      
-                      SizedBox(height: 16),
-                      
-                      _buildToolCard(
-                        title: 'Qibla Compass',
-                        description: 'Find the direction to Mecca for your prayers',
-                        icon: Icons.explore,
-                        color: lightBlue,
-                        onTap: () {
-                          widget.analyticsService?.logFeatureUsed('qibla_screen');
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => QiblaScreen(
-                                qiblaService: widget.qiblaService,
-                                analyticsService: widget.analyticsService,
-                              ),
+                          ),
+                        );
+                      },
+                    ),
+                    
+                    SizedBox(height: 16),
+                    
+                    // Only Qibla Compass - Digital Tasbeeh and Islamic Calendar REMOVED  
+                    _buildToolCard(
+                      title: 'Qibla Compass',
+                      description: 'Find the direction to Mecca for your prayers',
+                      icon: Icons.explore,
+                      color: lightBlue,
+                      onTap: () {
+                        widget.analyticsService?.logFeatureUsed('qibla_screen');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => QiblaScreen(
+                              qiblaService: widget.qiblaService,
+                              analyticsService: widget.analyticsService,
                             ),
-                          );
-                        },
-                      ),
-
-                      SizedBox(height: 16),
-                      
-                      _buildToolCard(
-                        title: 'Digital Tasbeeh',
-                        description: 'Count your dhikr and track your spiritual progress',
-                        icon: Icons.favorite,
-                        color: Color(0xFF28C76F),
-                        onTap: () {
-                          // TODO: Navigate to Tasbeeh screen when implemented
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Digital Tasbeeh coming soon!'),
-                              backgroundColor: primaryBlue,
-                            ),
-                          );
-                        },
-                      ),
-
-                      SizedBox(height: 16),
-                      
-                      _buildToolCard(
-                        title: 'Islamic Calendar',
-                        description: 'View important Islamic dates and events',
-                        icon: Icons.calendar_today,
-                        color: Color(0xFFFF6B35),
-                        onTap: () {
-                          // TODO: Navigate to Islamic Calendar when implemented
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Islamic Calendar coming soon!'),
-                              backgroundColor: primaryBlue,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Digital Tasbeeh and Islamic Calendar REMOVED as requested
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -155,13 +113,24 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
       padding: EdgeInsets.all(20),
       margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cardColor,
+        // Glassy blue box like home screen
+        color: cardColor.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            blurRadius: 25,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 8),
+          ),
+          // Inner glow for glassmorphism
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.white.withOpacity(0.2),
+            offset: Offset(0, -5),
           ),
         ],
       ),
@@ -222,8 +191,13 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
       child: Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: cardColor,
+          // Glassy blue boxes like home screen
+          color: cardColor.withOpacity(0.8),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: cardColor.withOpacity(0.5),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),

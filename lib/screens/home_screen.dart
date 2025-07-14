@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'dart:math' as math;
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
@@ -11,6 +12,7 @@ import '../widgets/responsive_layout.dart';
 import '../widgets/islamic_fun_fact.dart';
 import '../widgets/faq_section.dart';
 import '../widgets/quran_section.dart';
+import '../widgets/animations.dart';
 import '../theme/text_styles.dart';
 import '../theme/theme_provider.dart';
 import 'search_results_screen.dart';
@@ -44,7 +46,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _currentIndex = 2; // Center Ka'aba is active by default
+  int _currentIndex = 2;
   final TextEditingController _controller = TextEditingController();
   String? currentQuery;
   String _aiResponse = '';
@@ -56,15 +58,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isScrolling = false;
   late AnimationController _fabAnimationController;
   late AnimationController _scrollAnimationController;
+  late AnimationController _overlayAnimationController;
   late Animation<double> _fabAnimation;
   late Animation<double> _navOpacity;
+  late Animation<double> _overlayAnimation;
   final ScrollController _scrollController = ScrollController();
 
-  // Modern blue theme colors - Enhanced for better contrast
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
-  static const Color cardColor = Color(0xFFF0F7FF); // Better contrast - soothing bluish tint
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
 
   @override
   void initState() {
@@ -72,20 +76,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _logScreenView();
     
     _fabAnimationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 400),
       vsync: this,
     );
     _scrollAnimationController = AnimationController(
       duration: Duration(milliseconds: 200),
       vsync: this,
     );
+    _overlayAnimationController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
     
     _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeOutBack),
     );
     
     _navOpacity = Tween<double>(begin: 1.0, end: 0.7).animate(
       CurvedAnimation(parent: _scrollAnimationController, curve: Curves.easeInOut),
+    );
+
+    _overlayAnimation = Tween<double>(begin: 0.0, end: 0.15).animate(
+      CurvedAnimation(parent: _overlayAnimationController, curve: Curves.easeInOut),
     );
 
     _scrollController.addListener(_onScroll);
@@ -106,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _controller.dispose();
     _fabAnimationController.dispose();
     _scrollAnimationController.dispose();
+    _overlayAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -133,8 +146,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Future.delayed(Duration.zero, () async {
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => SearchResultsScreen(
+        SlidePageRoute(
+          child: SearchResultsScreen(
             query: query,
             openAiService: widget.openAiService,
             analyticsService: widget.analyticsService,
@@ -151,25 +164,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'duration_ms': operationDuration.inMilliseconds,
         },
       );
-
-      if (operationDuration < Duration(milliseconds: 500)) {
-        await Future.delayed(Duration(milliseconds: 500) - operationDuration);
-      }
     });
   }
 
   void _toggleFAB() {
-    print("FAB toggle called! Current expanded: $_isExpanded"); // Debug
     setState(() {
       _isExpanded = !_isExpanded;
     });
     
     if (_isExpanded) {
       _fabAnimationController.forward();
+      _overlayAnimationController.forward();
     } else {
       _fabAnimationController.reverse();
+      _overlayAnimationController.reverse();
     }
-    print("New expanded state: $_isExpanded"); // Debug
   }
 
   @override
@@ -177,46 +186,69 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: backgroundColor,
       extendBody: true,
-      body: _buildMainContent(context),
+      body: Stack(
+        children: [
+          _buildMainContent(context),
+          // Grey overlay when FAB is expanded
+          AnimatedBuilder(
+            animation: _overlayAnimation,
+            builder: (context, child) {
+              return _overlayAnimation.value > 0
+                  ? GestureDetector(
+                      onTap: _toggleFAB,
+                      child: Container(
+                        color: Colors.black.withOpacity(_overlayAnimation.value),
+                        child: SizedBox.expand(),
+                      ),
+                    )
+                  : SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNavigation(),
       floatingActionButton: _buildFloatingActionButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
   Widget _buildMainContent(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [backgroundColor, Color(0xFFEEF7FF)],
-        ),
+        color: backgroundColor,
       ),
       child: SafeArea(
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 100), // Bottom padding for nav
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with title and theme toggle
-              _buildHeader(),
+              StaggeredAnimationWrapper(
+                delay: 100,
+                child: _buildHeader(),
+              ),
               
               SizedBox(height: 24),
               
-              // Islamic Fun Fact Card
-              _buildFunFactCard(),
+              StaggeredAnimationWrapper(
+                delay: 200,
+                child: IslamicFunFact(),
+              ),
               
               SizedBox(height: 24),
               
-              // Search Box
-              _buildSearchCard(),
+              StaggeredAnimationWrapper(
+                delay: 300,
+                child: _buildSearchSection(),
+              ),
               
               SizedBox(height: 24),
               
-              // FAQ Section
-              _buildFAQCard(),
+              StaggeredAnimationWrapper(
+                delay: 400,
+                child: _buildFAQCard(),
+              ),
               
               SizedBox(height: 20),
               
@@ -233,88 +265,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader() {
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 600),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cardColor, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryBlue.withOpacity(0.15), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: primaryBlue.withOpacity(0.08),
-            blurRadius: 15,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [primaryBlue, lightBlue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: Text(
             'Tafseer',
             style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: primaryBlue,
-              letterSpacing: -1.0,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -1.5,
+              height: 1.1,
             ),
           ),
-          Text(
-            'Islamic Knowledge & Guidance',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[500],
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFunFactCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[300]!, width: 1), // Added border for contrast
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: IslamicFunFact(),
-      ),
-    );
-  }
-
-  Widget _buildSearchCard() {
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 600),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cardColor, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryBlue.withOpacity(0.15), width: 1),
+        SizedBox(height: 4),
+        Text(
+          'Islamic Knowledge & Guidance',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: primaryBlue.withOpacity(0.08),
+            blurRadius: 30,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 10),
+          ),
+          BoxShadow(
             blurRadius: 15,
-            offset: Offset(0, 5),
+            color: Colors.white.withOpacity(0.2),
+            offset: Offset(0, -5),
           ),
         ],
       ),
@@ -324,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [primaryBlue, lightBlue],
@@ -332,36 +336,66 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     end: Alignment.bottomRight,
                   ),
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: 15,
+                      color: primaryBlue.withOpacity(0.4),
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   Icons.search,
                   color: Colors.white,
-                  size: 20,
+                  size: 22,
                 ),
               ),
-              SizedBox(width: 12),
-              Text(
-                'Ask Islamic Questions',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ask Islamic Questions',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      'Get answers from Quran & Hadith',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          
           SizedBox(height: 16),
+          
           Container(
             decoration: BoxDecoration(
-              color: Color(0xFFEAF3FB), // Better contrast
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: primaryBlue.withOpacity(0.2)),
+              color: cardColor.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: softAccent.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 10,
+                  color: Colors.black.withOpacity(0.05),
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
                 hintText: 'Salam alaykum...Seek answers to your questions here....',
-                contentPadding: EdgeInsets.all(16),
+                contentPadding: EdgeInsets.all(18),
                 border: InputBorder.none,
                 hintStyle: TextStyle(
                   color: Colors.grey[500],
@@ -375,10 +409,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 8,
+                        color: primaryBlue.withOpacity(0.3),
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: IconButton(
-                    icon: Icon(Icons.send, color: Colors.white, size: 18),
+                    icon: Icon(Icons.send_rounded, color: Colors.white, size: 20),
                     onPressed: () {
                       final text = _controller.text.trim();
                       if (text.isNotEmpty) {
@@ -392,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: TextStyle(
                 color: Colors.black87,
                 fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
               maxLines: 3,
             ),
@@ -405,8 +447,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: cardColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.5),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -451,58 +497,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomNavigation() {
-    return AnimatedBuilder(
-      animation: _navOpacity,
-      builder: (context, child) {
-        return Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: cardColor.withOpacity(_navOpacity.value), // Light blue nav bar
-            border: Border(
-              top: BorderSide(color: Colors.grey[300]!, width: 1), // Added top border
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: SizedBox(width: 60), // Just space for the FAB - no other icons
-          ),
-        );
-      },
-    );
+    return SizedBox.shrink(); // Completely remove the bottom navigation bar
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final isActive = _currentIndex == index;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() => _currentIndex = index);
-        _navigateToScreen(index);
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+  Widget _buildFloatingActionButton() {
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: 24, right: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isActive ? primaryBlue : Colors.grey[400],
-              size: 20,
-            ),
-            SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? primaryBlue : Colors.grey[400],
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            // Vertical stack of buttons (Samsung-style)
+            if (_isExpanded)
+              Container(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 3; i >= 0; i--) ...[
+                      AnimatedBuilder(
+                        animation: _fabAnimation,
+                        builder: (context, child) {
+                          final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
+                          final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
+                          
+                          return Transform.scale(
+                            scale: scale,
+                            child: Opacity(
+                              opacity: opacity,
+                              child: _buildGlassmorphicButton(
+                                [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
+                                ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
+                                i, // Pass index for different colors
+                                [
+                                  () {
+                                    _toggleFAB();
+                                    Navigator.push(context, SlidePageRoute(child: QuranScreen()));
+                                  },
+                                  () {
+                                    _toggleFAB();
+                                    Navigator.push(context, SlidePageRoute(
+                                      child: HistoryScreen(firestoreService: widget.firestoreService),
+                                      begin: Offset(-1.0, 0.0),
+                                    ));
+                                  },
+                                  () {
+                                    _toggleFAB();
+                                    Navigator.push(context, ScalePageRoute(child: HadithScreen()));
+                                  },
+                                  () {
+                                    _toggleFAB();
+                                    Navigator.push(context, HeroPageRoute(
+                                      child: IslamicToolsScreen(
+                                        prayerTimeService: widget.prayerTimeService,
+                                        qiblaService: widget.qiblaService,
+                                        analyticsService: widget.analyticsService,
+                                      ),
+                                    ));
+                                  },
+                                ][i],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      if (i > 0) SizedBox(height: 12), // Increased spacing to accommodate text labels
+                    ],
+                  ],
+                ),
               ),
+            
+            SizedBox(height: 20), // Increased spacing from Kaaba
+            
+            // Main Kaaba FAB
+            ModernKaabaFAB(
+              isExpanded: _isExpanded,
+              onPressed: _toggleFAB,
+              backgroundColor: primaryBlue,
+              size: 56,
+              child: Text('🕋', style: TextStyle(fontSize: 20)),
             ),
           ],
         ),
@@ -510,149 +583,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return SizedBox(
-      width: 240, // Even larger for perfect spacing
-      height: 240,
-      child: Stack(
-        alignment: Alignment.center,
+  Widget _buildGlassmorphicButton(IconData icon, String label, int index, VoidCallback onTap) {
+    // Define bright, vibrant colors for the icons
+    final List<Color> buttonColors = [
+      Color(0xFF00E676), // Quran - Bright Green
+      Color(0xFFFF9800), // History - Bright Orange
+      Color(0xFF2196F3), // Hadith - Bright Blue
+      Color(0xFFE91E63), // Tools - Bright Pink
+    ];
+    
+    final Color buttonColor = buttonColors[index];
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Navigation icons AROUND the Ka'aba button when expanded
-          if (_isExpanded) ...[
-            // Quran button (top) - Perfectly centered above Ka'aba
-            Positioned(
-              top: 20,
-              left: 90, // (240-60)/2 = 90 for perfect center
-              child: Container(
-                width: 60,
-                height: 60,
-                child: FloatingActionButton(
-                  mini: false,
-                  heroTag: "quran_fab",
-                  backgroundColor: lightBlue,
-                  elevation: 8,
-                  onPressed: () {
-                    print("Quran button tapped!");
-                    _toggleFAB();
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FontAwesomeIcons.bookQuran, color: Colors.white, size: 18),
-                      SizedBox(height: 2),
-                      Text('QURAN', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+          Container(
+            width: 52, // Double the icon size (26 * 2)
+            height: 52, // Double the icon size (26 * 2)
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: buttonColor,
+                size: 26,
               ),
             ),
-            // History button (left) - Perfectly aligned left of Ka'aba
-            Positioned(
-              top: 90, // (240-60)/2 = 90 for perfect vertical center
-              left: 20,
-              child: Container(
-                width: 60,
-                height: 60,
-                child: FloatingActionButton(
-                  mini: false,
-                  heroTag: "history_fab",
-                  backgroundColor: lightBlue,
-                  elevation: 8,
-                  onPressed: () {
-                    print("History button tapped!");
-                    _toggleFAB();
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: widget.firestoreService)));
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.history, color: Colors.white, size: 18),
-                      SizedBox(height: 2),
-                      Text('HISTORY', style: TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
                 ),
-              ),
-            ),
-            // Hadith button (right) - Perfectly aligned right of Ka'aba
-            Positioned(
-              top: 90, // Same vertical position as History
-              left: 160, // 240-60-20 = 160 for right alignment
-              child: Container(
-                width: 60,
-                height: 60,
-                child: FloatingActionButton(
-                  mini: false,
-                  heroTag: "hadith_fab",
-                  backgroundColor: lightBlue,
-                  elevation: 8,
-                  onPressed: () {
-                    print("Hadith button tapped!");
-                    _toggleFAB();
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FontAwesomeIcons.bookOpen, color: Colors.white, size: 18),
-                      SizedBox(height: 2),
-                      Text('HADITH', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Tools button (bottom) - Perfectly centered below Ka'aba
-            Positioned(
-              top: 160, // 240-60-20 = 160 for bottom alignment
-              left: 90, // Same horizontal position as Quran
-              child: Container(
-                width: 60,
-                height: 60,
-                child: FloatingActionButton(
-                  mini: false,
-                  heroTag: "tools_fab",
-                  backgroundColor: lightBlue,
-                  elevation: 8,
-                  onPressed: () {
-                    print("Tools button tapped!");
-                    _toggleFAB();
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => IslamicToolsScreen(
-                      prayerTimeService: widget.prayerTimeService,
-                      qiblaService: widget.qiblaService,
-                      analyticsService: widget.analyticsService,
-                    )));
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.explore, color: Colors.white, size: 18),
-                      SizedBox(height: 2),
-                      Text('TOOLS', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-          // Main FAB (Ka'aba) - Dead center of 240x240 container
-          Positioned(
-            top: 90, // (240-60)/2 = 90
-            left: 90, // (240-60)/2 = 90
-            child: FloatingActionButton(
-              heroTag: "main_fab",
-              onPressed: _toggleFAB,
-              backgroundColor: primaryBlue,
-              child: AnimatedRotation(
-                turns: _isExpanded ? 0.125 : 0,
-                duration: Duration(milliseconds: 300),
-                child: Text(
-                  '🕋',
-                  style: TextStyle(fontSize: 24),
-                ),
-              ),
-              elevation: 6,
+              ],
             ),
           ),
         ],
@@ -660,49 +642,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildOrbitButton(IconData icon, String tooltip, Color color, VoidCallback onTap) {
-    return Container(
-      width: 45,
-      height: 45,
-      child: FloatingActionButton(
-        mini: true,
-        onPressed: onTap,
-        backgroundColor: cardColor,
-        child: Icon(icon, color: color, size: 20),
-        tooltip: tooltip,
-        elevation: 4,
-      ),
-    );
-  }
-
-  void _navigateToScreen(int index) {
-    switch (index) {
-      case 0:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: widget.firestoreService)));
-        break;
-      case 1:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
-        break;
-      case 3:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
-        break;
-      case 4:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => IslamicToolsScreen(
-          prayerTimeService: widget.prayerTimeService,
-          qiblaService: widget.qiblaService,
-          analyticsService: widget.analyticsService,
-        )));
-        break;
-    }
-  }
-
   Widget _buildQuranicEvidenceSection() {
     return Container(
       margin: EdgeInsets.only(top: 16),
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: cardColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.5),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
