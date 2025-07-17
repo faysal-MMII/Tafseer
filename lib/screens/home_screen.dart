@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _scrollAnimationController, curve: Curves.easeInOut),
     );
 
-    _overlayAnimation = Tween<double>(begin: 0.0, end: 0.4).animate(
+    _overlayAnimation = Tween<double>(begin: 0.0, end: 0.6).animate(
       CurvedAnimation(parent: _overlayAnimationController, curve: Curves.easeInOut),
     );
 
@@ -561,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           );
                         },
                       ),
-                      if (i > 0) SizedBox(height: 8), // Tight spacing for tiny buttons
+                      if (i > 0) SizedBox(height: 12), // Better spacing for cleaner arrangement
                     ],
                   ],
                 ),
@@ -599,83 +599,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Text label on the LEFT
+          // Simple flat text label on the LEFT
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
+            width: 60, // Fixed width for better alignment
             child: Text(
               label,
+              textAlign: TextAlign.right, // Right-align text towards icon
               style: TextStyle(
-                color: buttonColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.8),
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
               ),
             ),
           ),
           
-          SizedBox(width: 8), // Space between text and icon
+          SizedBox(width: 12), // Clean spacing
           
-          // Icon circle on the RIGHT
+          // Clean, simple icon circle - NO NEOMORPHISM
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
+              // Simple, clean shadow - no neomorphism
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
-                  blurRadius: 6,
-                  offset: Offset(3, 3),
-                ),
-                BoxShadow(
                   color: Colors.black.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: Offset(6, 6),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.9),
-                  blurRadius: 3,
-                  offset: Offset(-1, -1),
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Colors.white,
-                    Colors.grey[100]!,
-                  ],
-                  stops: [0.6, 1.0],
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: buttonColor,
-                  size: 16,
-                  weight: 800,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 2,
-                      offset: Offset(1, 1),
-                    ),
-                  ],
-                ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: buttonColor,
+                size: 16,
+                weight: 700,
               ),
             ),
           ),
