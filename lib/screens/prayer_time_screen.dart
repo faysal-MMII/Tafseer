@@ -85,7 +85,10 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     });
     
     try {
+      await widget.prayerTimeService.initialize();
+      
       final locationName = await widget.prayerTimeService.getLocationDisplayName();
+      
       setState(() {
         _currentLocation = locationName;
       });
@@ -597,44 +600,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          
-          // Add the glassy blue container here
-          Container(
-            color: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: glassyBlueContainer(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.search, color: Colors.white, size: 28),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ask Islamic Questions',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Get answers from Quran and Hadith',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
           

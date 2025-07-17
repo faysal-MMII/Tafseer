@@ -86,10 +86,17 @@ class PrayerTimeService {
     }
     
     if (!locationSuccess) {
-      _city = "London";
-      _country = "United Kingdom";
-      _locationDisplayName = "London, United Kingdom";
-      print("Using default location");
+      // Try IP-based location detection instead of defaulting to London
+      try {
+        await _setSmartDefaultLocation();
+        print("Smart default location set");
+      } catch (e) {
+        // Only then use a more appropriate fallback
+        _city = "Mecca";
+        _country = "Saudi Arabia";
+        _locationDisplayName = "Mecca, Saudi Arabia";
+        print("Using Mecca as final fallback");
+      }
     }
     
     await _loadTodaysPrayerTimes();
@@ -97,6 +104,29 @@ class PrayerTimeService {
     
     _isInitialized = true;
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
+  }
+
+  Future<void> _setSmartDefaultLocation() async {
+    try {
+      final response = await http.get(Uri.parse('http://ip-api.com/json')).timeout(Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _latitude = data['lat']?.toDouble();
+        _longitude = data['lon']?.toDouble();
+        _city = data['city'] ?? "Unknown";
+        _country = data['country'] ?? "Unknown";
+        _locationDisplayName = "$_city, $_country";
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('latitude', _latitude!);
+        await prefs.setDouble('longitude', _longitude!);
+        await prefs.setString('location_name', _locationDisplayName!);
+        
+        print("IP-based location: $_locationDisplayName");
+      }
+    } catch (e) {
+      throw Exception("IP geolocation failed: $e");
+    }
   }
 
   Future<void> _getGPSLocation() async {
