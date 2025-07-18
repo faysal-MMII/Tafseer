@@ -57,6 +57,8 @@ class PrayerTimeService {
   bool _isInitialized = false;
   final PrayerNotificationCallback? onPrayerTime;
 
+  static const String _lastReminderKey = 'last_reading_reminder';
+
   PrayerTimeService({this.onPrayerTime});
 
   Future<void> initialize() async {
@@ -106,30 +108,69 @@ class PrayerTimeService {
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
   }
 
+  static Future<void> _scheduleReadingReminder(Map<String, String> sessionData) async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastReminder = prefs.getString(_lastReminderKey);
+    final now = DateTime.now();
+
+    // Don't send more than one reminder per day
+    if (lastReminder != null) {
+      final lastReminderDate = DateTime.parse(lastReminder);
+      if (now.difference(lastReminderDate).inHours < 24) {
+        return;
+      }
+    }
+
+    // Schedule reminder for 6 hours from now
+    final reminderTime = now.add(Duration(hours: 6));
+
+    final surahName = sessionData['surah_name']!;
+    final lastVerse = sessionData['last_verse']!;
+
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 777777,
+          channelKey: 'reading_reminders_channel',
+          title: 'Continue Your Spiritual Journey 📖',
+          body: 'You were reading $surahName (verse $lastVerse). Continue where you left off!',
+          notificationLayout: NotificationLayout.BigText,
+          largeIcon: 'resource://drawable/ic_notification',
+          wakeUpScreen: false,
+        ),
+        schedule: NotificationCalendar.fromDate(
+          date: reminderTime,
+          allowWhileIdle: true,
+        ),
+      );
+      
+      await prefs.setString(_lastReminderKey, now.toIso8601String());
+      print("Scheduled reading reminder for $surahName in 6 hours ($reminderTime)");
+      
+    } catch (e) {
+      print("Failed to schedule reading reminder: $e");
+    }
+  }
+
   Future<void> _scheduleDailyFunFactNotifications() async {
     final prefs = await SharedPreferences.getInstance();
     final lastScheduled = prefs.getString('last_fun_fact_scheduled');
     final today = DateTime.now();
     final todayStr = '${today.year}-${today.month}-${today.day}';
     
-    // Only schedule once per day
     if (lastScheduled == todayStr) {
       print("Fun fact notifications already scheduled for today");
       return;
     }
     
-    // Cancel existing fun fact notifications
     await AwesomeNotifications().cancel(999999);
     
-    // Schedule for 2 PM local time
     final notificationTime = DateTime(today.year, today.month, today.day, 14, 0);
     
-    // If it's already past 2 PM today, schedule for tomorrow
     final scheduleTime = notificationTime.isBefore(DateTime.now()) 
         ? notificationTime.add(Duration(days: 1))
         : notificationTime;
     
-    // Get a random fun fact
     final randomFacts = IslamicFactsData.getRandomFacts(1);
     if (randomFacts.isNotEmpty) {
       final fact = randomFacts.first;
@@ -174,12 +215,20 @@ class PrayerTimeService {
           enableVibration: true,
           playSound: true,
         ),
-        // NEW: Fun facts notification channel
         NotificationChannel(
           channelKey: 'fun_facts_channel',
           channelName: 'Islamic Fun Facts',
           channelDescription: 'Daily amazing Islamic facts',
           defaultColor: Color(0xFF2D5F7C),
+          importance: NotificationImportance.Default,
+          enableVibration: true,
+          playSound: true,
+        ),
+        NotificationChannel(
+          channelKey: 'reading_reminders_channel',
+          channelName: 'Reading Reminders',
+          channelDescription: 'Reminders to continue reading Quran',
+          defaultColor: Color(0xFF4A90E2),
           importance: NotificationImportance.Default,
           enableVibration: true,
           playSound: true,

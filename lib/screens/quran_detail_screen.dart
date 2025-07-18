@@ -6,6 +6,7 @@ import '../data/first_verse_data.dart';
 import 'dart:math';
 import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
+import '../services/reading_tracker_service.dart'; 
 
 class QuranDetailScreen extends StatefulWidget {
   final int surahNumber;
@@ -42,6 +43,9 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // START TRACKING when screen opens
+    ReadingTrackerService.startReadingSession(widget.surahNumber, widget.surahName);
 
     if (widget.initialVerse != null) {
       Future.delayed(Duration(milliseconds: 500), () {
@@ -55,6 +59,8 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   @override
   void dispose() {
     highlightTimer?.cancel();
+    // END TRACKING when screen closes (triggers 6-hour reminder)
+    ReadingTrackerService.endReadingSession();
     super.dispose();
   }
 
@@ -127,6 +133,9 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
 
   void jumpToVerse(int verseNumber) {
     print('QuranDetailScreen: Jumping to verse $verseNumber');
+
+    // TRACK PROGRESS
+    ReadingTrackerService.updateProgress(verseNumber);
 
     setState(() {
       highlightedVerse = verseNumber;
