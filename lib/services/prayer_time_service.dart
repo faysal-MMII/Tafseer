@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import '../data/islamic_facts_data.dart';
 
 class PrayerTime {
   final String name;
@@ -86,12 +87,10 @@ class PrayerTimeService {
     }
     
     if (!locationSuccess) {
-      // Try IP-based location detection instead of defaulting to London
       try {
         await _setSmartDefaultLocation();
         print("Smart default location set");
       } catch (e) {
-        // Only then use a more appropriate fallback
         _city = "Mecca";
         _country = "Saudi Arabia";
         _locationDisplayName = "Mecca, Saudi Arabia";
@@ -101,9 +100,98 @@ class PrayerTimeService {
     
     await _loadTodaysPrayerTimes();
     await _scheduleNotificationsForToday();
+    await _scheduleDailyFunFactNotifications();
     
     _isInitialized = true;
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
+  }
+
+  Future<void> _scheduleDailyFunFactNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastScheduled = prefs.getString('last_fun_fact_scheduled');
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month}-${today.day}';
+    
+    // Only schedule once per day
+    if (lastScheduled == todayStr) {
+      print("Fun fact notifications already scheduled for today");
+      return;
+    }
+    
+    // Cancel existing fun fact notifications
+    await AwesomeNotifications().cancel(999999);
+    
+    // Schedule for 2 PM local time
+    final notificationTime = DateTime(today.year, today.month, today.day, 14, 0);
+    
+    // If it's already past 2 PM today, schedule for tomorrow
+    final scheduleTime = notificationTime.isBefore(DateTime.now()) 
+        ? notificationTime.add(Duration(days: 1))
+        : notificationTime;
+    
+    // Get a random fun fact
+    final randomFacts = IslamicFactsData.getRandomFacts(1);
+    if (randomFacts.isNotEmpty) {
+      final fact = randomFacts.first;
+      
+      try {
+        await AwesomeNotifications().createNotification(
+          content: NotificationContent(
+            id: 999999,
+            channelKey: 'fun_facts_channel',
+            title: 'DID YOU KNOW? 💡',
+            body: fact.description,
+            notificationLayout: NotificationLayout.BigText,
+            largeIcon: 'resource://drawable/ic_notification',
+            wakeUpScreen: false,
+          ),
+          schedule: NotificationCalendar.fromDate(
+            date: scheduleTime,
+            allowWhileIdle: true,
+          ),
+        );
+        
+        await prefs.setString('last_fun_fact_scheduled', todayStr);
+        print("Scheduled fun fact notification for: $scheduleTime");
+        print("Fact: ${fact.title}");
+        
+      } catch (e) {
+        print("Failed to schedule fun fact notification: $e");
+      }
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    await AwesomeNotifications().initialize(
+      'resource://drawable/ic_notification',
+      [
+        NotificationChannel(
+          channelKey: 'prayer_time_channel',
+          channelName: 'Prayer Times',
+          channelDescription: 'Notifications for prayer times',
+          defaultColor: Color(0xFF001333),
+          importance: NotificationImportance.High,
+          enableVibration: true,
+          playSound: true,
+        ),
+        // NEW: Fun facts notification channel
+        NotificationChannel(
+          channelKey: 'fun_facts_channel',
+          channelName: 'Islamic Fun Facts',
+          channelDescription: 'Daily amazing Islamic facts',
+          defaultColor: Color(0xFF2D5F7C),
+          importance: NotificationImportance.Default,
+          enableVibration: true,
+          playSound: true,
+        ),
+      ],
+    );
+
+    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+      if (!isAllowed) {
+        AwesomeNotifications().requestPermissionToSendNotifications();
+      }
+    });
   }
 
   Future<void> _setSmartDefaultLocation() async {
@@ -334,27 +422,6 @@ class PrayerTimeService {
     print("Scheduled $scheduled notifications for today");
   }
 
-  Future<void> _initializeNotifications() async {
-    await AwesomeNotifications().initialize(
-      'resource://drawable/ic_notification',
-      [
-        NotificationChannel(
-          channelKey: 'prayer_time_channel',
-          channelName: 'Prayer Times',
-          channelDescription: 'Notifications for prayer times',
-          defaultColor: Color(0xFF001333),
-          importance: NotificationImportance.High,
-        ),
-      ],
-    );
-
-    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
-      if (!isAllowed) {
-        AwesomeNotifications().requestPermissionToSendNotifications();
-      }
-    });
-  }
-
   Future<String> getLocationDisplayName() async {
     return _locationDisplayName ?? 'Current Location';
   }
@@ -423,6 +490,7 @@ class PrayerTimeService {
   Future<void> refreshPrayerTimes() async {
     await _loadTodaysPrayerTimes();
     await _scheduleNotificationsForToday();
+    await _scheduleDailyFunFactNotifications();
   }
 
   Future<void> getPrayerTimes() async {
