@@ -189,7 +189,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       body: Stack(
         children: [
           _buildMainContent(context),
-          // Grey overlay when FAB is expanded
           AnimatedBuilder(
             animation: _overlayAnimation,
             builder: (context, child) {
@@ -300,74 +299,235 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSearchSection() {
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: cardColor.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: cardColor.withOpacity(0.6),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 30,
-            color: primaryBlue.withOpacity(0.15),
-            offset: Offset(0, 10),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        
+        double horizontalPadding;
+        if (screenWidth < 360) {
+          horizontalPadding = 16;
+        } else if (screenWidth < 600) {
+          horizontalPadding = 20;
+        } else if (screenWidth < 900) {
+          horizontalPadding = 24;
+        } else {
+          horizontalPadding = 32;
+        }
+        
+        final titleSize = screenWidth < 360 ? 16.0 : 19.0;
+        final subtitleSize = screenWidth < 360 ? 10.0 : 12.0;
+        final hintSize = screenWidth < 360 ? 12.0 : 14.0;
+        
+        return Container(
+          width: double.infinity,
+          margin: EdgeInsets.zero,
+          padding: EdgeInsets.all(horizontalPadding),
+          decoration: BoxDecoration(
+            color: cardColor.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: cardColor.withOpacity(0.6),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 30,
+                color: primaryBlue.withOpacity(0.15),
+                offset: Offset(0, 10),
+              ),
+              BoxShadow(
+                blurRadius: 15,
+                color: Colors.white.withOpacity(0.2),
+                offset: Offset(0, -5),
+              ),
+            ],
           ),
-          BoxShadow(
-            blurRadius: 15,
-            color: Colors.white.withOpacity(0.2),
-            offset: Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
             children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryBlue, lightBlue],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              screenWidth < 400 
+                ? Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primaryBlue, lightBlue],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 15,
+                              color: primaryBlue.withOpacity(0.4),
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.search,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Column(
+                        children: [
+                          Text(
+                            'Ask Islamic Questions',
+                            style: TextStyle(
+                              fontSize: titleSize,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            'Get answers from Quran & Hadith',
+                            style: TextStyle(
+                              fontSize: subtitleSize,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primaryBlue, lightBlue],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 15,
+                              color: primaryBlue.withOpacity(0.4),
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.search,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ask Islamic Questions',
+                              style: TextStyle(
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              'Get answers from Quran & Hadith',
+                              style: TextStyle(
+                                fontSize: subtitleSize,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  shape: BoxShape.circle,
+              
+              SizedBox(height: 16),
+              
+              Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  minHeight: screenWidth < 360 ? 44 : 48,
+                  maxHeight: screenWidth < 360 ? 100 : 120,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(screenWidth < 360 ? 12 : 16),
                   boxShadow: [
                     BoxShadow(
-                      blurRadius: 15,
-                      color: primaryBlue.withOpacity(0.4),
-                      offset: Offset(0, 4),
+                      blurRadius: 8,
+                      color: Colors.black.withOpacity(0.1),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Icon(
-                  Icons.search,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      'Ask Islamic Questions',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: screenWidth < 360 
+                            ? 'Ask your question...'
+                            : 'Salam alaykum...Seek answers to your questions here....',
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: screenWidth < 360 ? 16 : 20,
+                            vertical: screenWidth < 360 ? 10 : 12,
+                          ),
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: hintSize,
+                          ),
+                        ),
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: hintSize,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: null,
+                        minLines: 1,
+                        textAlignVertical: TextAlignVertical.center,
                       ),
                     ),
-                    Text(
-                      'Get answers from Quran & Hadith',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    Container(
+                      margin: EdgeInsets.all(screenWidth < 360 ? 4 : 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [primaryBlue, lightBlue],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            blurRadius: 8,
+                            color: primaryBlue.withOpacity(0.3),
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.search, 
+                          color: Colors.white, 
+                          size: screenWidth < 360 ? 18 : 20,
+                        ),
+                        onPressed: () {
+                          final text = _controller.text.trim();
+                          if (text.isNotEmpty) {
+                            _askQuestion(text);
+                            _controller.clear();
+                          }
+                        },
+                        constraints: BoxConstraints(
+                          minWidth: screenWidth < 360 ? 32 : 36,
+                          minHeight: screenWidth < 360 ? 32 : 36,
+                        ),
+                        padding: EdgeInsets.zero,
                       ),
                     ),
                   ],
@@ -375,71 +535,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ],
           ),
-          
-          SizedBox(height: 16),
-          
-          Container(
-            decoration: BoxDecoration(
-              color: cardColor.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: softAccent.withOpacity(0.3)),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 10,
-                  color: Colors.black.withOpacity(0.05),
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: 'Salam alaykum...Seek answers to your questions here....',
-                contentPadding: EdgeInsets.all(18),
-                border: InputBorder.none,
-                hintStyle: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
-                suffixIcon: Container(
-                  margin: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [primaryBlue, lightBlue],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 8,
-                        color: primaryBlue.withOpacity(0.3),
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                    onPressed: () {
-                      final text = _controller.text.trim();
-                      if (text.isNotEmpty) {
-                        _askQuestion(text);
-                        _controller.clear();
-                      }
-                    },
-                  ),
-                ),
-              ),
-              style: TextStyle(
-                color: Colors.black87,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 3,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -497,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomNavigation() {
-    return SizedBox.shrink(); // Completely remove the bottom navigation bar
+    return SizedBox.shrink();
   }
 
   Widget _buildFloatingActionButton() {
@@ -508,7 +605,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Vertical stack of buttons (Samsung-style)
             if (_isExpanded)
               Container(
                 child: Column(
@@ -528,7 +624,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               child: _buildGlassmorphicButton(
                                 [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
                                 ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
-                                i, // Pass index for different colors
+                                i,
                                 [
                                   () {
                                     _toggleFAB();
@@ -561,15 +657,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           );
                         },
                       ),
-                      if (i > 0) SizedBox(height: 12), // Better spacing for cleaner arrangement
+                      if (i > 0) SizedBox(height: 12),
                     ],
                   ],
                 ),
               ),
             
-            SizedBox(height: 20), // Increased spacing from Kaaba
+            SizedBox(height: 20),
             
-            // Main Kaaba FAB
             ModernKaabaFAB(
               isExpanded: _isExpanded,
               onPressed: _toggleFAB,
@@ -584,12 +679,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildGlassmorphicButton(IconData icon, String label, int index, VoidCallback onTap) {
-    // Define bright, vibrant colors for the icons
     final List<Color> buttonColors = [
-      Color(0xFF00E676), // Quran - Bright Green
-      Color(0xFFFF9800), // History - Bright Orange
-      Color(0xFF2196F3), // Hadith - Bright Blue
-      Color(0xFFE91E63), // Tools - Bright Pink
+      Color(0xFF00E676),
+      Color(0xFFFF9800),
+      Color(0xFF2196F3),
+      Color(0xFFE91E63),
     ];
     
     final Color buttonColor = buttonColors[index];
@@ -599,12 +693,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Simple flat text label on the LEFT
           Container(
-            width: 60, // Fixed width for better alignment
+            width: 60,
             child: Text(
               label,
-              textAlign: TextAlign.right, // Right-align text towards icon
+              textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -620,16 +713,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           
-          SizedBox(width: 12), // Clean spacing
+          SizedBox(width: 12),
           
-          // Clean, simple icon circle - NO NEOMORPHISM
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              // Simple, clean shadow - no neomorphism
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
