@@ -27,7 +27,7 @@ android {
     defaultConfig {
         applicationId = "dev.faisal.tafseer"
         minSdk = 23  // Updated from 21 to 23
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         
