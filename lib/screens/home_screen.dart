@@ -219,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: SafeArea(
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: EdgeInsets.fromLTRB(8, 16, 8, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -299,244 +299,74 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSearchSection() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        
-        double horizontalPadding;
-        if (screenWidth < 360) {
-          horizontalPadding = 16;
-        } else if (screenWidth < 600) {
-          horizontalPadding = 20;
-        } else if (screenWidth < 900) {
-          horizontalPadding = 24;
-        } else {
-          horizontalPadding = 32;
-        }
-        
-        final titleSize = screenWidth < 360 ? 16.0 : 19.0;
-        final subtitleSize = screenWidth < 360 ? 10.0 : 12.0;
-        final hintSize = screenWidth < 360 ? 12.0 : 14.0;
-        
-        return Container(
-          width: double.infinity,
-          margin: EdgeInsets.zero,
-          padding: EdgeInsets.all(horizontalPadding),
-          decoration: BoxDecoration(
-            color: cardColor.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: cardColor.withOpacity(0.6),
-              width: 1.5,
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 30,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Container(
+        constraints: BoxConstraints(minHeight: 48, maxHeight: 120),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 8,
+              color: Colors.black.withOpacity(0.1),
+              offset: Offset(0, 2),
             ),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 30,
-                color: primaryBlue.withOpacity(0.15),
-                offset: Offset(0, 10),
-              ),
-              BoxShadow(
-                blurRadius: 15,
-                color: Colors.white.withOpacity(0.2),
-                offset: Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              screenWidth < 400 
-                ? Column(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [primaryBlue, lightBlue],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 15,
-                              color: primaryBlue.withOpacity(0.4),
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.search,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Column(
-                        children: [
-                          Text(
-                            'Ask Islamic Questions',
-                            style: TextStyle(
-                              fontSize: titleSize,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          Text(
-                            'Get answers from Quran & Hadith',
-                            style: TextStyle(
-                              fontSize: subtitleSize,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [primaryBlue, lightBlue],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 15,
-                              color: primaryBlue.withOpacity(0.4),
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.search,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ask Islamic Questions',
-                              style: TextStyle(
-                                fontSize: titleSize,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            Text(
-                              'Get answers from Quran & Hadith',
-                              style: TextStyle(
-                                fontSize: subtitleSize,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-              
-              SizedBox(height: 16),
-              
-              Container(
-                width: double.infinity,
-                constraints: BoxConstraints(
-                  minHeight: screenWidth < 360 ? 44 : 48,
-                  maxHeight: screenWidth < 360 ? 100 : 120,
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                decoration: InputDecoration(
+                  hintText: 'Salam alaykum...Seek answers to your questions here....',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(screenWidth < 360 ? 12 : 16),
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: 8,
-                      color: Colors.black.withOpacity(0.1),
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        decoration: InputDecoration(
-                          hintText: screenWidth < 360 
-                            ? 'Ask your question...'
-                            : 'Salam alaykum...Seek answers to your questions here....',
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: screenWidth < 360 ? 16 : 20,
-                            vertical: screenWidth < 360 ? 10 : 12,
-                          ),
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: hintSize,
-                          ),
-                        ),
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: hintSize,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: null,
-                        minLines: 1,
-                        textAlignVertical: TextAlignVertical.center,
-                      ),
-                    ),
-                    Container(
-                      margin: EdgeInsets.all(screenWidth < 360 ? 4 : 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [primaryBlue, lightBlue],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            blurRadius: 8,
-                            color: primaryBlue.withOpacity(0.3),
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.search, 
-                          color: Colors.white, 
-                          size: screenWidth < 360 ? 18 : 20,
-                        ),
-                        onPressed: () {
-                          final text = _controller.text.trim();
-                          if (text.isNotEmpty) {
-                            _askQuestion(text);
-                            _controller.clear();
-                          }
-                        },
-                        constraints: BoxConstraints(
-                          minWidth: screenWidth < 360 ? 32 : 36,
-                          minHeight: screenWidth < 360 ? 32 : 36,
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ],
-                ),
+                style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
+                maxLines: null,
+                minLines: 1,
               ),
-            ],
-          ),
-        );
-      },
+            ),
+            Container(
+              margin: EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [primaryBlue, lightBlue]),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(Icons.search, color: Colors.white, size: 20),
+                onPressed: () {
+                  final text = _controller.text.trim();
+                  if (text.isNotEmpty) {
+                    _askQuestion(text);
+                    _controller.clear();
+                  }
+                },
+                constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
