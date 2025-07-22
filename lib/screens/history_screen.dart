@@ -278,6 +278,69 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadMoreData();
   }
 
+  // FIXED: Proper verse extraction that handles the actual data structure
+  List<String> _extractQuranVerses(dynamic data) {
+    if (data == null) return [];
+    
+    List<String> verses = [];
+    
+    if (data is List) {
+      for (var item in data) {
+        if (item == null) continue;
+        
+        String verseText = '';
+        String reference = '';
+        
+        if (item is Map<String, dynamic>) {
+          // Handle structured verse data
+          if (item.containsKey('text')) {
+            verseText = item['text']?.toString() ?? '';
+          } else if (item.containsKey('translations') && item['translations'] is List && item['translations'].isNotEmpty) {
+            verseText = item['translations'][0]['text']?.toString() ?? '';
+          }
+          
+          if (item.containsKey('verse_key')) {
+            reference = item['verse_key']?.toString() ?? '';
+          } else if (item.containsKey('reference')) {
+            reference = item['reference']?.toString() ?? '';
+          }
+          
+          if (verseText.isNotEmpty && reference.isNotEmpty) {
+            verses.add('$reference'); // Just show the reference like "2:255"
+          } else if (reference.isNotEmpty) {
+            verses.add(reference);
+          }
+        } else if (item is String && item.isNotEmpty) {
+          // Handle string data - extract reference from parentheses
+          final regex = RegExp(r'\(([^)]+)\)$');
+          final match = regex.firstMatch(item);
+          if (match != null && match.group(1) != null && match.group(1) != 'null') {
+            verses.add(match.group(1)!); // Extract "2:255" from "(2:255)"
+          } else if (!item.contains('null')) {
+            // If it's a clean string without null, use it
+            verses.add(item);
+          }
+        }
+      }
+    }
+    
+    return verses.where((v) => v.isNotEmpty && !v.contains('null')).toList();
+  }
+
+  // FIXED: Better hadith processing
+  List<Map<String, dynamic>> _extractHadiths(dynamic data) {
+    if (data == null || data is! List) return [];
+    
+    return (data as List).where((item) => item != null).map((item) {
+      if (item is Map<String, dynamic>) {
+        return item;
+      } else if (item is String && item.isNotEmpty && !item.contains('null')) {
+        return {'text': item};
+      }
+      return null;
+    }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -465,31 +528,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final question = data['question'] as String? ?? '';
     final answer = data['answer'] as String? ?? '';
 
-    List<String> quranVerses = [];
-    if (data['quranVerses'] is List) {
-      quranVerses = (data['quranVerses'] as List).map((item) {
-        String verseText = item.toString();
-        final regex = RegExp(r'\(([^)]+)\)$');
-        final match = regex.firstMatch(verseText);
-        if (match != null) {
-          return match.group(1)!; // Return just "2:255"
-        }
-        return verseText;
-      }).toList().cast<String>();
-    }
-
-    List<Map<String, dynamic>> hadiths = [];
-    if (data['hadiths'] is List) {
-      hadiths = (data['hadiths'] as List).map((item) {
-        if (item is Map<String, dynamic>) {
-          return item;
-        } else if (item is String) {
-          return {'text': item};
-        } else {
-          return {'text': ''};
-        }
-      }).toList().cast<Map<String, dynamic>>();
-    }
+    // FIXED: Use the new extraction methods
+    final quranVerses = _extractQuranVerses(data['quranVerses']);
+    final hadiths = _extractHadiths(data['hadiths']);
 
     final timestamp = data['timestamp'] as Timestamp?;
 
