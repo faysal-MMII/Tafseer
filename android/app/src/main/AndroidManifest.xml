@@ -3,39 +3,36 @@
     package="dev.faisal.tafseer">
 
     <!-- ==================== -->
-    <!-- NORMAL PERMISSIONS (Automatically granted) -->
+    <!-- NORMAL PERMISSIONS -->
     <!-- ==================== -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-    
-    <!-- Android 15 Foreground Services -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- ==================== -->
-    <!-- DANGEROUS PERMISSIONS (Require runtime requests) -->
+    <!-- DANGEROUS PERMISSIONS -->
     <!-- ==================== -->
-    <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    
-    <!-- Storage (Deprecated in Android 13+, consider using MediaStore) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     
-    <!-- Alarms -->
+    <!-- Critical: Required for prayer time alarms -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
-    
-    <!-- Battery/Notifications -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- Required for showing notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Battery optimization override (optional but helpful) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
     <!-- ==================== -->
-    <!-- QUERIES (Package visibility) -->
+    <!-- QUERIES -->
     <!-- ==================== -->
     <queries>
         <intent>
@@ -60,6 +57,7 @@
         android:label="Tafseer"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -68,18 +66,20 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
-              />
+            />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- Awesome Notifications Boot Receiver -->
-        <receiver android:name="me.carda.awesome_notifications.core.receivers.AwesomeNotificationsEventReceiver"
+        <!-- Notifications Receiver -->
+        <receiver
+            android:name="me.carda.awesome_notifications.core.receivers.AwesomeNotificationsEventReceiver"
             android:exported="true"
             android:enabled="true">
             <intent-filter>
@@ -89,6 +89,11 @@
                 <data android:scheme="package"/>
             </intent-filter>
         </receiver>
+
+        <!-- the missing notification receiver -->
+        <receiver 
+            android:name="me.carda.awesome_notifications.core.receivers.NotificationReceiver" 
+            android:exported="false" />
 
         <meta-data
             android:name="flutterEmbedding"
