@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import '../data/islamic_facts_data.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
 
 class PrayerTime {
   final String name;
@@ -58,6 +60,7 @@ class PrayerTimeService {
   final PrayerNotificationCallback? onPrayerTime;
 
   static const String _lastReminderKey = 'last_reading_reminder';
+  final Map<String, DateTime> _lastRequestTimes = {};
 
   PrayerTimeService({this.onPrayerTime});
 
@@ -67,6 +70,7 @@ class PrayerTimeService {
     print("=== PRAYER SERVICE INITIALIZE START ===");
     
     await _initializeNotifications();
+    await _initializeTimezone();
     
     bool locationSuccess = false;
     
@@ -101,11 +105,156 @@ class PrayerTimeService {
     }
     
     await _loadTodaysPrayerTimes();
-    await _scheduleNotificationsForToday();
+    await _scheduleMultipleDays(); // Multi-day scheduling for resilience
     await _scheduleDailyFunFactNotifications();
     
     _isInitialized = true;
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
+  }
+
+  // Multi-day scheduling for background resilience
+  Future<void> _scheduleMultipleDays() async {
+    await AwesomeNotifications().cancelAll();
+    print("Previous notifications canceled");
+
+    for (int i = 0; i < 3; i++) {
+      final targetDate = DateTime.now().add(Duration(days: i));
+      await _schedulePrayersForDate(targetDate, i);
+    }
+  }
+
+  Future<void> _schedulePrayersForDate(DateTime date, int dayOffset) async {
+    print("Scheduling prayers for ${date.toString().split(' ')[0]}");
+
+    List<PrayerTime> prayerTimes = [];
+
+    if (dayOffset == 0) {
+      prayerTimes = _prayerTimes; // Use current day's already loaded times
+    } else {
+      try {
+        final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+        
+        // Use coordinates if available, otherwise city/country
+        final url = _latitude != null && _longitude != null
+            ? 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$formattedDate'
+            : 'https://api.aladhan.com/v1/timingsByCity?city=$_city&country=$_country&method=2&date=$formattedDate';
+        
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final timings = data['data']['timings'];
+          prayerTimes = [];
+          _addPrayerTimeToList(prayerTimes, 'Fajr', timings['Fajr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Dhuhr', timings['Dhuhr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Asr', timings['Asr'], date);
+          _addPrayerTimeToList(prayerTimes, 'Maghrib', timings['Maghrib'], date);
+          _addPrayerTimeToList(prayerTimes, 'Isha', timings['Isha'], date);
+          prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        }
+      } catch (e) {
+        print("Error fetching prayer times for ${date.toString().split(' ')[0]}: $e");
+        return;
+      }
+    }
+
+    final now = DateTime.now();
+    int scheduledCount = 0;
+    for (final prayer in prayerTimes) {
+      if (prayer.dateTime.isAfter(now)) {
+        try {
+          // Create unique ID for each prayer
+          final notificationId = prayer.name.hashCode + (dayOffset * 1000);
+          
+          await AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: notificationId,
+              channelKey: 'prayer_time_channel',
+              title: 'Prayer Time',
+              body: 'It\'s time for ${prayer.name} prayer',
+              notificationLayout: NotificationLayout.Default,
+            ),
+            schedule: NotificationCalendar.fromDate(date: prayer.dateTime),
+          );
+
+          print("Successfully scheduled notification for ${prayer.name}");
+          scheduledCount++;
+        } catch (e) {
+          print("Error scheduling notification for ${prayer.name}: $e");
+        }
+      }
+    }
+    print("Scheduled $scheduledCount notifications for day $dayOffset");
+  }
+
+  void _addPrayerTimeToList(List<PrayerTime> list, String name, String timeString, DateTime date) {
+    final parts = timeString.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final time = TimeOfDay(hour: hour, minute: minute);
+    final dateTime = DateTime(date.year, date.month, date.day, hour, minute);
+    list.add(PrayerTime(name: name, time: time, dateTime: dateTime));
+  }
+
+  Future<void> _initializeTimezone() async {
+    tz_data.initializeTimeZones();
+    try {
+      final deviceTimeZone = DateTime.now().timeZoneName;
+      print("Device timezone name: $deviceTimeZone");
+      try {
+        tz.setLocalLocation(tz.getLocation(deviceTimeZone));
+        print("Set timezone to device timezone: $deviceTimeZone");
+        return;
+      } catch (e) {
+        print("Could not use device timezone name: $e");
+      }
+
+      final nowUtc = DateTime.now().toUtc();
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset;
+
+      for (final locationName in tz.timeZoneDatabase.locations.keys) {
+        final location = tz.getLocation(locationName);
+        final testDateTime = tz.TZDateTime.from(nowUtc, location);
+        if (testDateTime.timeZoneOffset == offset) {
+          tz.setLocalLocation(location);
+          print("Set timezone based on offset: $locationName");
+          return;
+        }
+      }
+
+      if (_latitude != null && _longitude != null) {
+        final lat = _latitude!;
+        final lng = _longitude!;
+        String regionGuess;
+
+        if (lat > 30 && lng > -10 && lng < 40) {
+          regionGuess = 'Europe/London';
+        } else if (lat > 20 && lng > -130 && lng < -50) {
+          regionGuess = 'America/New_York';
+        } else if (lat > -35 && lng > 100 && lng < 150) {
+          regionGuess = 'Australia/Sydney';
+        } else if (lat > 0 && lat < 40 && lng > 60 && lng < 140) {
+          regionGuess = 'Asia/Shanghai';
+        } else if (lat > -35 && lat < 35 && lng > 0 && lng < 50) {
+          regionGuess = 'Africa/Lagos';
+        } else {
+          regionGuess = 'Etc/UTC';
+        }
+        try {
+          tz.setLocalLocation(tz.getLocation(regionGuess));
+          print("Set timezone based on coordinates: $regionGuess");
+          return;
+        } catch (e) {
+          print("Could not set timezone from coordinates: $e");
+        }
+      }
+
+      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      print("Falling back to UTC timezone");
+    } catch (e) {
+      print("Error in timezone initialization: $e");
+      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+    }
   }
 
   static Future<void> _scheduleReadingReminder(Map<String, String> sessionData) async {
@@ -113,7 +262,6 @@ class PrayerTimeService {
     final lastReminder = prefs.getString(_lastReminderKey);
     final now = DateTime.now();
 
-    // Don't send more than one reminder per day
     if (lastReminder != null) {
       final lastReminderDate = DateTime.parse(lastReminder);
       if (now.difference(lastReminderDate).inHours < 24) {
@@ -121,9 +269,7 @@ class PrayerTimeService {
       }
     }
 
-    // Schedule reminder for 6 hours from now
     final reminderTime = now.add(Duration(hours: 6));
-
     final surahName = sessionData['surah_name']!;
     final lastVerse = sessionData['last_verse']!;
 
@@ -166,7 +312,6 @@ class PrayerTimeService {
     await AwesomeNotifications().cancel(999999);
     
     final notificationTime = DateTime(today.year, today.month, today.day, 14, 0);
-    
     final scheduleTime = notificationTime.isBefore(DateTime.now()) 
         ? notificationTime.add(Duration(days: 1))
         : notificationTime;
@@ -442,35 +587,6 @@ class PrayerTimeService {
     }
   }
 
-  Future<void> _scheduleNotificationsForToday() async {
-    await AwesomeNotifications().cancelAll();
-    
-    final now = DateTime.now();
-    int scheduled = 0;
-    
-    for (final prayer in _prayerTimes) {
-      if (prayer.dateTime.isAfter(now)) {
-        try {
-          await AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: prayer.name.hashCode,
-              channelKey: 'prayer_time_channel',
-              title: 'Prayer Time',
-              body: 'It\'s time for ${prayer.name} prayer',
-            ),
-            schedule: NotificationCalendar.fromDate(date: prayer.dateTime),
-          );
-          scheduled++;
-          print("Scheduled notification for ${prayer.name}");
-        } catch (e) {
-          print("Failed to schedule ${prayer.name}: $e");
-        }
-      }
-    }
-    
-    print("Scheduled $scheduled notifications for today");
-  }
-
   Future<String> getLocationDisplayName() async {
     return _locationDisplayName ?? 'Current Location';
   }
@@ -487,7 +603,8 @@ class PrayerTimeService {
     await prefs.setString('last_update', DateTime.now().toIso8601String());
     
     await _loadTodaysPrayerTimes();
-    await _scheduleNotificationsForToday();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
   }
 
   Future<void> saveLocation(String city, String country) async {
@@ -503,7 +620,8 @@ class PrayerTimeService {
     await prefs.setString('location_name', _locationDisplayName!);
     
     await _loadTodaysPrayerTimes();
-    await _scheduleNotificationsForToday();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
   }
 
   Future<List<CitySearchResult>> searchCitiesFreely(String query) async {
@@ -538,7 +656,7 @@ class PrayerTimeService {
 
   Future<void> refreshPrayerTimes() async {
     await _loadTodaysPrayerTimes();
-    await _scheduleNotificationsForToday();
+    await _scheduleMultipleDays(); // Multi-day scheduling instead of just today
     await _scheduleDailyFunFactNotifications();
   }
 
@@ -562,6 +680,5 @@ class PrayerTimeService {
   }
 
   void dispose() {
-    // Clean up if needed
   }
 }
