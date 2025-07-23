@@ -11,7 +11,6 @@ import '../services/prayer_time_service.dart';
 import '../services/qibla_service.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/islamic_fun_fact.dart';
-import '../widgets/faq_section.dart';
 import '../widgets/quran_section.dart';
 import '../widgets/animations.dart';
 import '../theme/text_styles.dart';
@@ -242,31 +241,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               StaggeredAnimationWrapper(
                 delay: 300,
                 child: _buildSearchSection(),
-              ),
-              
-              SizedBox(height: 24),
-              
-              StaggeredAnimationWrapper(
-                delay: 400,
-                child: Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: cardColor.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: cardColor.withOpacity(0.5),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: FAQSection(),
-                ),
               ),
               
               SizedBox(height: 20),

@@ -9,7 +9,7 @@ class InfoScreen extends StatefulWidget {
   _InfoScreenState createState() => _InfoScreenState();
 }
 
-class _InfoScreenState extends State<InfoScreen> {
+class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -19,11 +19,23 @@ class _InfoScreenState extends State<InfoScreen> {
   List<Map<String, dynamic>> faqs = [];
   bool isLoadingFAQ = true;
   String? faqError;
+  bool isFAQExpanded = false;
+  late AnimationController _faqAnimationController;
 
   @override
   void initState() {
     super.initState();
+    _faqAnimationController = AnimationController(
+      duration: Duration(milliseconds: 600),
+      vsync: this,
+    );
     loadFAQData();
+  }
+
+  @override
+  void dispose() {
+    _faqAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> loadFAQData() async {
@@ -156,31 +168,129 @@ class _InfoScreenState extends State<InfoScreen> {
             SizedBox(height: 20),
 
             // FAQ Section
-            _buildSection(
-              title: 'Frequently Asked Questions',
-              icon: Icons.help_outline,
-              child: isLoadingFAQ
-                  ? Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // FAQ Header - Always Visible
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        isFAQExpanded = !isFAQExpanded;
+                      });
+                      if (isFAQExpanded) {
+                        _faqAnimationController.forward();
+                      } else {
+                        _faqAnimationController.reverse();
+                      }
+                    },
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                      bottomLeft: isFAQExpanded ? Radius.zero : Radius.circular(16),
+                      bottomRight: isFAQExpanded ? Radius.zero : Radius.circular(16),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardColor.withOpacity(0.3),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                          bottomLeft: isFAQExpanded ? Radius.zero : Radius.circular(16),
+                          bottomRight: isFAQExpanded ? Radius.zero : Radius.circular(16),
                         ),
                       ),
-                    )
-                  : faqError != null
-                      ? Center(
-                          child: Text(
-                            'Error loading FAQs: $faqError',
+                      child: Row(
+                        children: [
+                          Icon(Icons.help_outline, color: primaryBlue, size: 20),
+                          SizedBox(width: 12),
+                          Text(
+                            'Frequently Asked Questions',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.red,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: primaryBlue,
                             ),
                           ),
-                        )
-                      : Column(
-                          children: faqs.map((faq) => _buildFAQItem(faq)).toList(),
+                          Spacer(),
+                          AnimatedBuilder(
+                            animation: _faqAnimationController,
+                            builder: (context, child) {
+                              return Transform.rotate(
+                                angle: _faqAnimationController.value * 3.14159,
+                                child: Container(
+                                  padding: EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: primaryBlue.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: primaryBlue,
+                                    size: 20,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // FAQ Content - Collapsible
+                  AnimatedBuilder(
+                    animation: _faqAnimationController,
+                    builder: (context, child) {
+                      return ClipRect(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          heightFactor: Curves.elasticOut.transform(_faqAnimationController.value),
+                          child: Container(
+                            padding: EdgeInsets.all(16),
+                            child: isLoadingFAQ
+                                ? Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20),
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                                      ),
+                                    ),
+                                  )
+                                : faqError != null
+                                    ? Center(
+                                        child: Text(
+                                          'Error loading FAQs: $faqError',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      )
+                                    : Column(
+                                        children: faqs.map((faq) => _buildFAQItem(faq)).toList(),
+                                      ),
+                          ),
                         ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
 
             SizedBox(height: 20),
