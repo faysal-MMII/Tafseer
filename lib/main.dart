@@ -5,6 +5,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';  // Import Google Fonts
 import 'services/config_service.dart';
 import 'services/openai_service.dart';
 import 'services/quran_service.dart';
@@ -53,7 +54,6 @@ void main() async {
     print('Flutter error: ${details.exception}');
   };
   
-  // Start with a simple loading indicator
   runApp(LoadingWidget());
   
   try {
@@ -187,7 +187,12 @@ class MyApp extends StatelessWidget {
       navigatorObservers: [
         if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
       ],
-      theme: themeProvider.themeData,
+      //Poppins set as the default font for the entire app
+      theme: themeProvider.themeData.copyWith(
+        textTheme: GoogleFonts.poppinsTextTheme(
+          themeProvider.themeData.textTheme,
+        ),
+      ),
       home: HomeScreen(
         openAiService: openAiService,
         analyticsService: analyticsService,
