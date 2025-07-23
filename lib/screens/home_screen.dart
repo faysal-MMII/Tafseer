@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
@@ -20,6 +21,7 @@ import 'quran_screen.dart';
 import 'hadith_screen.dart';
 import 'history_screen.dart';
 import 'islamic_tools_screen.dart';
+import 'info_screen.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -293,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ).createShader(bounds),
           child: Text(
             'Tafseer',
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 34,
               fontWeight: FontWeight.w900,
               color: Colors.white,
@@ -305,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         SizedBox(height: 4),
         Text(
           'Islamic Knowledge & Guidance',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 14,
             color: Colors.grey[600],
             fontStyle: FontStyle.italic,
@@ -356,9 +358,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   hintText: 'Salam alaykum...Seek answers to your questions here....',
                   contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  hintStyle: GoogleFonts.poppins(
+                    color: Colors.grey[500], 
+                    fontSize: 14,
+                  ),
                 ),
-                style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
+                style: GoogleFonts.poppins(
+                  color: Colors.black87, 
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: null,
                 minLines: 1,
               ),
@@ -393,83 +402,110 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildFloatingActionButton() {
-    return Align(
-      alignment: Alignment.bottomRight,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: 24, right: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_isExpanded)
-              Container(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 3; i >= 0; i--) ...[
-                      AnimatedBuilder(
-                        animation: _fabAnimation,
-                        builder: (context, child) {
-                          final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
-                          final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
-                          
-                          return Transform.scale(
-                            scale: scale,
-                            child: Opacity(
-                              opacity: opacity,
-                              child: _buildGlassmorphicButton(
-                                [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
-                                ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
-                                i,
-                                [
-                                  () {
-                                    _toggleFAB();
-                                    Navigator.push(context, SlidePageRoute(child: QuranScreen()));
-                                  },
-                                  () {
-                                    _toggleFAB();
-                                    Navigator.push(context, SlidePageRoute(
-                                      child: HistoryScreen(firestoreService: widget.firestoreService),
-                                      begin: Offset(-1.0, 0.0),
-                                    ));
-                                  },
-                                  () {
-                                    _toggleFAB();
-                                    Navigator.push(context, ScalePageRoute(child: HadithScreen()));
-                                  },
-                                  () {
-                                    _toggleFAB();
-                                    Navigator.push(context, HeroPageRoute(
-                                      child: IslamicToolsScreen(
-                                        prayerTimeService: widget.prayerTimeService,
-                                        qiblaService: widget.qiblaService,
-                                        analyticsService: widget.analyticsService,
-                                      ),
-                                    ));
-                                  },
-                                ][i],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      if (i > 0) SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-              ),
-            
-            SizedBox(height: 20),
-            
-            ModernKaabaFAB(
-              isExpanded: _isExpanded,
-              onPressed: _toggleFAB,
-              backgroundColor: primaryBlue,
-              size: 56,
-              child: Text('🕋', style: TextStyle(fontSize: 20)),
+    return Stack(
+      children: [
+        // Info Button - Bottom Left
+        Positioned(
+          bottom: 24,
+          left: 24,
+          child: FloatingActionButton(
+            heroTag: "info_fab",
+            mini: true,
+            backgroundColor: primaryBlue.withOpacity(0.9),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => InfoScreen()),
+              );
+            },
+            child: Icon(
+              Icons.info_outline,
+              color: Colors.white,
+              size: 20,
             ),
-          ],
+          ),
         ),
-      ),
+        
+        // Main Kaaba FAB - Bottom Right
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 24, right: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isExpanded)
+                  Container(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int i = 3; i >= 0; i--) ...[
+                          AnimatedBuilder(
+                            animation: _fabAnimation,
+                            builder: (context, child) {
+                              final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
+                              final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
+                              
+                              return Transform.scale(
+                                scale: scale,
+                                child: Opacity(
+                                  opacity: opacity,
+                                  child: _buildGlassmorphicButton(
+                                    [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
+                                    ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
+                                    i,
+                                    [
+                                      () {
+                                        _toggleFAB();
+                                        Navigator.push(context, SlidePageRoute(child: QuranScreen()));
+                                      },
+                                      () {
+                                        _toggleFAB();
+                                        Navigator.push(context, SlidePageRoute(
+                                          child: HistoryScreen(firestoreService: widget.firestoreService),
+                                          begin: Offset(-1.0, 0.0),
+                                        ));
+                                      },
+                                      () {
+                                        _toggleFAB();
+                                        Navigator.push(context, ScalePageRoute(child: HadithScreen()));
+                                      },
+                                      () {
+                                        _toggleFAB();
+                                        Navigator.push(context, HeroPageRoute(
+                                          child: IslamicToolsScreen(
+                                            prayerTimeService: widget.prayerTimeService,
+                                            qiblaService: widget.qiblaService,
+                                            analyticsService: widget.analyticsService,
+                                          ),
+                                        ));
+                                      },
+                                    ][i],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          if (i > 0) SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+                  ),
+                
+                SizedBox(height: 20),
+                
+                ModernKaabaFAB(
+                  isExpanded: _isExpanded,
+                  onPressed: _toggleFAB,
+                  backgroundColor: primaryBlue,
+                  size: 56,
+                  child: Text('🕋', style: TextStyle(fontSize: 20)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -493,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Text(
               label,
               textAlign: TextAlign.right,
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -583,7 +619,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Expanded(
             child: Text(
               'Error: $_error',
-              style: TextStyle(color: Colors.red[600]),
+              style: GoogleFonts.poppins(
+                color: Colors.red[600],
+              ),
             ),
           ),
         ],
