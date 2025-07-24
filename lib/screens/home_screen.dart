@@ -378,108 +378,124 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildFloatingActionButton() {
     return Stack(
       children: [
-        // Info Button - Bottom Left
+        // Info Button
         Positioned(
           bottom: 24,
-          left: 24,
-          child: FloatingActionButton(
-            heroTag: "info_fab",
-            mini: true,
-            backgroundColor: primaryBlue.withOpacity(0.9),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => InfoScreen()),
-              );
-            },
-            child: Icon(
-              Icons.info_outline,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
+          left: 54,
+          child: _buildMatchingInfoFAB(),
         ),
         
         // Main Kaaba FAB - Bottom Right
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: 24, right: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isExpanded)
-                  Container(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 3; i >= 0; i--) ...[
-                          AnimatedBuilder(
-                            animation: _fabAnimation,
-                            builder: (context, child) {
-                              final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
-                              final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
-                              
-                              return Transform.scale(
-                                scale: scale,
-                                child: Opacity(
-                                  opacity: opacity,
-                                  child: _buildGlassmorphicButton(
-                                    [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
-                                    ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
-                                    i,
-                                    [
-                                      () {
-                                        _toggleFAB();
-                                        Navigator.push(context, SlidePageRoute(child: QuranScreen()));
-                                      },
-                                      () {
-                                        _toggleFAB();
-                                        Navigator.push(context, SlidePageRoute(
-                                          child: HistoryScreen(firestoreService: widget.firestoreService),
-                                          begin: Offset(-1.0, 0.0),
-                                        ));
-                                      },
-                                      () {
-                                        _toggleFAB();
-                                        Navigator.push(context, ScalePageRoute(child: HadithScreen()));
-                                      },
-                                      () {
-                                        _toggleFAB();
-                                        Navigator.push(context, HeroPageRoute(
-                                          child: IslamicToolsScreen(
-                                            prayerTimeService: widget.prayerTimeService,
-                                            qiblaService: widget.qiblaService,
-                                            analyticsService: widget.analyticsService,
-                                          ),
-                                        ));
-                                      },
-                                    ][i],
-                                  ),
+        Positioned(
+          bottom: 24,
+          right: 24,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isExpanded)
+                Container(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = 3; i >= 0; i--) ...[
+                        AnimatedBuilder(
+                          animation: _fabAnimation,
+                          builder: (context, child) {
+                            final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
+                            final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
+                            
+                            return Transform.scale(
+                              scale: scale,
+                              child: Opacity(
+                                opacity: opacity,
+                                child: _buildGlassmorphicButton(
+                                  [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
+                                  ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
+                                  i,
+                                  [
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, SlidePageRoute(child: QuranScreen()));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, SlidePageRoute(
+                                        child: HistoryScreen(firestoreService: widget.firestoreService),
+                                        begin: Offset(-1.0, 0.0),
+                                      ));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, ScalePageRoute(child: HadithScreen()));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, HeroPageRoute(
+                                        child: IslamicToolsScreen(
+                                          prayerTimeService: widget.prayerTimeService,
+                                          qiblaService: widget.qiblaService,
+                                          analyticsService: widget.analyticsService,
+                                        ),
+                                      ));
+                                    },
+                                  ][i],
                                 ),
-                              );
-                            },
-                          ),
-                          if (i > 0) SizedBox(height: 12),
-                        ],
+                              ),
+                            );
+                          },
+                        ),
+                        if (i > 0) SizedBox(height: 12),
                       ],
-                    ),
+                    ],
                   ),
-                
-                SizedBox(height: 20),
-                
-                ModernKaabaFAB(
-                  isExpanded: _isExpanded,
-                  onPressed: _toggleFAB,
-                  backgroundColor: primaryBlue,
-                  size: 56,
-                  child: Text('🕋', style: TextStyle(fontSize: 20)),
                 ),
-              ],
-            ),
+              
+              SizedBox(height: 20),
+              
+              ModernKaabaFAB(
+                isExpanded: _isExpanded,
+                onPressed: _toggleFAB,
+                backgroundColor: primaryBlue,
+                size: 56,
+                child: Text('🕋', style: TextStyle(fontSize: 20)),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMatchingInfoFAB() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => InfoScreen()),
+        );
+      },
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: primaryBlue.withOpacity(0.9),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: primaryBlue.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Icon(
+            Icons.info_outline,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      ),
     );
   }
 

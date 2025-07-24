@@ -90,7 +90,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- the missing notification receiver -->
+        <!-- Notification Receiver - Critical for scheduled notifications -->
         <receiver 
             android:name="me.carda.awesome_notifications.core.receivers.NotificationReceiver" 
             android:exported="false" />

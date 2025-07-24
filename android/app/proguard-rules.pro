@@ -7,6 +7,28 @@
 -keep class io.flutter.plugins.** { *; }
 -dontwarn io.flutter.embedding.**
 
+# awesome_notifications specific rules
+-keep class me.carda.** { *; }
+-keep class io.flutter.plugins.awesomenotifications.** { *; }
+
+# Android notifications framework
+-keep class android.app.NotificationManager { *; }
+-keep class androidx.core.app.NotificationCompat { *; }
+-keep class androidx.core.app.NotificationCompat$* { *; }
+
+# Scheduled notifications and alarms
+-keep class android.app.AlarmManager { *; }
+-keep class * extends android.content.BroadcastReceiver { *; }
+
+# Entry points for release builds
+-keep class * {
+    native <methods>;
+}
+
+-keepattributes Annotation
+-keep @interface androidx.annotation.Keep
+-keep @androidx.annotation.Keep class * {*;}
+
 # Firebase rules 
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
