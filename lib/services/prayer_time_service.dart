@@ -64,6 +64,44 @@ class PrayerTimeService {
 
   PrayerTimeService({this.onPrayerTime});
 
+  Future<void> debugNotifications() async {
+    print("=== NOTIFICATION DEBUG ===");
+    
+    // Test immediate notification
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 12345,
+          channelKey: 'prayer_time_channel',
+          title: 'DEBUG TEST',
+          body: 'If you see this, notifications work!',
+        ),
+      );
+      print("✅ Immediate notification sent");
+    } catch (e) {
+      print("❌ Immediate notification FAILED: $e");
+    }
+    
+    // Check scheduled notifications
+    try {
+      final scheduled = await AwesomeNotifications().listScheduledNotifications();
+      print("📋 Scheduled notifications: ${scheduled.length}");
+      for (var notif in scheduled) {
+        print("   - ID: ${notif.content?.id}, Title: ${notif.content?.title}");
+      }
+    } catch (e) {
+      print("❌ Can't list scheduled notifications: $e");
+    }
+    
+    // Check permission
+    try {
+      final allowed = await AwesomeNotifications().isNotificationAllowed();
+      print("🔐 Notifications allowed: $allowed");
+    } catch (e) {
+      print("❌ Can't check permissions: $e");
+    }
+  }
+
   Future<void> initialize() async {
     if (_isInitialized) return;
     
@@ -105,14 +143,13 @@ class PrayerTimeService {
     }
     
     await _loadTodaysPrayerTimes();
-    await _scheduleMultipleDays(); // Multi-day scheduling for resilience
+    await _scheduleMultipleDays();
     await _scheduleDailyFunFactNotifications();
     
     _isInitialized = true;
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
   }
 
-  // Multi-day scheduling for background resilience
   Future<void> _scheduleMultipleDays() async {
     await AwesomeNotifications().cancelAll();
     print("Previous notifications canceled");
@@ -129,12 +166,11 @@ class PrayerTimeService {
     List<PrayerTime> prayerTimes = [];
 
     if (dayOffset == 0) {
-      prayerTimes = _prayerTimes; // Use current day's already loaded times
+      prayerTimes = _prayerTimes;
     } else {
       try {
         final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
         
-        // Use coordinates if available, otherwise city/country
         final url = _latitude != null && _longitude != null
             ? 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$formattedDate'
             : 'https://api.aladhan.com/v1/timingsByCity?city=$_city&country=$_country&method=2&date=$formattedDate';
@@ -162,7 +198,6 @@ class PrayerTimeService {
     for (final prayer in prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         try {
-          // Create unique ID for each prayer
           final notificationId = prayer.name.hashCode + (dayOffset * 1000);
           
           await AwesomeNotifications().createNotification(
@@ -656,7 +691,7 @@ class PrayerTimeService {
 
   Future<void> refreshPrayerTimes() async {
     await _loadTodaysPrayerTimes();
-    await _scheduleMultipleDays(); // Multi-day scheduling instead of just today
+    await _scheduleMultipleDays();
     await _scheduleDailyFunFactNotifications();
   }
 

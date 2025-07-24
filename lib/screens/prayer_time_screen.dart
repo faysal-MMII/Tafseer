@@ -6,7 +6,8 @@ import '../theme/text_styles.dart';
 import '../theme/theme_provider.dart';
 import 'package:hijri/hijri_calendar.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui'; // Needed for BackdropFilter
+import 'dart:ui';
+import 'package:awesome_notifications/awesome_notifications.dart';
 
 class PrayerTimeScreen extends StatefulWidget {
   final PrayerTimeService prayerTimeService;
@@ -56,6 +57,64 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> debugNotifications() async {
+    print("=== NOTIFICATION DEBUG ===");
+    
+    // Test immediate notification
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 12345,
+          channelKey: 'prayer_time_channel',
+          title: 'DEBUG TEST',
+          body: 'If you see this, notifications work!',
+        ),
+      );
+      print("✅ Immediate notification sent");
+    } catch (e) {
+      print("❌ Immediate notification FAILED: $e");
+    }
+    
+    // Check scheduled notifications
+    try {
+      final scheduled = await AwesomeNotifications().listScheduledNotifications();
+      print("📋 Scheduled notifications: ${scheduled.length}");
+      for (var notif in scheduled) {
+        print("   - ID: ${notif.content?.id}, Title: ${notif.content?.title}");
+      }
+    } catch (e) {
+      print("❌ Can't list scheduled notifications: $e");
+    }
+    
+    // Check permission
+    try {
+      final allowed = await AwesomeNotifications().isNotificationAllowed();
+      print("🔐 Notifications allowed: $allowed");
+    } catch (e) {
+      print("❌ Can't check permissions: $e");
+    }
+  }
+
+  Future<void> emergencyTest() async {
+    final testTime = DateTime.now().add(Duration(minutes: 1));
+    
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 99999,
+          channelKey: 'prayer_time_channel',
+          title: 'EMERGENCY TEST',
+          body: 'Should appear in 1 minute',
+        ),
+        schedule: NotificationCalendar.fromDate(date: testTime),
+      );
+      
+      print("Emergency test scheduled for: $testTime");
+    } catch (e) {
+      print("❌ Emergency test failed: $e");
+    }
   }
   
   @override
