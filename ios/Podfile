@@ -78,7 +78,7 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
-      config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = 'Runner/Runner-Bridging-Header.h'
+      # DON'T set bridging header for pod targets - only main Runner target needs it
       config.build_settings['DEFINES_MODULE'] = 'YES'
       config.build_settings['SWIFT_VERSION'] = '5.0'
     end
