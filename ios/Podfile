@@ -1,5 +1,5 @@
 platform :ios, '13.0'
-install! 'cocoapods', :disable_input_output_paths => true, 
+install! 'cocoapods', :disable_input_output_paths => true,
                       :generate_multiple_pod_projects => false
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -34,6 +34,23 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # Fix main Runner target bridging header
+  begin
+    main_project = Xcodeproj::Project.open('Runner.xcodeproj')
+    main_project.targets.each do |target|
+      if target.name == 'Runner'
+        target.build_configurations.each do |config|
+          config.build_settings.delete('SWIFT_OBJC_BRIDGING_HEADER')
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+          config.build_settings['SWIFT_VERSION'] = '5.0'
+        end
+      end
+    end
+    main_project.save
+  rescue => e
+    puts "Warning: Could not modify main project: #{e.message}"
+  end
+
   installer.pods_project.targets.each do |target|
     # Critical fix for BoringSSL-GRPC compiler flags
     if target.name.include?('BoringSSL') || target.name.include?('gRPC')
@@ -61,7 +78,7 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
-      config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
+      config.build_settings.delete('SWIFT_OBJC_BRIDGING_HEADER')
       config.build_settings['DEFINES_MODULE'] = 'YES'
       config.build_settings['SWIFT_VERSION'] = '5.0'
     end
