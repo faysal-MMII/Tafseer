@@ -1,5 +1,5 @@
-import UIKit
 import Flutter
+import UIKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -7,10 +7,7 @@ import Flutter
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Register plugins manually without bridging header
-    if let registrar = self.registrar(forPlugin: "GeneratedPluginRegistrant") {
-      // This will be handled by Flutter's automatic plugin registration
-    }
+    GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
