@@ -61,6 +61,9 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
+      config.build_settings['DEFINES_MODULE'] = 'YES'
+      config.build_settings['SWIFT_VERSION'] = '5.0'
     end
   end
 end
