@@ -34,22 +34,27 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # Modifying the main Runner target to remove bridging header and set Swift version
   begin
     main_project = Xcodeproj::Project.open('Runner.xcodeproj')
     main_project.targets.each do |target|
       if target.name == 'Runner'
         target.build_configurations.each do |config|
+          # Removing bridging header to avoid conflicts in Xcode 16.x
           config.build_settings.delete('SWIFT_OBJC_BRIDGING_HEADER')
           config.build_settings['SWIFT_VERSION'] = '5.0'
+          # Allowing non-modular includes to maintain compatibility
+          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         end
       end
     end
     main_project.save
   rescue => e
-    puts "Warning: I could not modify the main project: #{e.message}"
+    puts "Warning: I encountered an issue modifying the main project: #{e.message}"
   end
 
   installer.pods_project.targets.each do |target|
+    # Maintaining critical fixes for BoringSSL and gRPC targets
     if target.name.include?('BoringSSL') || target.name.include?('gRPC')
       target.build_configurations.each do |config|
         config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
@@ -57,6 +62,7 @@ post_install do |installer|
         config.build_settings['GCC_WARN_64_TO_32_BIT_CONVERSION'] = 'NO'
       end
 
+      # Cleaning up problematic compiler flags in source files
       if target.source_build_phase
         target.source_build_phase.files.each do |file|
           if file.settings && file.settings['COMPILER_FLAGS']
@@ -69,6 +75,7 @@ post_install do |installer|
       end
     end
 
+    # Applying standard Flutter build settings with additional configurations
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
@@ -76,6 +83,8 @@ post_install do |installer|
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
       config.build_settings['DEFINES_MODULE'] = 'YES'
       config.build_settings['SWIFT_VERSION'] = '5.0'
+      # Adding non-modular includes permission for pod targets
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end
