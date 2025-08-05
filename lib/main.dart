@@ -71,8 +71,6 @@ void main() async {
       }
     }
     
-    // Load core services
-    await ConfigService.loadEnvFile();
     await dotenv.load(fileName: ".env");
     
     final quranService = QuranService();
