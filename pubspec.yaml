@@ -14,15 +14,15 @@ dependencies:
   google_fonts: ^6.2.1
   win32: ^5.10.1
   flutter_dotenv: ^5.0.2
-  firebase_core: ^2.24.0        # downgraded from ^3.12.1
-  cloud_firestore: ^4.13.0      # downgraded from ^5.6.5
-  firebase_storage: ^11.5.0     # downgraded from ^12.4.4
-  cloud_functions: ^4.6.0       # downgraded from ^5.3.4
-  firebase_analytics: ^10.7.0   # downgraded from ^11.4.4
-  firebase_crashlytics: ^3.4.0  # downgraded from ^4.3.4
-  firebase_performance: ^0.9.3  # downgraded from ^0.10.1+4
-  firebase_auth: ^4.15.0        # downgraded from ^5.5.1
-  firebase_remote_config: ^4.3.0 # downgraded from ^5.4.2
+  firebase_core: ^3.12.1
+  cloud_firestore: ^5.6.5
+  firebase_storage: ^12.4.4
+  cloud_functions: ^5.3.4
+  firebase_analytics: ^11.4.4
+  firebase_crashlytics: ^4.3.4
+  firebase_performance: ^0.10.1+4
+  firebase_auth: ^5.5.1
+  firebase_remote_config: ^5.4.2
   path: ^1.9.0
   scrollable_positioned_list: ^0.3.8
   shared_preferences: ^2.0.15
