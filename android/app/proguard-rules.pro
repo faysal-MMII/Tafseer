@@ -9,7 +9,21 @@
 
 # awesome_notifications specific rules
 -keep class me.carda.** { *; }
+-keep class me.carda.awesome_notifications.core.** { *; }
 -keep class io.flutter.plugins.awesomenotifications.** { *; }
+
+# SharedPreferences TypeToken Fix (CRITICAL for 0.10.0)
+-keep class com.google.common.reflect.TypeToken { *; }
+-keep class * extends com.google.common.reflect.TypeToken
+-keepattributes Signature
+-keepattributes InnerClasses  
+-keepattributes EnclosingMethod
+
+# SQLite Database Protection (0.10.0 uses SQLite)
+-keep class * extends android.database.sqlite.SQLiteOpenHelper
+-keep class android.database.** { *; }
+-keep class androidx.sqlite.** { *; }
+-dontwarn androidx.sqlite.**
 
 # Android notifications framework
 -keep class android.app.NotificationManager { *; }
@@ -20,14 +34,28 @@
 -keep class android.app.AlarmManager { *; }
 -keep class * extends android.content.BroadcastReceiver { *; }
 
-# Entry points for release builds
--keep class * {
+# Native methods protection
+-keepclasseswithmembernames class * {
     native <methods>;
 }
 
--keepattributes Annotation
+# Serialization Support
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}
+
+# Annotations
+-keepattributes *Annotation*
 -keep @interface androidx.annotation.Keep
 -keep @androidx.annotation.Keep class * {*;}
+-keepclasseswithmembers class * {
+    @androidx.annotation.Keep *;
+}
 
 # Firebase rules 
 -keep class com.google.firebase.** { *; }
@@ -38,7 +66,6 @@
 -dontwarn com.google.android.gms.**
 
 # SQLite-related rules
--keep class android.database.** { *; }
 -keep class net.sqlcipher.** { *; }
 -dontwarn net.sqlcipher.**
 
@@ -53,12 +80,12 @@
 -dontwarn org.osmdroid.**
 -dontwarn org.mapsforge.**
 
-# Geolocator & Location plugin (to avoid removing location-related classes)
+# Geolocator & Location plugin
 -keep class com.baseflow.geolocator.** { *; }
 -keep class com.baseflow.location.** { *; }
 -dontwarn com.baseflow.**
 
-# Path Provider & Shared Preferences (to avoid breaking file operations)
+# Path Provider & Shared Preferences
 -keep class io.flutter.plugins.pathprovider.** { *; }
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 
@@ -69,12 +96,4 @@
 # Keep JSON serialization 
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
-}
-
-# To Ensure Reflection APIs work
--keepattributes *Annotation*
--keep @interface androidx.annotation.Keep
--keep @androidx.annotation.Keep class * {*;}
--keepclasseswithmembers class * {
-    @androidx.annotation.Keep *;
 }
