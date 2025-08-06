@@ -316,7 +316,7 @@ class PrayerTimeService {
           title: 'Continue Your Spiritual Journey 📖',
           body: 'You were reading $surahName (verse $lastVerse). Continue where you left off!',
           notificationLayout: NotificationLayout.BigText,
-          largeIcon: 'resource://drawable/ic_notification',
+          largeIcon: 'resource://drawable/launcher_icon',
           wakeUpScreen: false,
         ),
         schedule: NotificationCalendar.fromDate(
@@ -363,7 +363,7 @@ class PrayerTimeService {
             title: 'DID YOU KNOW? 💡',
             body: fact.description,
             notificationLayout: NotificationLayout.BigText,
-            largeIcon: 'resource://drawable/ic_notification',
+            largeIcon: 'resource://drawable/launcher_icon',
             wakeUpScreen: false,
           ),
           schedule: NotificationCalendar.fromDate(
@@ -384,7 +384,7 @@ class PrayerTimeService {
 
   Future<void> _initializeNotifications() async {
     await AwesomeNotifications().initialize(
-      'resource://drawable/ic_notification',
+      'resource://drawable/launcher_icon',
       [
         NotificationChannel(
           channelKey: 'prayer_time_channel',
