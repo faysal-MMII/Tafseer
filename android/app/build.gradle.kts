@@ -37,10 +37,14 @@ android {
     
     buildTypes {
         release {
-            // Added these lines for minification and resource shrinking
+            // Configure minification and resource shrinking
             isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Disabled resource shrinking to prevent potential issues with Flutter resources
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             
             // Enable Crashlytics for release builds
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
