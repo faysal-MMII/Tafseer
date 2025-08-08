@@ -5,7 +5,8 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';  // Import Google Fonts
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'services/config_service.dart';
 import 'services/openai_service.dart';
 import 'services/quran_service.dart';
@@ -30,7 +31,6 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
-// Simple loading widget that just shows a spinner
 class LoadingWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -46,10 +46,8 @@ class LoadingWidget extends StatelessWidget {
 }
 
 void main() async {
-  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set up Flutter error handling
   FlutterError.onError = (FlutterErrorDetails details) {
     print('Flutter error: ${details.exception}');
   };
@@ -57,7 +55,28 @@ void main() async {
   runApp(LoadingWidget());
   
   try {
-    // Initialize Firebase
+    // Initialize foreground task for background operations
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'prayer_service_channel',
+        channelName: 'Prayer Service Active',
+        channelDescription: 'Prayer notifications running in background',
+        channelImportance: NotificationChannelImportance.MIN,
+        priority: NotificationPriority.LOW,    
+        iconData: const NotificationIconData(
+          resType: ResourceType.mipmap,      
+          resPrefix: ResourcePrefix.ic,
+          name: 'launcher_icon',             
+        ),
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: const ForegroundTaskOptions(
+        interval: 30000,
+        isOnceEvent: false,
+        allowWakeLock: true,
+      ),
+    );
+
     if (isFirebaseSupported) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -85,10 +104,8 @@ void main() async {
       hadithRagService: hadithRagService,
     );
     
-    // Initialize prayer and qibla services
     final prayerTimeService = PrayerTimeService(
       onPrayerTime: (prayer) {
-        // This will be called when it's prayer time
         if (navigatorKey.currentState != null && navigatorKey.currentState!.context != null) {
           ScaffoldMessenger.of(navigatorKey.currentState!.context).showSnackBar(
             SnackBar(
@@ -101,12 +118,12 @@ void main() async {
     );
     final qiblaService = QiblaService();
     
-    // Initialize prayer time service in background
-    Timer(Duration.zero, () {
-      prayerTimeService.initialize();
+    // Updated Timer call with debugForegroundService()
+    Timer(Duration.zero, () async {
+      await prayerTimeService.initialize();
+      await prayerTimeService.debugForegroundService(); // ADDED LINE
     });
     
-    // Initialize Firebase services
     FirestoreService? firestoreService;
     AnalyticsService? analyticsService;
     
@@ -117,7 +134,6 @@ void main() async {
       await analyticsService.initialize();
     }
     
-    // Launch main app as quickly as possible
     runApp(
       ChangeNotifierProvider(
         create: (context) => ThemeProvider(),
@@ -138,7 +154,6 @@ void main() async {
       FirebaseCrashlytics.instance.recordError(error, stackTrace);
     }
     
-    // Even with errors, launch app with minimal services
     runApp(
       ChangeNotifierProvider(
         create: (context) => ThemeProvider(),
@@ -185,7 +200,6 @@ class MyApp extends StatelessWidget {
       navigatorObservers: [
         if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
       ],
-      //Poppins set as the default font for the entire app
       theme: themeProvider.themeData.copyWith(
         textTheme: GoogleFonts.poppinsTextTheme(
           themeProvider.themeData.textTheme,

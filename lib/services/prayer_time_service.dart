@@ -6,9 +6,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../data/islamic_facts_data.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'dart:isolate';
 
 class PrayerTime {
   final String name;
@@ -63,11 +65,57 @@ class PrayerTimeService {
   final Map<String, DateTime> _lastRequestTimes = {};
 
   PrayerTimeService({this.onPrayerTime});
+  
+  Future<void> debugForegroundService() async {
+    print("🔧 DEBUG: Checking foreground service status...");
+    
+    final notificationAllowed = await AwesomeNotifications().isNotificationAllowed();
+    print("🔧 Notification permission: $notificationAllowed");
+    
+    if (!notificationAllowed) {
+      print("❌ REQUESTING notification permission...");
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+      final nowAllowed = await AwesomeNotifications().isNotificationAllowed();
+      print("🔧 After request - notification permission: $nowAllowed");
+      
+      if (!nowAllowed) {
+        print("❌ CRITICAL: User denied notifications - service can't start");
+        return;
+      }
+    }
+    
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    print("🔧 Foreground service running: $isRunning");
+    
+    if (!isRunning) {
+      print("❌ PROBLEM: Service not running - attempting start...");
+      
+      try {
+        final success = await FlutterForegroundTask.startService(
+          notificationTitle: 'DEBUG: Prayer Times Active',
+          notificationText: 'Testing persistent notification',
+          callback: startCallback,
+        );
+        print("🔧 Start service returned: $success");
+        
+        await Future.delayed(Duration(seconds: 2));
+        final nowRunning = await FlutterForegroundTask.isRunningService;
+        print("🔧 After manual start - running: $nowRunning");
+        
+        if (!nowRunning) {
+          print("❌ FAILED: Service still not running after start attempt");
+        }
+      } catch (e) {
+        print("❌ Manual start EXCEPTION: $e");
+      }
+    } else {
+      print("✅ Service is running - persistent notification should be visible!");
+    }
+  }
 
   Future<void> debugNotifications() async {
     print("=== NOTIFICATION DEBUG ===");
     
-    // Test immediate notification
     try {
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
@@ -82,7 +130,6 @@ class PrayerTimeService {
       print("❌ Immediate notification FAILED: $e");
     }
     
-    // Check scheduled notifications
     try {
       final scheduled = await AwesomeNotifications().listScheduledNotifications();
       print("📋 Scheduled notifications: ${scheduled.length}");
@@ -93,7 +140,6 @@ class PrayerTimeService {
       print("❌ Can't list scheduled notifications: $e");
     }
     
-    // Check permission
     try {
       final allowed = await AwesomeNotifications().isNotificationAllowed();
       print("🔐 Notifications allowed: $allowed");
@@ -106,8 +152,30 @@ class PrayerTimeService {
     if (_isInitialized) return;
     
     print("=== PRAYER SERVICE INITIALIZE START ===");
+
+    await AwesomeNotifications().resetGlobalBadge();
     
     await _initializeNotifications();
+    
+    final allowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!allowed) {
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+      final nowAllowed = await AwesomeNotifications().isNotificationAllowed();
+      if (!nowAllowed) {
+        print('Notifications not allowed - service will not start.');
+        return; 
+      }
+    }
+
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    if (!isRunning) {
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'Prayer Times Active',
+        notificationText: 'Prayer notifications running in background',
+        callback: startCallback,
+      );
+    }
+    
     await _initializeTimezone();
     
     bool locationSuccess = false;
@@ -150,14 +218,44 @@ class PrayerTimeService {
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
   }
 
+  // MISSING METHOD - This schedules prayers for multiple days ahead
   Future<void> _scheduleMultipleDays() async {
-    await AwesomeNotifications().cancelAll();
-    print("Previous notifications canceled");
-
-    for (int i = 0; i < 3; i++) {
-      final targetDate = DateTime.now().add(Duration(days: i));
-      await _schedulePrayersForDate(targetDate, i);
+    print("=== SCHEDULING MULTIPLE DAYS ===");
+    
+    // Cancel any existing scheduled prayer notifications
+    try {
+      final scheduledNotifications = await AwesomeNotifications().listScheduledNotifications();
+      for (var notification in scheduledNotifications) {
+        final id = notification.content?.id;
+        if (id != null && id != 999999 && id != 777777) { // Don't cancel fun facts and reading reminders
+          await AwesomeNotifications().cancel(id);
+        }
+      }
+      print("Canceled existing prayer notifications");
+    } catch (e) {
+      print("Error canceling existing notifications: $e");
     }
+    
+    // Schedule prayers for the next 7 days
+    final today = DateTime.now();
+    int totalScheduled = 0;
+    
+    for (int dayOffset = 0; dayOffset < 7; dayOffset++) {
+      final targetDate = today.add(Duration(days: dayOffset));
+      try {
+        await _schedulePrayersForDate(targetDate, dayOffset);
+        totalScheduled++;
+      } catch (e) {
+        print("Failed to schedule prayers for day $dayOffset: $e");
+      }
+    }
+    
+    print("=== SCHEDULED PRAYERS FOR $totalScheduled DAYS ===");
+  }
+
+  @pragma('vm:entry-point')
+  static void startCallback() {
+    FlutterForegroundTask.setTaskHandler(PrayerTaskHandler());
   }
 
   Future<void> _schedulePrayersForDate(DateTime date, int dayOffset) async {
@@ -415,12 +513,6 @@ class PrayerTimeService {
         ),
       ],
     );
-
-    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
-      if (!isAllowed) {
-        AwesomeNotifications().requestPermissionToSendNotifications();
-      }
-    });
   }
 
   Future<void> _setSmartDefaultLocation() async {
@@ -715,5 +807,23 @@ class PrayerTimeService {
   }
 
   void dispose() {
+  }
+}
+
+class PrayerTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service started (background isolate)');
+  }
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service heartbeat: ${DateTime.now()}');
+  }
+  @override
+  void onRepeatEvent(DateTime timestamp, SendPort? sendPort) {
+  }
+  @override
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service destroyed');
   }
 }
