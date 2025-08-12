@@ -118,10 +118,10 @@ void main() async {
     );
     final qiblaService = QiblaService();
     
-    // Updated Timer call with debugForegroundService()
-    Timer(Duration.zero, () async {
+    // Updated initialization call for prayerTimeService
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       await prayerTimeService.initialize();
-      await prayerTimeService.debugForegroundService(); // ADDED LINE
+      await prayerTimeService.debugForegroundService();
     });
     
     FirestoreService? firestoreService;
@@ -135,8 +135,11 @@ void main() async {
     }
     
     runApp(
-      ChangeNotifierProvider(
-        create: (context) => ThemeProvider(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => ThemeProvider()),
+          ChangeNotifierProvider<PrayerTimeService>.value(value: prayerTimeService),
+        ],
         child: MyApp(
           openAiService: openAiService,
           analyticsService: analyticsService,
@@ -154,9 +157,13 @@ void main() async {
       FirebaseCrashlytics.instance.recordError(error, stackTrace);
     }
     
+    final fallbackPrayerService = PrayerTimeService();
     runApp(
-      ChangeNotifierProvider(
-        create: (context) => ThemeProvider(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => ThemeProvider()),
+          ChangeNotifierProvider<PrayerTimeService>.value(value: fallbackPrayerService),
+        ],
         child: MyApp(
           openAiService: OpenAiService(
             quranService: QuranService(),
@@ -164,7 +171,7 @@ void main() async {
             quranRagService: QuranRAGService(apiKey: ''),
             hadithRagService: HadithRAGService(apiKey: ''),
           ),
-          prayerTimeService: PrayerTimeService(),
+          prayerTimeService: fallbackPrayerService,
           qiblaService: QiblaService(),
         ),
       ),

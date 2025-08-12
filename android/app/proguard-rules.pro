@@ -15,11 +15,13 @@
 # SharedPreferences TypeToken Fix (CRITICAL for 0.10.0)
 -keep class com.google.common.reflect.TypeToken { *; }
 -keep class * extends com.google.common.reflect.TypeToken
+-keep class com.google.gson.reflect.TypeToken { <fields>; }
+-keep class * extends com.google.gson.reflect.TypeToken
 -keepattributes Signature
--keepattributes InnerClasses  
+-keepattributes InnerClasses
 -keepattributes EnclosingMethod
 
-# SQLite Database Protection (0.10.0 uses SQLite)
+# SQLite Database Protection
 -keep class * extends android.database.sqlite.SQLiteOpenHelper
 -keep class android.database.** { *; }
 -keep class androidx.sqlite.** { *; }
@@ -57,11 +59,16 @@
     @androidx.annotation.Keep *;
 }
 
-# Firebase rules 
+# GSON rules
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Firebase rules
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
 
-# Google Play Services 
+# Google Play Services
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
 
@@ -74,7 +81,7 @@
 -keep class com.google.android.play.core.** { *; }
 -dontwarn com.google.android.play.core.splitcompat.**
 
-# OpenStreetMap (flutter_map, latlong2)
+# OpenStreetMap
 -keep class org.osmdroid.** { *; }
 -keep class org.mapsforge.** { *; }
 -dontwarn org.osmdroid.**
@@ -89,11 +96,13 @@
 -keep class io.flutter.plugins.pathprovider.** { *; }
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 
+# Flutter Foreground Task Service
+-keep class com.pravera.flutter_foreground_task.** { *; }
+-keep class ** extends com.pravera.flutter_foreground_task.** { *; }
+-dontwarn com.pravera.flutter_foreground_task.**
+-keep class * extends android.app.Service { *; }
+-keep class * extends java.lang.Thread { *; }
+
 # Keep MainActivity and Application classes
 -keep class dev.faisal.tafseer.MainActivity { *; }
 -keep class dev.faisal.tafseer.Application { *; }
-
-# Keep JSON serialization 
--keepclassmembers class * {
-    @com.google.gson.annotations.SerializedName <fields>;
-}
