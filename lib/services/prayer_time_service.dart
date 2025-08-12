@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
@@ -45,7 +46,7 @@ class CitySearchResult {
 
 typedef PrayerNotificationCallback = void Function(PrayerTime prayer);
 
-class PrayerTimeService {
+class PrayerTimeService with ChangeNotifier {
   List<PrayerTime> _prayerTimes = [];
   List<PrayerTime> get prayerTimes => _prayerTimes;
 
@@ -60,6 +61,7 @@ class PrayerTimeService {
 
   bool _isInitialized = false;
   final PrayerNotificationCallback? onPrayerTime;
+  Timer? _updateTimer;
 
   static const String _lastReminderKey = 'last_reading_reminder';
   final Map<String, DateTime> _lastRequestTimes = {};
@@ -215,19 +217,18 @@ class PrayerTimeService {
     await _scheduleDailyFunFactNotifications();
     
     _isInitialized = true;
+    startAutoUpdate();
     print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
   }
 
-  // MISSING METHOD - This schedules prayers for multiple days ahead
   Future<void> _scheduleMultipleDays() async {
     print("=== SCHEDULING MULTIPLE DAYS ===");
     
-    // Cancel any existing scheduled prayer notifications
     try {
       final scheduledNotifications = await AwesomeNotifications().listScheduledNotifications();
       for (var notification in scheduledNotifications) {
         final id = notification.content?.id;
-        if (id != null && id != 999999 && id != 777777) { // Don't cancel fun facts and reading reminders
+        if (id != null && id != 999999 && id != 777777) {
           await AwesomeNotifications().cancel(id);
         }
       }
@@ -236,7 +237,6 @@ class PrayerTimeService {
       print("Error canceling existing notifications: $e");
     }
     
-    // Schedule prayers for the next 7 days
     final today = DateTime.now();
     int totalScheduled = 0;
     
@@ -296,7 +296,9 @@ class PrayerTimeService {
     for (final prayer in prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         try {
-          final notificationId = prayer.name.hashCode + (dayOffset * 1000);
+          final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
+          final prayerIndex = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].indexOf(prayer.name);
+          final notificationId = (dayOfYear * 10) + prayerIndex + 1000;
           
           await AwesomeNotifications().createNotification(
             content: NotificationContent(
@@ -304,9 +306,22 @@ class PrayerTimeService {
               channelKey: 'prayer_time_channel',
               title: 'Prayer Time',
               body: 'It\'s time for ${prayer.name} prayer',
+              icon: 'resource://mipmap/launcher_icon',
               notificationLayout: NotificationLayout.Default,
+              category: NotificationCategory.Reminder,
+              wakeUpScreen: true,
+              fullScreenIntent: true,
             ),
-            schedule: NotificationCalendar.fromDate(date: prayer.dateTime),
+            schedule: NotificationCalendar(
+              year: prayer.dateTime.year,
+              month: prayer.dateTime.month,
+              day: prayer.dateTime.day,
+              hour: prayer.dateTime.hour,
+              minute: prayer.dateTime.minute,
+              second: 0,
+              repeats: false,
+              allowWhileIdle: true,
+            ),
           );
 
           print("Successfully scheduled notification for ${prayer.name}");
@@ -413,6 +428,7 @@ class PrayerTimeService {
           channelKey: 'reading_reminders_channel',
           title: 'Continue Your Spiritual Journey 📖',
           body: 'You were reading $surahName (verse $lastVerse). Continue where you left off!',
+          icon: 'resource://mipmap/launcher_icon',
           notificationLayout: NotificationLayout.BigText,
           largeIcon: 'resource://drawable/launcher_icon',
           wakeUpScreen: false,
@@ -460,6 +476,7 @@ class PrayerTimeService {
             channelKey: 'fun_facts_channel',
             title: 'DID YOU KNOW? 💡',
             body: fact.description,
+            icon: 'resource://mipmap/launcher_icon',
             notificationLayout: NotificationLayout.BigText,
             largeIcon: 'resource://drawable/launcher_icon',
             wakeUpScreen: false,
@@ -484,6 +501,17 @@ class PrayerTimeService {
     await AwesomeNotifications().initialize(
       'resource://drawable/launcher_icon',
       [
+        NotificationChannel(
+          channelKey: 'prayer_service_channel',
+          channelName: 'Prayer Service Active',
+          channelDescription: 'Prayer notifications running in background',
+          defaultColor: Color(0xFF001333),
+          importance: NotificationImportance.Min,
+          enableVibration: false,
+          playSound: false,
+          channelShowBadge: false,
+          locked: true,
+        ),
         NotificationChannel(
           channelKey: 'prayer_time_channel',
           channelName: 'Prayer Times',
@@ -626,6 +654,7 @@ class PrayerTimeService {
     } else {
       throw Exception('No location available for prayer times');
     }
+    notifyListeners();
   }
 
   Future<void> _getPrayerTimesByCoordinates(DateTime date) async {
@@ -687,7 +716,16 @@ class PrayerTimeService {
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
     final time = TimeOfDay(hour: hour, minute: minute);
-    final dateTime = DateTime(date.year, date.month, date.day, hour, minute);
+    
+    final dateTime = tz.TZDateTime(
+      tz.local,
+      date.year,
+      date.month, 
+      date.day,
+      hour,
+      minute,
+    );
+    
     _prayerTimes.add(PrayerTime(name: name, time: time, dateTime: dateTime));
   }
 
@@ -698,6 +736,7 @@ class PrayerTimeService {
     for (var prayer in _prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         _nextPrayer = prayer;
+        notifyListeners();
         return;
       }
     }
@@ -711,7 +750,20 @@ class PrayerTimeService {
         dateTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 
                           firstPrayer.time.hour, firstPrayer.time.minute),
       );
+      notifyListeners();
     }
+  }
+
+  void startAutoUpdate() {
+    _updateTimer?.cancel();
+    _updateTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      final previousNext = _nextPrayer;
+      _findNextPrayer();
+      
+      if (previousNext?.name != _nextPrayer?.name) {
+        print("Next prayer changed: ${_nextPrayer?.name}");
+      }
+    });
   }
 
   Future<String> getLocationDisplayName() async {
@@ -732,6 +784,7 @@ class PrayerTimeService {
     await _loadTodaysPrayerTimes();
     await _scheduleMultipleDays();
     await _scheduleDailyFunFactNotifications();
+    notifyListeners();
   }
 
   Future<void> saveLocation(String city, String country) async {
@@ -749,6 +802,7 @@ class PrayerTimeService {
     await _loadTodaysPrayerTimes();
     await _scheduleMultipleDays();
     await _scheduleDailyFunFactNotifications();
+    notifyListeners();
   }
 
   Future<List<CitySearchResult>> searchCitiesFreely(String query) async {
@@ -785,6 +839,7 @@ class PrayerTimeService {
     await _loadTodaysPrayerTimes();
     await _scheduleMultipleDays();
     await _scheduleDailyFunFactNotifications();
+    notifyListeners();
   }
 
   Future<void> getPrayerTimes() async {
@@ -805,8 +860,23 @@ class PrayerTimeService {
       return '$minutes min';
     }
   }
+  
+  Future<void> testNotificationNow() async {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: 12345,
+        channelKey: 'prayer_time_channel',
+        title: 'DEBUG: Test Notification',
+        body: 'This is an immediate test notification.',
+        icon: 'resource://mipmap/launcher_icon',
+      ),
+    );
+  }
 
+  @override
   void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
   }
 }
 

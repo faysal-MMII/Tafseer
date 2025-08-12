@@ -58,7 +58,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
 
-        <!-- ADD THIS META-DATA: (points plugin to the notification icon resource) -->
+        <!-- META-DATA: (points plugin to the notification icon resource) -->
         <meta-data
             android:name="flutter_foreground_task.notification_icon"
             android:resource="@mipmap/launcher_icon" />
