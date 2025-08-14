@@ -46,7 +46,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 2;
   final TextEditingController _controller = TextEditingController();
   String? currentQuery;
@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _navOpacity;
   late Animation<double> _overlayAnimation;
   final ScrollController _scrollController = ScrollController();
+  bool _isKeyboardVisible = false;
 
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
@@ -75,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _logScreenView();
+    WidgetsBinding.instance.addObserver(this);
     
     _fabAnimationController = AnimationController(
       duration: Duration(milliseconds: 400),
@@ -116,12 +118,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _fabAnimationController.dispose();
     _scrollAnimationController.dispose();
     _overlayAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    setState(() {
+      _isKeyboardVisible = bottomInset > 0;
+    });
   }
 
   Future<void> _logScreenView() async {
@@ -376,16 +387,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildFloatingActionButton() {
+    if (_isKeyboardVisible) {
+      return SizedBox.shrink();
+    }
+    
     return Stack(
       children: [
-        // Info Button
         Positioned(
           bottom: 24,
           left: 54,
           child: _buildMatchingInfoFAB(),
         ),
-        
-        // Main Kaaba FAB - Bottom Right
         Positioned(
           bottom: 24,
           right: 24,
