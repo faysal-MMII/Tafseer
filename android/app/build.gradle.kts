@@ -8,10 +8,8 @@ keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // Firebase plugins
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
-    // Flutter plugin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -28,6 +26,15 @@ android {
     
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
     }
     
     defaultConfig {

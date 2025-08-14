@@ -1,4 +1,29 @@
 platform :ios, '13.0'
+install! 'cocoapods', :disable_input_output_paths => true,
+                      :generate_multiple_pod_projects => false
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+flutter_ios_podfile_setup
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -36,6 +61,25 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # Modifying the main Runner target to remove bridging header and set Swift version
+  begin
+    main_project = Xcodeproj::Project.open('Runner.xcodeproj')
+    main_project.targets.each do |target|
+      if target.name == 'Runner'
+        target.build_configurations.each do |config|
+          # Removing bridging header to avoid conflicts in Xcode 16.x
+          config.build_settings.delete('SWIFT_OBJC_BRIDGING_HEADER')
+          config.build_settings['SWIFT_VERSION'] = '5.0'
+          # Allowing non-modular includes to maintain compatibility
+          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        end
+      end
+    end
+    main_project.save
+  rescue => e
+    puts "Warning: I encountered an issue modifying the main project: #{e.message}"
+  end
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end

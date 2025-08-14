@@ -19,6 +19,13 @@ class _HadithScreenState extends State<HadithScreen> {
   List<Map<String, dynamic>> _hadiths = [];
   List<Map<String, dynamic>> _filteredHadiths = [];
 
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
+
   @override
   void initState() {
     super.initState();
@@ -71,155 +78,348 @@ class _HadithScreenState extends State<HadithScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: Text('Hadith'),
+        title: Text(
+          'Hadith',
+          style: TextStyle(color: Colors.black87),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+        backgroundColor: backgroundColor,
+        elevation: 0,
       ),
       body: _isLoading
-        ? Center(child: CircularProgressIndicator())
+        ? Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+            ),
+          )
         : _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: Colors.red)))
+          ? Center(
+              child: Container(
+                margin: EdgeInsets.all(20),
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Colors.red[700]),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
           : Column(
               children: [
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Hadith: As compiled by Imam Nawawi',
-                    style: AppTextStyles.titleText.copyWith(
-                      fontSize: 18,
-                      color: isDark ? Colors.white : Colors.black87,
+                // Header
+                Container(
+                  margin: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: cardColor.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: cardColor.withOpacity(0.6),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryBlue.withOpacity(0.15),
+                        blurRadius: 30,
+                        offset: Offset(0, 10),
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.2),
+                        blurRadius: 15,
+                        offset: Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primaryBlue, lightBlue],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 15,
+                              color: primaryBlue.withOpacity(0.4),
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.menu_book,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hadith Collection',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              'As compiled by Imam Nawawi',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                
+                // Search Field
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFf0f9ff), Color(0xFFe0f2fe)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: softAccent.withOpacity(0.3)),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 10,
+                        color: Colors.black.withOpacity(0.05),
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: TextField(
                     controller: _searchController,
+                    style: TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
                       hintText: 'Search Hadiths...',
-                      prefixIcon: Icon(Icons.search, color: isDark ? Colors.white : Colors.black),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? Colors.grey[700]! : Colors.grey[300]!),
-                      ),
-                      fillColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
-                      filled: true,
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: primaryBlue),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(18),
                     ),
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     onChanged: _filterHadiths,
                   ),
                 ),
+                
+                SizedBox(height: 16),
+                
                 Expanded(
-                  child: _buildLayout(isDark),
+                  child: _buildLayout(),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildLayout(bool isDark) {
+  Widget _buildLayout() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
     return isSmallScreen
-        ? _buildMobileLayout(isDark)
-        : _buildDesktopLayout(isDark);
+        ? _buildMobileLayout()
+        : _buildDesktopLayout();
   }
 
-  Widget _buildMobileLayout(bool isDark) {
+  Widget _buildMobileLayout() {
     return ListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: 16),
       itemCount: _filteredHadiths.length,
       itemBuilder: (context, index) {
         final hadith = _filteredHadiths[index];
-        return ListTile(
-          selected: _selectedHadith == hadith,
-          title: Text(
-            'Hadith ${hadith['number']}',
-            style: AppTextStyles.englishText.copyWith(
-              color: isDark ? Colors.white : Colors.black87,
+        return Container(
+          margin: EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: _selectedHadith == hadith 
+              ? cardColor.withOpacity(0.9) 
+              : cardColor.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _selectedHadith == hadith 
+                ? primaryBlue.withOpacity(0.5) 
+                : cardColor.withOpacity(0.3),
+              width: 1,
             ),
-          ),
-          onTap: () {
-            setState(() => _selectedHadith = hadith);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HadithDetailScreen(
-                  hadith: hadith,
-                  searchQuery: _searchController.text,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 4,
+                offset: Offset(0, 2),
               ),
-            );
-          },
-          tileColor: _selectedHadith == hadith
-              ? (isDark ? Color(0xFF252525) : Color(0xFFE0F2F1))
-              : Colors.transparent,
+            ],
+          ),
+          child: ListTile(
+            title: Text(
+              'Hadith ${hadith['number']}',
+              style: TextStyle(
+                color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
+                fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            onTap: () {
+              setState(() => _selectedHadith = hadith);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HadithDetailScreen(
+                    hadith: hadith,
+                    searchQuery: _searchController.text,
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildDesktopLayout(bool isDark) {
+  Widget _buildDesktopLayout() {
     return Row(
       children: [
         Container(
           width: 200,
           decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey.shade300)),
+            color: cardColor.withOpacity(0.8),
+            border: Border(
+              right: BorderSide(color: softAccent.withOpacity(0.5), width: 1),
+            ),
           ),
           child: ListView.builder(
             itemCount: _filteredHadiths.length,
             itemBuilder: (context, index) {
               final hadith = _filteredHadiths[index];
-              return ListTile(
-                selected: _selectedHadith == hadith,
-                title: Text(
-                  'Hadith ${hadith['number']}',
-                  style: AppTextStyles.englishText.copyWith(
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                onTap: () => setState(() => _selectedHadith = hadith),
-                tileColor: _selectedHadith == hadith
-                    ? (isDark ? Color(0xFF252525) : Color(0xFFE0F2F1))
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _selectedHadith == hadith 
+                    ? cardColor.withOpacity(0.9) 
                     : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: _selectedHadith == hadith 
+                    ? Border.all(color: primaryBlue.withOpacity(0.5), width: 1)
+                    : null,
+                ),
+                child: ListTile(
+                  title: Text(
+                    'Hadith ${hadith['number']}',
+                    style: TextStyle(
+                      color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
+                      fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  onTap: () => setState(() => _selectedHadith = hadith),
+                ),
               );
             },
           ),
         ),
         Expanded(
-          child: _selectedHadith == null
-            ? Center(child: Text('Select a hadith', style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[700])))
-            : SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hadith ${_selectedHadith!['number']}',
-                      style: AppTextStyles.titleText.copyWith(fontSize: 24, color: isDark ? Colors.white : Colors.black87),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      _selectedHadith!['text'],
-                      style: AppTextStyles.englishText.copyWith(
-                        height: 1.5,
-                        fontSize: 16,
-                        color: isDark ? Colors.white70 : Colors.black87,
+          child: Container(
+            color: backgroundColor,
+            child: _selectedHadith == null
+              ? Center(
+                  child: Text(
+                    'Select a hadith',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Container(
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: cardColor.withOpacity(0.5),
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryBlue.withOpacity(0.1),
+                          blurRadius: 15,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: primaryBlue.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.menu_book,
+                                color: primaryBlue,
+                                size: 20,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Hadith ${_selectedHadith!['number']}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: primaryBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Divider(color: Colors.grey[300]),
+                        SizedBox(height: 16),
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: backgroundColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey[300]!,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            _selectedHadith!['text'],
+                            style: TextStyle(
+                              height: 1.5,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+          ),
         ),
       ],
     );

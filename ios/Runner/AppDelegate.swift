@@ -1,4 +1,3 @@
-import UIKit
 import Flutter
 internal import awesome_notifications
 

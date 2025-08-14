@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import '../data/islamic_facts_data.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'dart:isolate';
 
 class PrayerTime {
   final String name;
@@ -24,12 +28,25 @@ class PrayerTime {
   }
 }
 
+class CitySearchResult {
+  final String name;
+  final String country;
+  final double latitude;
+  final double longitude;
+  final String displayName;
+  
+  CitySearchResult({
+    required this.name,
+    required this.country,
+    required this.latitude,
+    required this.longitude,
+    required this.displayName,
+  });
+}
+
 typedef PrayerNotificationCallback = void Function(PrayerTime prayer);
 
-class PrayerTimeService {
-  final String apiUrl = 'https://api.aladhan.com/v1/timingsByCity';
-  final String dateApiUrl = 'https://api.aladhan.com/v1/timingsByCity';
-
+class PrayerTimeService with ChangeNotifier {
   List<PrayerTime> _prayerTimes = [];
   List<PrayerTime> get prayerTimes => _prayerTimes;
 
@@ -44,13 +61,98 @@ class PrayerTimeService {
 
   Timer? _prayerCheckTimer;
 
+  bool _isInitialized = false;
   final PrayerNotificationCallback? onPrayerTime;
+  Timer? _updateTimer;
 
+  static const String _lastReminderKey = 'last_reading_reminder';
   final Map<String, DateTime> _lastRequestTimes = {};
   bool _isInitializing = false;
   DateTime? _lastScheduleTime;
 
   PrayerTimeService({this.onPrayerTime});
+  
+  Future<void> debugForegroundService() async {
+    print("🔧 DEBUG: Checking foreground service status...");
+    
+    final notificationAllowed = await AwesomeNotifications().isNotificationAllowed();
+    print("🔧 Notification permission: $notificationAllowed");
+    
+    if (!notificationAllowed) {
+      print("❌ REQUESTING notification permission...");
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+      final nowAllowed = await AwesomeNotifications().isNotificationAllowed();
+      print("🔧 After request - notification permission: $nowAllowed");
+      
+      if (!nowAllowed) {
+        print("❌ CRITICAL: User denied notifications - service can't start");
+        return;
+      }
+    }
+    
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    print("🔧 Foreground service running: $isRunning");
+    
+    if (!isRunning) {
+      print("❌ PROBLEM: Service not running - attempting start...");
+      
+      try {
+        final success = await FlutterForegroundTask.startService(
+          notificationTitle: 'DEBUG: Prayer Times Active',
+          notificationText: 'Testing persistent notification',
+          callback: startCallback,
+        );
+        print("🔧 Start service returned: $success");
+        
+        await Future.delayed(Duration(seconds: 2));
+        final nowRunning = await FlutterForegroundTask.isRunningService;
+        print("🔧 After manual start - running: $nowRunning");
+        
+        if (!nowRunning) {
+          print("❌ FAILED: Service still not running after start attempt");
+        }
+      } catch (e) {
+        print("❌ Manual start EXCEPTION: $e");
+      }
+    } else {
+      print("✅ Service is running - persistent notification should be visible!");
+    }
+  }
+
+  Future<void> debugNotifications() async {
+    print("=== NOTIFICATION DEBUG ===");
+    
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 12345,
+          channelKey: 'prayer_time_channel',
+          title: 'DEBUG TEST',
+          body: 'If you see this, notifications work!',
+        ),
+      );
+      print("✅ Immediate notification sent");
+    } catch (e) {
+      print("❌ Immediate notification FAILED: $e");
+    }
+    
+    try {
+      final scheduled = await AwesomeNotifications().listScheduledNotifications();
+      print("📋 Scheduled notifications: ${scheduled.length}");
+      for (var notif in scheduled) {
+        print("   - ID: ${notif.content?.id}, Title: ${notif.content?.title}");
+      }
+    } catch (e) {
+      print("❌ Can't list scheduled notifications: $e");
+    }
+    
+    try {
+      final allowed = await AwesomeNotifications().isNotificationAllowed();
+      print("🔐 Notifications allowed: $allowed");
+    } catch (e) {
+      print("❌ Can't check permissions: $e");
+    }
+  }
 
   Future<void> initialize() async {
     if (_isInitializing) return;
@@ -105,7 +207,58 @@ class PrayerTimeService {
       if (!isAllowed) {
         AwesomeNotifications().requestPermissionToSendNotifications();
       }
-    });
+    }
+
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    if (!isRunning) {
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'Prayer Times Active',
+        notificationText: 'Prayer notifications running in background',
+        callback: startCallback,
+      );
+    }
+    
+    await _initializeTimezone();
+    
+    bool locationSuccess = false;
+    
+    try {
+      await _getGPSLocation();
+      locationSuccess = true;
+      print("GPS location successful");
+    } catch (e) {
+      print("GPS failed: $e");
+    }
+    
+    if (!locationSuccess) {
+      try {
+        await _loadCachedLocation();
+        locationSuccess = true;
+        print("Cached location successful");
+      } catch (e) {
+        print("Cached location failed: $e");
+      }
+    }
+    
+    if (!locationSuccess) {
+      try {
+        await _setSmartDefaultLocation();
+        print("Smart default location set");
+      } catch (e) {
+        _city = "Mecca";
+        _country = "Saudi Arabia";
+        _locationDisplayName = "Mecca, Saudi Arabia";
+        print("Using Mecca as final fallback");
+      }
+    }
+    
+    await _loadTodaysPrayerTimes();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
+    
+    _isInitialized = true;
+    startAutoUpdate();
+    print("=== PRAYER SERVICE INITIALIZE COMPLETE ===");
   }
 
   Future<void> setupScheduledNotifications() async {
@@ -137,7 +290,11 @@ class PrayerTimeService {
     } else {
       try {
         final formattedDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-        final url = '$dateApiUrl?city=$_city&country=$_country&method=2&date=$formattedDate';
+        
+        final url = _latitude != null && _longitude != null
+            ? 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$formattedDate'
+            : 'https://api.aladhan.com/v1/timingsByCity?city=$_city&country=$_country&method=2&date=$formattedDate';
+        
         final response = await http.get(Uri.parse(url));
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
@@ -169,9 +326,22 @@ class PrayerTimeService {
               channelKey: 'prayer_time_channel',
               title: 'Prayer Time',
               body: 'It\'s time for ${prayer.name} prayer',
+              icon: 'resource://mipmap/launcher_icon',
               notificationLayout: NotificationLayout.Default,
+              category: NotificationCategory.Reminder,
+              wakeUpScreen: true,
+              fullScreenIntent: true,
             ),
-            schedule: NotificationCalendar.fromDate(date: prayer.dateTime),
+            schedule: NotificationCalendar(
+              year: prayer.dateTime.year,
+              month: prayer.dateTime.month,
+              day: prayer.dateTime.day,
+              hour: prayer.dateTime.hour,
+              minute: prayer.dateTime.minute,
+              second: 0,
+              repeats: false,
+              allowWhileIdle: true,
+            ),
           );
 
           print("Successfully scheduled notification for ${prayer.name}");
@@ -220,9 +390,9 @@ class PrayerTimeService {
         }
       }
 
-      if (_position != null) {
-        final lat = _position!.latitude;
-        final lng = _position!.longitude;
+      if (_latitude != null && _longitude != null) {
+        final lat = _latitude!;
+        final lng = _longitude!;
         String regionGuess;
 
         if (lat > 30 && lng > -10 && lng < 40) {
@@ -255,23 +425,45 @@ class PrayerTimeService {
     }
   }
 
-  Future<void> _checkLocationPermission() async {
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return;
-        }
-      }
-      if (permission == LocationPermission.deniedForever) {
+  static Future<void> _scheduleReadingReminder(Map<String, String> sessionData) async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastReminder = prefs.getString(_lastReminderKey);
+    final now = DateTime.now();
+
+    if (lastReminder != null) {
+      final lastReminderDate = DateTime.parse(lastReminder);
+      if (now.difference(lastReminderDate).inHours < 24) {
         return;
       }
-      _position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
-      await _getAddressFromLatLng(_position!);
+    }
+
+    final reminderTime = now.add(Duration(hours: 6));
+    final surahName = sessionData['surah_name']!;
+    final lastVerse = sessionData['last_verse']!;
+
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 777777,
+          channelKey: 'reading_reminders_channel',
+          title: 'Continue Your Spiritual Journey 📖',
+          body: 'You were reading $surahName (verse $lastVerse). Continue where you left off!',
+          icon: 'resource://mipmap/launcher_icon',
+          notificationLayout: NotificationLayout.BigText,
+          largeIcon: 'resource://drawable/launcher_icon',
+          wakeUpScreen: false,
+        ),
+        schedule: NotificationCalendar.fromDate(
+          date: reminderTime,
+          allowWhileIdle: true,
+        ),
+      );
+      
+      await prefs.setString(_lastReminderKey, now.toIso8601String());
+      print("Scheduled reading reminder for $surahName in 6 hours ($reminderTime)");
+      
     } catch (e) {
-      print('Error getting location: $e');
-      await _loadSavedLocation();
+      print("Failed to schedule reading reminder: $e");
     }
   }
 
@@ -297,12 +489,34 @@ class PrayerTimeService {
           return;
         }
       }
+    }
+  }
 
       final url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}&zoom=10';
       final response = await _makeRateLimitedRequest(url);
 
+  Future<void> _setSmartDefaultLocation() async {
+    try {
+      final response = await http.get(Uri.parse('http://ip-api.com/json')).timeout(Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        _latitude = data['lat']?.toDouble();
+        _longitude = data['lon']?.toDouble();
+        _city = data['city'] ?? "Unknown";
+        _country = data['country'] ?? "Unknown";
+        _locationDisplayName = "$_city, $_country";
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('latitude', _latitude!);
+        await prefs.setDouble('longitude', _longitude!);
+        await prefs.setString('location_name', _locationDisplayName!);
+        
+        print("IP-based location: $_locationDisplayName");
+      }
+    } catch (e) {
+      throw Exception("IP geolocation failed: $e");
+    }
+  }
 
         String city = data['address']['city'] ?? 
                      data['address']['town'] ?? 
@@ -310,22 +524,49 @@ class PrayerTimeService {
                      data['address']['county'] ?? 
                      "Unknown";
 
-        String country = data['address']['country'] ?? "Unknown";
+  Future<void> _loadCachedLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    _latitude = prefs.getDouble('latitude');
+    _longitude = prefs.getDouble('longitude');
+    final lastUpdate = prefs.getString('last_update');
+    
+    if (_latitude == null || _longitude == null) {
+      throw Exception('No cached coordinates');
+    }
+    
+    if (lastUpdate != null) {
+      final lastUpdateTime = DateTime.parse(lastUpdate);
+      final daysSince = DateTime.now().difference(lastUpdateTime).inDays;
+      if (daysSince > 7) {
+        throw Exception('Cached coordinates too old');
+      }
+    }
+    
+    await _getLocationName();
+  }
 
+  Future<void> _getLocationName() async {
+    try {
+      final url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${_latitude!}&longitude=${_longitude!}&localityLanguage=en';
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final city = data['city'] ?? data['locality'] ?? data['principalSubdivision'] ?? 'Unknown';
+        final country = data['countryName'] ?? 'Unknown';
+        
         _city = city;
         _country = country;
-
-        await prefs.setString('city', _city!);
-        await prefs.setString('country', _country!);
-        _lastRequestTimes[cacheKey] = DateTime.now();
-
-        print("Geocoded location: $_city, $_country");
-      } else {
-        throw Exception('Failed to geocode location');
+        _locationDisplayName = '$city, $country';
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('location_name', _locationDisplayName!);
+        
+        print("Location: $_locationDisplayName");
+        return;
       }
     } catch (e) {
-      print('Error handling location: $e');
-      await _loadSavedLocation();
+      print("Geocoding failed: $e");
     }
   }
 
@@ -348,15 +589,51 @@ class PrayerTimeService {
 
   Future<void> _loadSavedLocation() async {
     final prefs = await SharedPreferences.getInstance();
-    _city = prefs.getString('city');
-    _country = prefs.getString('country');
-    if (_city == null || _country == null) {
-      try {
-        await _checkLocationPermission();
-      } catch (e) {
-        _city = "Unknown";
-        _country = "Unknown";
+    _locationDisplayName = prefs.getString('location_name') ?? 'Current Location';
+  }
+
+  Future<void> _loadTodaysPrayerTimes() async {
+    final today = DateTime.now();
+    print("Loading prayer times for: ${today.day}/${today.month}/${today.year}");
+    
+    if (_latitude != null && _longitude != null) {
+      await _getPrayerTimesByCoordinates(today);
+    } else if (_city != null && _country != null) {
+      await _getPrayerTimesByCity(today);
+    } else {
+      throw Exception('No location available for prayer times');
+    }
+    notifyListeners();
+  }
+
+  Future<void> _getPrayerTimesByCoordinates(DateTime date) async {
+    final dateStr = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+    final url = 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$dateStr';
+    
+    print("API URL: $url");
+    
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final timings = data['data']['timings'];
+      
+      _prayerTimes = [];
+      _addPrayerTime('Fajr', timings['Fajr'], date);
+      _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
+      _addPrayerTime('Asr', timings['Asr'], date);
+      _addPrayerTime('Maghrib', timings['Maghrib'], date);
+      _addPrayerTime('Isha', timings['Isha'], date);
+      
+      _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+      _findNextPrayer();
+      
+      print("Prayer times loaded successfully:");
+      for (var prayer in _prayerTimes) {
+        print("${prayer.name}: ${prayer.dateTime}");
       }
+      print("Next prayer: ${_nextPrayer?.name} at ${_nextPrayer?.dateTime}");
+    } else {
+      throw Exception('Failed to load prayer times: ${response.statusCode}');
     }
   }
 
@@ -453,36 +730,144 @@ class PrayerTimeService {
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
     final time = TimeOfDay(hour: hour, minute: minute);
-    final dateTime = DateTime(date.year, date.month, date.day, hour, minute);
+    
+    final dateTime = tz.TZDateTime(
+      tz.local,
+      date.year,
+      date.month, 
+      date.day,
+      hour,
+      minute,
+    );
+    
     _prayerTimes.add(PrayerTime(name: name, time: time, dateTime: dateTime));
   }
 
   void _findNextPrayer() {
     final now = DateTime.now();
     _nextPrayer = null;
+    
     for (var prayer in _prayerTimes) {
       if (prayer.dateTime.isAfter(now)) {
         _nextPrayer = prayer;
-        break;
+        notifyListeners();
+        return;
       }
     }
-    if (_nextPrayer == null && _prayerTimes.isNotEmpty) {
+    
+    if (_prayerTimes.isNotEmpty) {
       final tomorrow = DateTime.now().add(Duration(days: 1));
       final firstPrayer = _prayerTimes.first;
       _nextPrayer = PrayerTime(
         name: firstPrayer.name,
         time: firstPrayer.time,
-        dateTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, firstPrayer.time.hour, firstPrayer.time.minute),
+        dateTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 
+                          firstPrayer.time.hour, firstPrayer.time.minute),
       );
+      notifyListeners();
     }
+  }
+
+  void startAutoUpdate() {
+    _updateTimer?.cancel();
+    _updateTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      final previousNext = _nextPrayer;
+      _findNextPrayer();
+      
+      if (previousNext?.name != _nextPrayer?.name) {
+        print("Next prayer changed: ${_nextPrayer?.name}");
+      }
+    });
+  }
+
+  Future<String> getLocationDisplayName() async {
+    return _locationDisplayName ?? 'Current Location';
+  }
+
+  Future<void> setLocationByCoordinates(double lat, double lng, String displayName) async {
+    _latitude = lat;
+    _longitude = lng;
+    _locationDisplayName = displayName;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('latitude', lat);
+    await prefs.setDouble('longitude', lng);
+    await prefs.setString('location_name', displayName);
+    await prefs.setString('last_update', DateTime.now().toIso8601String());
+    
+    await _loadTodaysPrayerTimes();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
+    notifyListeners();
+  }
+
+  Future<void> saveLocation(String city, String country) async {
+    _city = city;
+    _country = country;
+    _locationDisplayName = '$city, $country';
+    _latitude = null;
+    _longitude = null;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('latitude');
+    await prefs.remove('longitude');
+    await prefs.setString('location_name', _locationDisplayName!);
+    
+    await _loadTodaysPrayerTimes();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
+    notifyListeners();
+  }
+
+  Future<List<CitySearchResult>> searchCitiesFreely(String query) async {
+    if (query.length < 2) return [];
+    
+    try {
+      final url = 'http://api.geonames.org/searchJSON?name_startsWith=${Uri.encodeComponent(query)}&maxRows=10&featureClass=P&username=demo';
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final geonames = data['geonames'] as List?;
+        
+        if (geonames != null) {
+          return geonames.map((city) {
+            return CitySearchResult(
+              name: city['name'] ?? '',
+              country: city['countryName'] ?? '',
+              latitude: double.tryParse(city['lat']?.toString() ?? '') ?? 0.0,
+              longitude: double.tryParse(city['lng']?.toString() ?? '') ?? 0.0,
+              displayName: '${city['name']}, ${city['countryName']}',
+            );
+          }).toList();
+        }
+      }
+    } catch (e) {
+      print('City search error: $e');
+    }
+    
+    return [];
+  }
+
+  Future<void> refreshPrayerTimes() async {
+    await _loadTodaysPrayerTimes();
+    await _scheduleMultipleDays();
+    await _scheduleDailyFunFactNotifications();
+    notifyListeners();
+  }
+
+  Future<void> getPrayerTimes() async {
+    await refreshPrayerTimes();
   }
 
   String getTimeUntilNextPrayer() {
     if (_nextPrayer == null) return 'Unknown';
+    
     final now = DateTime.now();
     final difference = _nextPrayer!.dateTime.difference(now);
     final hours = difference.inHours;
     final minutes = difference.inMinutes % 60;
+    
     if (hours > 0) {
       return '$hours h $minutes min';
     } else {
@@ -514,7 +899,27 @@ class PrayerTimeService {
     }
   }
 
+  @override
   void dispose() {
-    _prayerCheckTimer?.cancel();
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+}
+
+class PrayerTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service started (background isolate)');
+  }
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service heartbeat: ${DateTime.now()}');
+  }
+  @override
+  void onRepeatEvent(DateTime timestamp, SendPort? sendPort) {
+  }
+  @override
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
+    print('Prayer service destroyed');
   }
 }

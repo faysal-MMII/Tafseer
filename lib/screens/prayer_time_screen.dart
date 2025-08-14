@@ -49,6 +49,36 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
   
+  Future<void> _initializePrayerService() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _isLoadingPrayerTimes = true;
+    });
+    
+    try {
+      await widget.prayerTimeService.initialize();
+      
+      final locationName = await widget.prayerTimeService.getLocationDisplayName();
+      
+      setState(() {
+        _currentLocation = locationName;
+      });
+      
+      _updateTimeRemaining();
+      
+    } catch (e) {
+      print("Prayer service initialization failed: $e");
+      setState(() {
+        _currentLocation = "Tap to set location";
+      });
+    } finally {
+      setState(() {
+        _isLoadingLocation = false;
+        _isLoadingPrayerTimes = false;
+      });
+    }
+  }
+  
   void _updateTimeRemaining() {
     setState(() {
       _timeUntilNextPrayer = widget.prayerTimeService.getTimeUntilNextPrayer();
@@ -62,6 +92,76 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     setState(() {
       _currentLocation = 'Current Location'; // Will be enhanced with actual location
     });
+    
+    try {
+      await widget.prayerTimeService.refreshPrayerTimes();
+      _updateTimeRemaining();
+    } finally {
+      setState(() {
+        _isLoadingPrayerTimes = false;
+      });
+    }
+  }
+
+  Widget _buildLocationOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: primaryBlue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: primaryBlue, size: 24),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.black26,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
   }
   
   // Modern location selection with auto-refresh
@@ -403,7 +503,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
     final cardColor = isDark ? Color(0xFF0E2552) : Colors.grey[50];
     
-    // Get Islamic date using hijri package
     final hijri = HijriCalendar.fromDate(today);
     final islamicDate = "${_getIslamicMonthName(hijri.hMonth)} ${hijri.hDay}, ${hijri.hYear} AH";
     
@@ -634,7 +733,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
                       ),
           ),
 
-          // Bottom spacer for better UI balance
           SizedBox(height: 16),
         ],
       ),
@@ -656,7 +754,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     }
   }
   
-  // Helper function to get month name
   String _getMonthName(int month) {
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -665,21 +762,11 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     return monthNames[month - 1];
   }
   
-  // Method to get Islamic month name
   String _getIslamicMonthName(int month) {
     const islamicMonths = [
-      'Muharram',
-      'Safar',
-      'Rabi al-Awwal',
-      'Rabi al-Thani',
-      'Jumada al-Awwal',
-      'Jumada al-Thani',
-      'Rajab',
-      'Sha\'ban',
-      'Ramadan',
-      'Shawwal',
-      'Dhu al-Qi\'dah',
-      'Dhu al-Hijjah'
+      'Muharram', 'Safar', 'Rabi al-Awwal', 'Rabi al-Thani',
+      'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', 'Sha\'ban',
+      'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
     ];
     
     return islamicMonths[month - 1];
@@ -716,7 +803,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
             ),
           ),
           SizedBox(width: 16),
-          // Prayer name
           Expanded(
             child: Text(
               prayer.name,
@@ -727,7 +813,6 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
               ),
             ),
           ),
-          // Prayer time
           Text(
             prayer.formattedTime,
             style: TextStyle(

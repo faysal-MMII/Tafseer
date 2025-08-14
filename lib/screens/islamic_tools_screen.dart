@@ -24,6 +24,12 @@ class IslamicToolsScreen extends StatefulWidget {
 }
 
 class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
+  // Updated colors to match home screen
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white; // Pure white background
+  static const Color cardColor = Color(0xFFF0F7FF); // Glassy blue for boxes
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +70,6 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Select a Tool',
@@ -131,6 +136,77 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      margin: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        // Glassy blue box like home screen
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 25,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 8),
+          ),
+          // Inner glow for glassmorphism
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.white.withOpacity(0.2),
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryBlue.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: primaryBlue,
+                size: 20,
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Islamic Tools',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                  ),
+                ),
+                Text(
+                  'Essential tools for your daily worship',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildToolCard({
     required String title,
     required String description,
@@ -161,7 +237,8 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 color: accentColor.withOpacity(0.1),
                 shape: BoxShape.circle,
@@ -184,14 +261,17 @@ class _IslamicToolsScreenState extends State<IslamicToolsScreen> {
                       color: primaryTextColor,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: 4),
                   Text(
                     description,
                     style: TextStyle(
                       color: secondaryTextColor,
                       fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.3,
                     ),
                   ),
                 ],

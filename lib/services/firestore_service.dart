@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/deviceid_service.dart'; // Import the DeviceIDService
+import '../services/deviceid_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -15,7 +15,44 @@ class FirestoreService {
       }
     }
 
-    return searchableTerms.take(10).toList(); // Limit to avoid too many terms
+    return searchableTerms.take(10).toList();
+  }
+
+  // FIXED: Clean the verse data before saving
+  List<String> _cleanQuranVerses(List<String> verses) {
+    return verses.where((verse) => 
+      verse.isNotEmpty && 
+      !verse.contains('null') && 
+      verse != 'null'
+    ).map((verse) {
+      // Extract just the reference if it's in format "text (reference)"
+      final regex = RegExp(r'\(([^)]+)\)$');
+      final match = regex.firstMatch(verse);
+      if (match != null && match.group(1) != null && match.group(1) != 'null') {
+        return match.group(1)!; // Return just "2:255"
+      }
+      return verse;
+    }).toList();
+  }
+
+  // FIXED: Clean hadith data before saving
+  List<Map<String, dynamic>> _cleanHadiths(List<dynamic> hadiths) {
+    return hadiths.where((hadith) => hadith != null).map((hadith) {
+      if (hadith is Map<String, dynamic>) {
+        // Clean the hadith map
+        final cleanHadith = <String, dynamic>{};
+        hadith.forEach((key, value) {
+          if (value != null && value.toString() != 'null' && value.toString().isNotEmpty) {
+            cleanHadith[key] = value;
+          }
+        });
+        return cleanHadith;
+      } else if (hadith is String && hadith.isNotEmpty && hadith != 'null') {
+        return {'text': hadith};
+      }
+      return null;
+    }).where((hadith) => hadith != null && hadith!.isNotEmpty)
+      .cast<Map<String, dynamic>>().toList();
   }
 
   Future<void> saveQA({
@@ -25,7 +62,6 @@ class FirestoreService {
     required List<dynamic> hadiths,
   }) async {
     try {
-      // Get the device ID
       final String deviceId = await DeviceIDService.getDeviceID();
 
       // Check if a similar question already exists
@@ -34,14 +70,18 @@ class FirestoreService {
           .where('question', isEqualTo: question)
           .get();
 
+      // FIXED: Clean the data before saving
+      final cleanVerses = _cleanQuranVerses(quranVerses);
+      final cleanHadiths = _cleanHadiths(hadiths);
+
       if (existingQuestions.docs.isNotEmpty) {
-        // Update existing entry instead of creating a new one
+        // Update existing entry
         await _db.collection('qa_history')
             .doc(existingQuestions.docs.first.id)
             .update({
           'answer': answer,
-          'quranVerses': quranVerses,
-          'hadiths': hadiths,
+          'quranVerses': cleanVerses,
+          'hadiths': cleanHadiths,
           'timestamp': FieldValue.serverTimestamp(),
         });
         
@@ -50,18 +90,19 @@ class FirestoreService {
         // Create searchable terms from the question
         final searchableTerms = _generateSearchableTerms(question);
 
-        // Save the QA with the device ID
+        // Save new entry
         await _db.collection('qa_history').add({
           'deviceId': deviceId,
           'question': question,
           'answer': answer,
-          'quranVerses': quranVerses,
-          'hadiths': hadiths,
+          'quranVerses': cleanVerses,
+          'hadiths': cleanHadiths,
           'searchableTerms': searchableTerms,
           'timestamp': FieldValue.serverTimestamp(),
         });
 
         print('QA saved successfully with device ID: $deviceId');
+        print('Saved ${cleanVerses.length} verses and ${cleanHadiths.length} hadiths');
       }
     } catch (e) {
       print('Error saving QA: $e');
@@ -70,16 +111,12 @@ class FirestoreService {
 
   Future<Map<String, dynamic>?> findSimilarQuestion(String question) async {
     try {
-      // Get the device ID
       final String deviceId = await DeviceIDService.getDeviceID();
-
-      // Generate search terms
       final searchTerms = _generateSearchableTerms(question);
 
-      // Search for similar questions using the device ID
       for (final term in searchTerms) {
         final snapshot = await _db.collection('qa_history')
-            .where('deviceId', isEqualTo: deviceId) // Filter by device ID
+            .where('deviceId', isEqualTo: deviceId)
             .where('searchableTerms', arrayContains: term)
             .orderBy('timestamp', descending: true)
             .limit(1)
@@ -96,7 +133,7 @@ class FirestoreService {
     }
   }
 
-  // New Quran caching methods - INTEGRATED HERE
+  // Quran caching methods
   Future<Map<String, dynamic>?> getCachedVerse(String verseKey) async {
     try {
       final doc = await _db.collection('quran_cache')
@@ -166,15 +203,14 @@ class FirestoreService {
     }
   }
 
-  // New method to check and migrate history data
+  // Method to check and migrate history data
   Future<void> checkAndMigrateHistoryData() async {
     try {
-      // Get the device ID
       final String deviceId = await DeviceIDService.getDeviceID();
 
       // First, check if there are any documents without deviceId
       final snapshot = await _db.collection('qa_history')
-          .limit(100) // Limit to prevent too many reads
+          .limit(100)
           .get();
 
       print('Found ${snapshot.docs.length} history records to check');

@@ -41,7 +41,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<String> _quranVerses = [];
   List<Hadith> _hadiths = [];
   bool _isSearching = false;
-  StreamSubscription? _openAISubscription; // Declare StreamSubscription
+  StreamSubscription? _openAISubscription;
+
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
 
   @override
   void initState() {
@@ -72,7 +79,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
     try {
       print('[PERF] Starting data fetch: ${DateTime.now()}');
-      // Fetch verses first
       final verses = await widget.openAiService.quranService.fetchQuranVerses(widget.query);
       print('[DEBUG] Verses count: ${verses.length}');
 
@@ -81,7 +87,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         return;
       }
 
-      // Format verses for display
       final formattedVerses = verses.map((v) {
         String text = '';
         if (v.containsKey('translations') && v['translations'] is List && v['translations'].isNotEmpty) {
@@ -94,14 +99,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         return "$text ($reference)";
       }).toList();
 
-      // Update UI with verses immediately
       print('[DEBUG] Updating UI with ${formattedVerses.length} verses');
       setState(() {
         _quranVerses = formattedVerses;
         print('[DEBUG] _quranVerses length after update: ${_quranVerses.length}');
       });
 
-      // Stream the interpretation
       final stream = await widget.openAiService.streamQuranResponse(widget.query, verses);
       String accumulatedResponse = '';
 
@@ -122,7 +125,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         }
       );
 
-      // Get full response for hadiths in background
       print('[PERF] Starting full generateResponse call: ${DateTime.now()}');
       widget.openAiService.generateResponse(widget.query).then((response) {
         print('[PERF] Full response completed: ${DateTime.now()}');
@@ -136,13 +138,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         print('[DEBUG] Hadiths received: $hadithsCount');
 
         setState(() {
-          // Only update _aiResponse if streaming didn't provide a good response
           if (_aiResponse.length < 50) {
             print('[DEBUG] Using full response for _aiResponse as streaming response was insufficient');
             _aiResponse = response['quran_results']['answer'] ?? '';
           }
 
-          // Update hadiths
           _hadiths = List<Hadith>.from(
             (response['hadith_results']['hadiths'] ?? []).map((h) {
               print('[DEBUG] Processing hadith: ${h['text'].toString().substring(0, min(20, h['text'].toString().length))}...');
@@ -185,30 +185,23 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   void dispose() {
-    _openAISubscription?.cancel(); // Cancel the subscription
+    _openAISubscription?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: theme.appBarTheme.backgroundColor,
+        backgroundColor: backgroundColor,
         title: Text(
           'Search Results', 
-          style: theme.appBarTheme.titleTextStyle,
+          style: TextStyle(color: Colors.black87),
         ), 
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: theme.iconTheme.color,
-          ),
+          icon: Icon(Icons.arrow_back, color: primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -220,7 +213,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
                     strokeWidth: 2,
                   ),
                 ),
@@ -229,7 +222,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ],
       ),
       body: RefreshIndicator(
-        color: theme.primaryColor,
+        color: primaryBlue,
         onRefresh: () => _fetchResults(),
         child: _buildBody(),
       ),
@@ -237,14 +230,20 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildBody() {
-    final theme = Theme.of(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    
     if (_isLoading) {
       return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Searching for answers...',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ],
         ),
       );
     }
@@ -253,52 +252,44 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       return _buildErrorContainer();
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
-
-    return Container(
-      color: isDarkMode ? Color(0xFF001333) : theme.scaffoldBackgroundColor,
-      child: SingleChildScrollView(
-        child: ResponsiveLayout(
-          child: Column(
-            children: [
-              _buildQueryContainer(),
-              SizedBox(height: isSmallScreen ? 16 : 24),
-              _buildResultsContainer(),
-            ],
-          ),
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildQueryContainer(),
+          SizedBox(height: 16),
+          _buildResultsContainer(),
+        ],
       ),
     );
   }
   
   Widget _buildQueryContainer() {
-    final theme = Theme.of(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
-
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: cardColor.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: isDarkMode 
-              ? Colors.black26 
-              : Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: primaryBlue.withOpacity(0.15),
+            blurRadius: 30,
+            offset: Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.2),
+            blurRadius: 15,
+            offset: Offset(0, -5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with gradient
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(16),
@@ -306,29 +297,47 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: isDarkMode 
-                  ? [Color(0xFF1E3A38), Color(0xFF102423)] 
-                  : [Color(0xFFE0F2F1), Color(0xFFB2DFDB)],
+                colors: [primaryBlue, lightBlue],
               ),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
               ),
             ),
-            child: Text(
-              'Your Question',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: isSmallScreen ? 16 : 18,
-              ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.help_outline,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Your Question',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-          // Question text
           Padding(
             padding: EdgeInsets.all(16),
             child: Text(
               widget.query,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: isSmallScreen ? 14 : 16,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+                height: 1.4,
               ),
             ),
           ),
@@ -338,8 +347,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildResultsContainer() {
-    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -350,7 +357,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
           onVerseSelected: _navigateToVerse,
-          isDarkMode: isDarkMode,
         ),
         SizedBox(height: 16),
         HadithSection(
@@ -358,58 +364,52 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           hadiths: _hadiths,
           openAiService: widget.openAiService,
           firestoreService: widget.firestoreService,
-          isDarkMode: isDarkMode,
         ),
       ],
     );
   }
   
   Widget _buildErrorContainer() {
-    final theme = Theme.of(context);
-    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    
     return Center(
       child: Container(
         margin: EdgeInsets.all(20),
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDarkMode ? Color(0xFF331111) : Color(0xFFFFEBEE),
+          color: Colors.red[50],
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red[200]!),
           boxShadow: [
             BoxShadow(
-              color: isDarkMode 
-                ? Colors.black26 
-                : Colors.black.withOpacity(0.05),
+              color: Colors.red.withOpacity(0.1),
               blurRadius: 8,
               offset: Offset(0, 2),
             ),
           ],
-          border: Border.all(
-            color: isDarkMode ? Colors.redAccent.shade700 : Colors.redAccent.shade100,
-            width: 1,
-          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.error_outline,
-              color: isDarkMode ? Colors.redAccent.shade200 : Colors.redAccent,
+              color: Colors.red[600],
               size: 48,
             ),
             SizedBox(height: 16),
             Text(
               'Error Occurred',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: isDarkMode ? Colors.redAccent.shade200 : Colors.redAccent,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[700],
               ),
             ),
             SizedBox(height: 8),
             Text(
               _error ?? 'An unknown error occurred',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDarkMode ? theme.textTheme.bodyMedium?.color : Colors.red.shade900,
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 14,
               ),
             ),
           ],

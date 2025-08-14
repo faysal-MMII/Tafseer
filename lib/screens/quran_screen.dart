@@ -23,13 +23,20 @@ class _QuranScreenState extends State<QuranScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ItemScrollController itemScrollController = ItemScrollController();
   final ItemPositionsListener itemPositionsListener = ItemPositionsListener.create();
-  final ScrollController _surahListController = ScrollController(); // Added ScrollController
+  final ScrollController _surahListController = ScrollController();
   List<dynamic>? _selectedSurahVerses;
   bool _isLoading = false;
   String? _error;
   List<Map<String, dynamic>> _surahs = [];
   List<Map<String, dynamic>> _filteredSurahs = [];
   int? _highlightedVerse;
+
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
 
   @override
   void initState() {
@@ -46,9 +53,7 @@ class _QuranScreenState extends State<QuranScreen> {
             _selectedSurahVerses = targetSurah['verses'];
           });
 
-          // For mobile devices
           if (MediaQuery.of(context).size.width < 600) {
-            // Add a small delay to ensure the UI is ready
             Future.delayed(Duration(milliseconds: 100), () {
               Navigator.push(
                 context,
@@ -63,15 +68,13 @@ class _QuranScreenState extends State<QuranScreen> {
               );
             });
           } else {
-            // For desktop/tablets
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Scroll to the selected surah in the sidebar
               int surahIndex = _filteredSurahs.indexWhere((s) => s['chapter'] == widget.initialSurah);
               if (surahIndex >= 0) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_surahListController.hasClients) {
                     _surahListController.animateTo(
-                      surahIndex * 56.0, // Approximate height of a ListTile
+                      surahIndex * 56.0,
                       duration: Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
@@ -79,7 +82,6 @@ class _QuranScreenState extends State<QuranScreen> {
                 });
               }
 
-              // Scroll to the specific verse
               if (widget.initialVerse != null) {
                 _scrollToVerse(widget.initialVerse!);
               }
@@ -192,27 +194,24 @@ class _QuranScreenState extends State<QuranScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final accentColor = isDark ? Colors.cyanAccent : Color(0xFF2D5F7C);
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF121212) : Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
           'Quran', 
-          style: Theme.of(context).appBarTheme.titleTextStyle,
+          style: TextStyle(color: Colors.black87),
         ),
-        iconTheme: IconThemeData(color: accentColor),
+        iconTheme: IconThemeData(color: primaryBlue),
       ),
       body: _isLoading
         ? Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+              valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
             ),
           )
         : _error != null
@@ -226,15 +225,15 @@ class _QuranScreenState extends State<QuranScreen> {
             ? Column(
                 children: [
                   Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: _buildSearchField(isDark, accentColor),
+                    padding: EdgeInsets.all(16.0),
+                    child: _buildSearchField(),
                   ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: _filteredSurahs.length,
                       itemBuilder: (context, index) {
                         final surah = _filteredSurahs[index];
-                        return _buildSurahListTile(surah, isDark, accentColor);
+                        return _buildSurahListTile(surah);
                       },
                     ),
                   ),
@@ -245,17 +244,16 @@ class _QuranScreenState extends State<QuranScreen> {
                   Container(
                     width: 200,
                     decoration: BoxDecoration(
+                      color: cardColor.withOpacity(0.8),
                       border: Border(
-                        right: BorderSide(
-                          color: isDark ? Colors.grey[800]! : Colors.grey.shade300,
-                        ),
+                        right: BorderSide(color: softAccent.withOpacity(0.5), width: 1),
                       ),
                     ),
                     child: Column(
                       children: [
                         Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: _buildSearchField(isDark, accentColor),
+                          padding: EdgeInsets.all(16.0),
+                          child: _buildSearchField(),
                         ),
                         Expanded(
                           child: ListView.builder(
@@ -263,7 +261,7 @@ class _QuranScreenState extends State<QuranScreen> {
                             itemCount: _filteredSurahs.length,
                             itemBuilder: (context, index) {
                               final surah = _filteredSurahs[index];
-                              return _buildSurahListTile(surah, isDark, accentColor);
+                              return _buildSurahListTile(surah);
                             },
                           ),
                         ),
@@ -271,112 +269,112 @@ class _QuranScreenState extends State<QuranScreen> {
                     ),
                   ),
                   Expanded(
-                    child: _selectedSurahVerses == null
-                      ? Center(
-                          child: Text(
-                            'Select a surah',
-                            style: TextStyle(
-                              color: isDark ? Colors.white70 : Colors.grey[700],
+                    child: Container(
+                      color: backgroundColor,
+                      child: _selectedSurahVerses == null
+                        ? Center(
+                            child: Text(
+                              'Select a surah',
+                              style: TextStyle(color: Colors.grey[700]),
                             ),
+                          )
+                        : ScrollablePositionedList.builder(
+                            itemScrollController: itemScrollController,
+                            itemPositionsListener: itemPositionsListener,
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            itemCount: _selectedSurahVerses!.length,
+                            itemBuilder: (context, index) {
+                              final verse = _selectedSurahVerses![index] as Map<String, dynamic>;
+                              final verseNumber = verse['verse'] as int;
+                              final isHighlighted = _highlightedVerse == verseNumber;
+                              return _buildVerseItem(verse, isHighlighted);
+                            },
                           ),
-                        )
-                      : ScrollablePositionedList.builder(
-                          itemScrollController: itemScrollController,
-                          itemPositionsListener: itemPositionsListener,
-                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          itemCount: _selectedSurahVerses!.length,
-                          itemBuilder: (context, index) {
-                            final verse = _selectedSurahVerses![index] as Map<String, dynamic>;
-                            final verseNumber = verse['verse'] as int;
-                            final isHighlighted = _highlightedVerse == verseNumber;
-                            return _buildVerseItem(verse, isHighlighted, isDark, accentColor);
-                          },
-                        ),
+                    ),
                   ),
                 ],
               ),
     );
   }
 
-  Widget _buildSearchField(bool isDark, Color accentColor) {
-    return TextField(
-      controller: _searchController,
-      style: TextStyle(
-        color: isDark ? Colors.white : Colors.black87,
-      ),
-      decoration: InputDecoration(
-        hintText: 'Search Surahs...',
-        hintStyle: TextStyle(
-          color: isDark ? Colors.white54 : Colors.black54,
-        ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: accentColor,
-        ),
-        fillColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
-        filled: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: softAccent.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accentColor),
-        ),
+        ],
       ),
-      onChanged: _filterSurahs,
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: Colors.black87),
+        decoration: InputDecoration(
+          hintText: 'Search Surahs...',
+          hintStyle: TextStyle(color: Colors.black54),
+          prefixIcon: Icon(Icons.search, color: primaryBlue),
+          fillColor: backgroundColor,
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        onChanged: _filterSurahs,
+      ),
     );
   }
 
-  Widget _buildSurahListTile(Map<String, dynamic> surah, bool isDark, Color accentColor) {
+  Widget _buildSurahListTile(Map<String, dynamic> surah) {
     final isSelected = _selectedSurahVerses == surah['verses'];
     
-    return ListTile(
-      selected: isSelected,
-      title: Text(
-        'Surah ${surah['chapter']}: ${surah['name']}',
-        style: TextStyle(
-          color: isSelected 
-            ? accentColor 
-            : (isDark ? Colors.white : Colors.black87),
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      onTap: () {
-        setState(() => _selectedSurahVerses = surah['verses']);
-        
-        // If on mobile, navigate to detail screen
-        if (MediaQuery.of(context).size.width < 600) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => QuranDetailScreen(
-                surahNumber: surah['chapter'],
-                surahName: surah['name'],
-                verses: surah['verses'],
-              ),
-            ),
-          );
-        }
-      },
-      tileColor: isSelected 
-        ? (isDark ? Color(0xFF252525) : Color(0xFFE0F2F1)) 
-        : Colors.transparent,
-      shape: RoundedRectangleBorder(
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected ? cardColor.withOpacity(0.9) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
+        border: isSelected 
+          ? Border.all(color: primaryBlue.withOpacity(0.5), width: 1)
+          : null,
+      ),
+      child: ListTile(
+        title: Text(
+          'Surah ${surah['chapter']}: ${surah['name']}',
+          style: TextStyle(
+            color: isSelected ? primaryBlue : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        onTap: () {
+          setState(() => _selectedSurahVerses = surah['verses']);
+          
+          if (MediaQuery.of(context).size.width < 600) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => QuranDetailScreen(
+                  surahNumber: surah['chapter'],
+                  surahName: surah['name'],
+                  verses: surah['verses'],
+                ),
+              ),
+            );
+          }
+        },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
 
-  Widget _buildVerseItem(Map<String, dynamic> verse, bool isHighlighted, bool isDark, Color accentColor) {
+  Widget _buildVerseItem(Map<String, dynamic> verse, bool isHighlighted) {
     return Padding(
       padding: EdgeInsets.only(bottom: 16),
       child: Container(
@@ -384,20 +382,21 @@ class _QuranScreenState extends State<QuranScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: isHighlighted 
-            ? (isDark ? Color(0xFF3A3000) : Colors.amber[100]) 
-            : (isDark ? Color(0xFF1E1E1E) : Colors.white),
+            ? Colors.amber[100] 
+            : cardColor.withOpacity(0.8),
+          border: Border.all(
+            color: isHighlighted 
+              ? Colors.amber 
+              : cardColor.withOpacity(0.5),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: isDark 
-                ? Colors.black.withOpacity(0.4) 
-                : Colors.black.withOpacity(0.05),
-              blurRadius: isDark ? 8 : 5,
+              color: primaryBlue.withOpacity(0.1),
+              blurRadius: 8,
               offset: Offset(0, 2),
             ),
           ],
-          border: isDark 
-            ? Border.all(color: Colors.grey[800]!, width: 1) 
-            : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +404,7 @@ class _QuranScreenState extends State<QuranScreen> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.15),
+                color: primaryBlue.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -413,7 +412,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: accentColor,
+                  color: primaryBlue,
                 ),
               ),
             ),
@@ -423,7 +422,7 @@ class _QuranScreenState extends State<QuranScreen> {
               style: TextStyle(
                 height: 1.5,
                 fontSize: 16,
-                color: isDark ? Colors.white70 : Colors.black87,
+                color: Colors.black87,
               ),
             ),
             SizedBox(height: 16),
@@ -435,7 +434,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   fontFamily: 'Scheherazade',
                   fontSize: 20,
                   height: 1.5,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: Colors.black87,
                 ),
                 textAlign: TextAlign.right,
               ),

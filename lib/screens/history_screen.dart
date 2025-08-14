@@ -4,8 +4,8 @@ import '../services/firestore_service.dart';
 import '../theme/text_styles.dart';
 import '../models/hadith.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/deviceid_service.dart'; // Import the DeviceIDService
-import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // Import Firebase Crashlytics
+import '../services/deviceid_service.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -31,10 +31,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _searchQuery = '';
   final ScrollController _scrollController = ScrollController();
 
+  // MATCHING HOME SCREEN COLORS
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
+
   @override
   void initState() {
     super.initState();
-    _diagnoseProblem(); // Call the diagnostic function
+    _diagnoseProblem();
     _loadMoreData();
     _scrollController.addListener(_onScroll);
   }
@@ -60,11 +67,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
 
     try {
-      // Get the device ID instead of user ID
       final String deviceId = await DeviceIDService.getDeviceID();
       print('Loading history for device: $deviceId');
 
-      // Query only this device's history
       Query query = FirebaseFirestore.instance
           .collection('qa_history')
           .where('deviceId', isEqualTo: deviceId);
@@ -75,7 +80,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       print('Added ordering by timestamp');
 
       if (_searchQuery.isNotEmpty) {
-        // Apply similarity search
         query = query.where('searchableTerms', arrayContains: _searchQuery.toLowerCase());
         print('Added search filter: $_searchQuery');
       }
@@ -119,7 +123,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final deviceId = await DeviceIDService.getDeviceID();
       FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Device ID: $deviceId");
       
-      // Check if collection exists
       final snapshot = await FirebaseFirestore.instance
           .collection('qa_history')
           .limit(1)
@@ -127,7 +130,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       
       FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Collection exists: ${snapshot.docs.isNotEmpty}");
       
-      // Try device ID query
       final deviceSnapshot = await FirebaseFirestore.instance
           .collection('qa_history')
           .where('deviceId', isEqualTo: deviceId)
@@ -146,27 +148,64 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _clearAllHistory() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange[600]),
+            SizedBox(width: 12),
+            Text(
+              'Clear History',
+              style: TextStyle(color: Colors.black87),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete all search history? This action cannot be undone.',
+          style: TextStyle(color: Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.black54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[600],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performClearHistory();
+            },
+            child: Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performClearHistory() async {
     try {
       final String deviceId = await DeviceIDService.getDeviceID();
 
-      // Get all documents for this device
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('qa_history')
           .where('deviceId', isEqualTo: deviceId)
           .get();
 
-      // Create a batch to delete multiple documents efficiently
       final WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      // Add each document to the batch deletion
       for (var doc in snapshot.docs) {
         batch.delete(doc.reference);
       }
 
-      // Commit the batch
       await batch.commit();
 
-      // Update local state if needed
       setState(() {
         _documents.clear();
         _lastDocument = null;
@@ -174,11 +213,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All history cleared')),
+        SnackBar(
+          content: Text('All history cleared'),
+          backgroundColor: primaryBlue,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error clearing history: $e')),
+        SnackBar(
+          content: Text('Error clearing history: $e'),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -204,11 +251,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entry deleted')),
+        SnackBar(
+          content: Text('Entry deleted'),
+          backgroundColor: primaryBlue,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting entry: $e')),
+        SnackBar(
+          content: Text('Error deleting entry: $e'),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -223,26 +278,84 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadMoreData();
   }
 
+  // FIXED: Proper verse extraction that handles the actual data structure
+  List<String> _extractQuranVerses(dynamic data) {
+    if (data == null) return [];
+    
+    List<String> verses = [];
+    
+    if (data is List) {
+      for (var item in data) {
+        if (item == null) continue;
+        
+        String verseText = '';
+        String reference = '';
+        
+        if (item is Map<String, dynamic>) {
+          // Handle structured verse data
+          if (item.containsKey('text')) {
+            verseText = item['text']?.toString() ?? '';
+          } else if (item.containsKey('translations') && item['translations'] is List && item['translations'].isNotEmpty) {
+            verseText = item['translations'][0]['text']?.toString() ?? '';
+          }
+          
+          if (item.containsKey('verse_key')) {
+            reference = item['verse_key']?.toString() ?? '';
+          } else if (item.containsKey('reference')) {
+            reference = item['reference']?.toString() ?? '';
+          }
+          
+          if (verseText.isNotEmpty && reference.isNotEmpty) {
+            verses.add('$reference'); // Just show the reference like "2:255"
+          } else if (reference.isNotEmpty) {
+            verses.add(reference);
+          }
+        } else if (item is String && item.isNotEmpty) {
+          // Handle string data - extract reference from parentheses
+          final regex = RegExp(r'\(([^)]+)\)$');
+          final match = regex.firstMatch(item);
+          if (match != null && match.group(1) != null && match.group(1) != 'null') {
+            verses.add(match.group(1)!); // Extract "2:255" from "(2:255)"
+          } else if (!item.contains('null')) {
+            // If it's a clean string without null, use it
+            verses.add(item);
+          }
+        }
+      }
+    }
+    
+    return verses.where((v) => v.isNotEmpty && !v.contains('null')).toList();
+  }
+
+  // FIXED: Better hadith processing
+  List<Map<String, dynamic>> _extractHadiths(dynamic data) {
+    if (data == null || data is! List) return [];
+    
+    return (data as List).where((item) => item != null).map((item) {
+      if (item is Map<String, dynamic>) {
+        return item;
+      } else if (item is String && item.isNotEmpty && !item.contains('null')) {
+        return {'text': item};
+      }
+      return null;
+    }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final theme = Theme.of(context);
-    final accentColor = isDark ? Colors.cyanAccent : Color(0xFF2D5F7C);
-    
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF121212) : Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
           'Search History', 
-          style: theme.appBarTheme.titleTextStyle,
+          style: TextStyle(color: Colors.black87),
         ),
-        iconTheme: IconThemeData(color: accentColor),
+        iconTheme: IconThemeData(color: primaryBlue),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete_forever, color: accentColor),
+            icon: Icon(Icons.delete_forever, color: primaryBlue),
             onPressed: _clearAllHistory,
             tooltip: 'Clear all history',
           ),
@@ -250,54 +363,117 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: widget.firestoreService == null
         ? Center(
-            child: Text(
-              'History not available offline',
-              style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+            child: Container(
+              margin: EdgeInsets.all(20),
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardColor.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: cardColor.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cloud_off,
+                    color: Colors.grey[600],
+                    size: 48,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'History not available offline',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           )
         : SafeArea(
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                // Search Field
+                Container(
+                  margin: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFf0f9ff), Color(0xFFe0f2fe)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: softAccent.withOpacity(0.3)),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 10,
+                        color: Colors.black.withOpacity(0.05),
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    style: TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
                       hintText: 'Search history...',
-                      hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                      prefixIcon: Icon(Icons.search, color: accentColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: accentColor),
-                      ),
-                      filled: true,
-                      fillColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: primaryBlue),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(18),
                     ),
                     onChanged: _onSearchChanged,
                   ),
                 ),
                 Expanded(
                   child: RefreshIndicator(
-                    color: accentColor,
+                    color: primaryBlue,
                     onRefresh: _refresh,
                     child: _documents.isEmpty && !_isLoading
                       ? Center(
-                          child: Text(
-                            'No search history yet',
-                            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+                          child: Container(
+                            margin: EdgeInsets.all(20),
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardColor.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: cardColor.withOpacity(0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  color: Colors.grey[600],
+                                  size: 48,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No search history yet',
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Your previous searches will appear here',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 14,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       : ListView.builder(
@@ -307,8 +483,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           itemBuilder: (context, index) {
                             if (index == _documents.length) {
                               return Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                                  ),
                                 ),
                               );
                             }
@@ -318,17 +497,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             return Dismissible(
                               key: Key(doc.id),
                               background: Container(
-                                color: Colors.red,
+                                margin: EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[400],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 16),
+                                padding: const EdgeInsets.only(right: 20),
                                 child: const Icon(
                                   Icons.delete,
                                   color: Colors.white,
+                                  size: 28,
                                 ),
                               ),
                               direction: DismissDirection.endToStart,
                               onDismissed: (_) => _deleteEntry(doc),
-                              child: _buildHistoryCard(data, isDark, accentColor),
+                              child: _buildHistoryCard(data),
                             );
                           },
                         ),
@@ -340,145 +524,196 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildHistoryCard(Map<String, dynamic> data, bool isDark, Color accentColor) {
+  Widget _buildHistoryCard(Map<String, dynamic> data) {
     final question = data['question'] as String? ?? '';
     final answer = data['answer'] as String? ?? '';
 
-    // Handle different data types for quranVerses
-    List<String> quranVerses = [];
-    if (data['quranVerses'] is List) {
-      quranVerses = List<String>.from(
-        (data['quranVerses'] as List).map((item) {
-          // Handle if item is a Map or a String
-          if (item is Map) {
-            return item.toString(); // Convert Map to String
-          } else {
-            return item.toString(); // Already a String or convertible
-          }
-        })
-      );
-    }
-
-    // Handle different data types for hadiths
-    List<Map<String, dynamic>> hadiths = [];
-    if (data['hadiths'] is List) {
-      hadiths = (data['hadiths'] as List).map((item) {
-        if (item is Map<String, dynamic>) {
-          return item; // Already a Map
-        } else if (item is String) {
-          // Create a Map with the String as 'text'
-          return {'text': item};
-        } else {
-          // Fall back to empty Map with empty text
-          return {'text': ''};
-        }
-      }).toList().cast<Map<String, dynamic>>();
-    }
+    // FIXED: Use the new extraction methods
+    final quranVerses = _extractQuranVerses(data['quranVerses']);
+    final hadiths = _extractHadiths(data['hadiths']);
 
     final timestamp = data['timestamp'] as Timestamp?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1E1E1E) : Colors.white,
+        color: cardColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: cardColor.withOpacity(0.5),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.2),
-            spreadRadius: 0,
-            blurRadius: isDark ? 8 : 6,
-            offset: const Offset(0, 3),
+            color: primaryBlue.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
-        border: isDark 
-          ? Border.all(color: Colors.grey[800]!, width: 1) 
-          : null,
       ),
-      child: ExpansionTile(
-        collapsedBackgroundColor: Colors.transparent,
-        backgroundColor: Colors.transparent,
-        collapsedIconColor: accentColor,
-        iconColor: accentColor,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              question,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            if (timestamp != null)
-              Text(
-                _formatTimestamp(timestamp),
-                style: TextStyle(
-                  color: isDark ? Colors.white54 : Colors.grey,
-                  fontSize: 12,
-                ),
-              ),
-          ],
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          expansionTileTheme: ExpansionTileThemeData(
+            backgroundColor: Colors.transparent,
+            collapsedBackgroundColor: Colors.transparent,
+            iconColor: primaryBlue,
+            collapsedIconColor: primaryBlue,
+          ),
         ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+        child: ExpansionTile(
+          title: Container(
+            padding: EdgeInsets.symmetric(vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Answer:',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  answer, 
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87
-                  ),
-                ),
-                if (quranVerses.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Quran Verses:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryBlue.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.help_outline,
+                        color: primaryBlue,
+                        size: 16,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...quranVerses.map((verse) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(verse, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
-                      )),
-                ],
-                if (hadiths.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Hadiths:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...hadiths.map((hadith) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          hadith['text'] ?? '',
-                          style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        question,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          fontSize: 15,
                         ),
-                      )),
+                      ),
+                    ),
+                  ],
+                ),
+                if (timestamp != null) ...[
+                  SizedBox(height: 8),
+                  Text(
+                    _formatTimestamp(timestamp),
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
-        ],
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: softAccent.withOpacity(0.5)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.lightbulb_outline, color: primaryBlue, size: 16),
+                            SizedBox(width: 8),
+                            Text(
+                              'Answer:',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: primaryBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          answer, 
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (quranVerses.isNotEmpty) ...[
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.menu_book, color: primaryBlue, size: 16),
+                        SizedBox(width: 8),
+                        Text('Quran Verses:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryBlue)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: quranVerses.map((ref) => Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: primaryBlue.withOpacity(0.3)),
+                        ),
+                        child: Text(ref, style: TextStyle(color: primaryBlue, fontSize: 12)),
+                      )).toList(),
+                    ),
+                  ],
+                  if (hadiths.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.format_quote, color: primaryBlue, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Hadiths:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...hadiths.map((hadith) => Container(
+                      margin: EdgeInsets.only(bottom: 8),
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: backgroundColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Text(
+                        hadith['text'] ?? '',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
+                      ),
+                    )),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

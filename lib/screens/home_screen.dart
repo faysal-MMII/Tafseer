@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Import the flutter_svg package
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
@@ -9,8 +11,8 @@ import '../services/prayer_time_service.dart';
 import '../services/qibla_service.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/islamic_fun_fact.dart';
-import '../widgets/faq_section.dart';
 import '../widgets/quran_section.dart';
+import '../widgets/animations.dart';
 import '../theme/text_styles.dart';
 import '../theme/theme_provider.dart';
 import 'search_results_screen.dart';
@@ -18,7 +20,9 @@ import 'quran_screen.dart';
 import 'hadith_screen.dart';
 import 'history_screen.dart';
 import 'islamic_tools_screen.dart';
+import 'info_screen.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
@@ -42,8 +46,8 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+  int _currentIndex = 2;
   final TextEditingController _controller = TextEditingController();
   String? currentQuery;
   String _aiResponse = '';
@@ -51,11 +55,84 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showResults = false;
   bool _isLoading = false;
   String? _error;
+  bool _isExpanded = false;
+  bool _isScrolling = false;
+  late AnimationController _fabAnimationController;
+  late AnimationController _scrollAnimationController;
+  late AnimationController _overlayAnimationController;
+  late Animation<double> _fabAnimation;
+  late Animation<double> _navOpacity;
+  late Animation<double> _overlayAnimation;
+  final ScrollController _scrollController = ScrollController();
+  bool _isKeyboardVisible = false;
+
+  static const Color primaryBlue = Color(0xFF4A90E2);
+  static const Color lightBlue = Color(0xFF81B3D2);
+  static const Color backgroundColor = Colors.white;
+  static const Color cardColor = Color(0xFFF0F7FF);
+  static const Color softAccent = Color(0xFFA4D4F5);
 
   @override
   void initState() {
     super.initState();
     _logScreenView();
+    WidgetsBinding.instance.addObserver(this);
+    
+    _fabAnimationController = AnimationController(
+      duration: Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _scrollAnimationController = AnimationController(
+      duration: Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _overlayAnimationController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeOutBack),
+    );
+    
+    _navOpacity = Tween<double>(begin: 1.0, end: 0.7).animate(
+      CurvedAnimation(parent: _scrollAnimationController, curve: Curves.easeInOut),
+    );
+
+    _overlayAnimation = Tween<double>(begin: 0.0, end: 0.6).animate(
+      CurvedAnimation(parent: _overlayAnimationController, curve: Curves.easeInOut),
+    );
+
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.offset > 50 && !_isScrolling) {
+      setState(() => _isScrolling = true);
+      _scrollAnimationController.forward();
+    } else if (_scrollController.offset <= 50 && _isScrolling) {
+      setState(() => _isScrolling = false);
+      _scrollAnimationController.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller.dispose();
+    _fabAnimationController.dispose();
+    _scrollAnimationController.dispose();
+    _overlayAnimationController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    setState(() {
+      _isKeyboardVisible = bottomInset > 0;
+    });
   }
 
   Future<void> _logScreenView() async {
@@ -65,16 +142,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   Future<void> _askQuestion(String query) async {
     if (query.isEmpty) return;
 
-    // Log the question being asked
     widget.analyticsService?.logQuestionAsked('Home Screen Question');
     widget.analyticsService?.logEvent(
       name: 'search_initiated',
@@ -88,8 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
     Future.delayed(Duration.zero, () async {
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => SearchResultsScreen(
+        SlidePageRoute(
+          child: SearchResultsScreen(
             query: query,
             openAiService: widget.openAiService,
             analyticsService: widget.analyticsService,
@@ -99,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final operationDuration = DateTime.now().difference(loadingStartTime);
 
-      // Log completion of the search
       widget.analyticsService?.logEvent(
         name: 'search_completed',
         parameters: {
@@ -107,275 +176,82 @@ class _HomeScreenState extends State<HomeScreen> {
           'duration_ms': operationDuration.inMilliseconds,
         },
       );
-
-      if (operationDuration < Duration(milliseconds: 500)) {
-        await Future.delayed(Duration(milliseconds: 500) - operationDuration);
-      }
     });
+  }
+
+  void _toggleFAB() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+    
+    if (_isExpanded) {
+      _fabAnimationController.forward();
+      _overlayAnimationController.forward();
+    } else {
+      _fabAnimationController.reverse();
+      _overlayAnimationController.reverse();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = widget.firestoreService;
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
     return Scaffold(
-      backgroundColor: isDarkMode ? Color(0xFF121212) : Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        toolbarHeight: 70,
-        backgroundColor: isDarkMode ? Color(0xFF001333) : Colors.white,
-        title: SizedBox(
-          width: double.infinity,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              // Home Button
-              Expanded(
-                child: TextButton(
-                  onPressed: () => setState(() => _currentIndex = 0),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.home, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
-                      Text(
-                        'Home',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+      backgroundColor: backgroundColor,
+      extendBody: true,
+      body: Stack(
+        children: [
+          _buildMainContent(context),
+          AnimatedBuilder(
+            animation: _overlayAnimation,
+            builder: (context, child) {
+              return _overlayAnimation.value > 0
+                  ? GestureDetector(
+                      onTap: _toggleFAB,
+                      child: Container(
+                        color: Colors.black.withOpacity(_overlayAnimation.value),
+                        child: SizedBox.expand(),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              // Islamic Tools Button (Updated)
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.analyticsService?.logFeatureUsed('islamic_tools_screen');
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(
-                        builder: (context) => IslamicToolsScreen(
-                          prayerTimeService: widget.prayerTimeService,
-                          qiblaService: widget.qiblaService,
-                          analyticsService: widget.analyticsService,
-                        )
-                      )
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Replace the FontAwesome icon with your custom SVG image
-                      SizedBox(
-                        height: 20, // Match the current icon size
-                        width: 20,
-                        child: SvgPicture.asset(
-                          'assets/icon/compass_needle.svg', // Use the SVG file
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], // Apply the same color treatment
-                        ),
-                      ),
-                      Text(
-                        'Tools',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Quran Button
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.analyticsService?.logFeatureUsed('quran_screen');
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => QuranScreen()));
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(FontAwesomeIcons.bookQuran, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
-                      Text(
-                        'Quran',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Hadith Button
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.analyticsService?.logFeatureUsed('hadith_screen');
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => HadithScreen()));
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(FontAwesomeIcons.bookOpen, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
-                      Text(
-                        'Hadith',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // History Button
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.analyticsService?.logFeatureUsed('history_screen');
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen(firestoreService: firestoreService)));
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.history, color: isDarkMode ? Colors.white70 : Colors.blueGrey[800], size: 20),
-                      Text(
-                        'History',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.blueGrey[800],
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                    )
+                  : SizedBox.shrink();
+            },
           ),
-        ),
+        ],
       ),
-      body: _buildMainContent(context),
+      bottomNavigationBar: _buildBottomNavigation(),
+      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
   Widget _buildMainContent(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    return ResponsiveLayout(
-      child: Container(
-        color: isDarkMode ? Color(0xFF001333) : Theme.of(context).scaffoldBackgroundColor,
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+      ),
+      child: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(8, 16, 8, 100),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title and Theme Toggle
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Tafseer',
-                      style: TextStyle(
-                        fontSize: 44,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    // Theme toggle button
-                    Consumer<ThemeProvider>(
-                      builder: (context, themeProvider, _) {
-                        return IconButton(
-                          icon: AnimatedSwitcher(
-                            duration: Duration(milliseconds: 300),
-                            child: Icon(
-                              key: ValueKey<bool>(themeProvider.isDarkMode),
-                              themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                              color: themeProvider.isDarkMode ? Color(0xFF1F9881) : Color(0xFF2D5F7C),
-                            ),
-                          ),
-                          onPressed: () {
-                            themeProvider.toggleTheme();
-                          },
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Rest of the content...
-              SizedBox(height: 24),
-              
-              // Fun fact card
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16),
-                decoration: themeProvider.getCardDecoration(context),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: IslamicFunFact(),
-                ),
+              StaggeredAnimationWrapper(
+                delay: 100,
+                child: _buildHeader(),
               ),
               
               SizedBox(height: 24),
               
-              // Search box
-              _buildQuestionInput(context, themeProvider),
+              StaggeredAnimationWrapper(
+                delay: 200,
+                child: IslamicFunFact(),
+              ),
               
               SizedBox(height: 24),
               
-              // FAQ section
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16),
-                decoration: themeProvider.getCardDecoration(context),
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Frequently Asked Questions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    SizedBox(height: 16),
-                    FAQSection(),
-                  ],
-                ),
+              StaggeredAnimationWrapper(
+                delay: 300,
+                child: _buildSearchSection(),
               ),
               
               SizedBox(height: 20),
@@ -392,86 +268,112 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuestionInput(BuildContext context, ThemeProvider themeProvider) {
-    final isDark = themeProvider.isDarkMode;
-    final accentColor = isDark ? Color(0xFF81B3D2) : Colors.blueGrey[800];
-  
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [primaryBlue, lightBlue],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isDark 
-              ? [Color(0xFF0E2552), Color(0xFF0A1F4C)] // Updated to blue shades
-              : [Colors.white, Color(0xFFF0F0F0)],
+          ).createShader(bounds),
+          child: Text(
+            'Tafseer',
+            style: GoogleFonts.poppins(
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -1.5,
+              height: 1.1,
+            ),
           ),
-          borderRadius: BorderRadius.circular(24),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Islamic Knowledge & Guidance',
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 30,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Container(
+        constraints: BoxConstraints(minHeight: 48, maxHeight: 120),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black.withOpacity(0.3) : Color(0xFFD1D1D1),
-              offset: Offset(3, 3),
-              blurRadius: 6,
-            ),
-            BoxShadow(
-              color: isDark ? Color(0xFF001333) : Colors.white,
-              offset: Offset(-3, -3),
-              blurRadius: 6,
+              blurRadius: 8,
+              color: Colors.black.withOpacity(0.1),
+              offset: Offset(0, 2),
             ),
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Text input
             Expanded(
               child: TextField(
                 controller: _controller,
                 decoration: InputDecoration(
                   hintText: 'Salam alaykum...Seek answers to your questions here....',
-                  contentPadding: EdgeInsets.fromLTRB(16, 16, 8, 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   border: InputBorder.none,
-                  hintStyle: TextStyle(
-                    color: isDark 
-                      ? Colors.grey.withOpacity(0.7) 
-                      : Colors.blueGrey.withOpacity(0.7),
+                  hintStyle: GoogleFonts.poppins(
+                    color: Colors.grey[500], 
                     fontSize: 14,
                   ),
                 ),
-                style: AppTextStyles.englishText.copyWith(
-                  color: isDark ? Color(0xFFE0E0E0) : Color(0xFF333333),
-                  fontSize: 14,
+                style: GoogleFonts.poppins(
+                  color: Colors.black87, 
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w500,
                 ),
+                maxLines: null,
                 minLines: 1,
-                maxLines: 6,
-                textAlignVertical: TextAlignVertical.center,
               ),
             ),
-            // Send button centered vertically
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Material(
-                color: accentColor,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    final text = _controller.text.trim();
-                    if (text.isNotEmpty) {
-                      _askQuestion(text);
-                      _controller.clear();
-                    }
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      FontAwesomeIcons.magnifyingGlass,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
+            Container(
+              margin: EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [primaryBlue, lightBlue]),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(Icons.search, color: Colors.white, size: 20),
+                onPressed: () {
+                  final text = _controller.text.trim();
+                  if (text.isNotEmpty) {
+                    _askQuestion(text);
+                    _controller.clear();
+                  }
+                },
+                constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: EdgeInsets.zero,
               ),
             ),
           ],
@@ -480,32 +382,251 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildBottomNavigation() {
+    return SizedBox.shrink();
+  }
+
+  Widget _buildFloatingActionButton() {
+    if (_isKeyboardVisible) {
+      return SizedBox.shrink();
+    }
+    
+    return Stack(
+      children: [
+        Positioned(
+          bottom: 24,
+          left: 54,
+          child: _buildMatchingInfoFAB(),
+        ),
+        Positioned(
+          bottom: 24,
+          right: 24,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isExpanded)
+                Container(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = 3; i >= 0; i--) ...[
+                        AnimatedBuilder(
+                          animation: _fabAnimation,
+                          builder: (context, child) {
+                            final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
+                            final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
+                            
+                            return Transform.scale(
+                              scale: scale,
+                              child: Opacity(
+                                opacity: opacity,
+                                child: _buildGlassmorphicButton(
+                                  [FontAwesomeIcons.bookQuran, Icons.history, FontAwesomeIcons.bookOpen, Icons.explore][i],
+                                  ['QURAN', 'HISTORY', 'HADITH', 'TOOLS'][i],
+                                  i,
+                                  [
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, SlidePageRoute(child: QuranScreen()));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, SlidePageRoute(
+                                        child: HistoryScreen(firestoreService: widget.firestoreService),
+                                        begin: Offset(-1.0, 0.0),
+                                      ));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, ScalePageRoute(child: HadithScreen()));
+                                    },
+                                    () {
+                                      _toggleFAB();
+                                      Navigator.push(context, HeroPageRoute(
+                                        child: IslamicToolsScreen(
+                                          prayerTimeService: widget.prayerTimeService,
+                                          qiblaService: widget.qiblaService,
+                                          analyticsService: widget.analyticsService,
+                                        ),
+                                      ));
+                                    },
+                                  ][i],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        if (i > 0) SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+              
+              SizedBox(height: 20),
+              
+              ModernKaabaFAB(
+                isExpanded: _isExpanded,
+                onPressed: _toggleFAB,
+                backgroundColor: primaryBlue,
+                size: 56,
+                child: Text('🕋', style: TextStyle(fontSize: 20)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatchingInfoFAB() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => InfoScreen()),
+        );
+      },
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: primaryBlue.withOpacity(0.9),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: primaryBlue.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Icon(
+            Icons.info_outline,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassmorphicButton(IconData icon, String label, int index, VoidCallback onTap) {
+    final List<Color> buttonColors = [
+      Color(0xFF00E676),
+      Color(0xFFFF9800),
+      Color(0xFF2196F3),
+      Color(0xFFE91E63),
+    ];
+    
+    final Color buttonColor = buttonColors[index];
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            child: Text(
+              label,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.8),
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          SizedBox(width: 12),
+          
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: buttonColor,
+                size: 16,
+                weight: 700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuranicEvidenceSection() {
-    return QuranSectionAdapter(
-      query: currentQuery,
-      answer: _aiResponse,
-      verses: _quranVerses,
-      openAiService: widget.openAiService,
-      firestoreService: widget.firestoreService,
+    return Container(
+      margin: EdgeInsets.only(top: 16),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: QuranSectionAdapter(
+        query: currentQuery,
+        answer: _aiResponse,
+        verses: _quranVerses,
+        openAiService: widget.openAiService,
+        firestoreService: widget.firestoreService,
+      ),
     );
   }
 
   Widget _buildErrorBox() {
     return Container(
-      padding: const EdgeInsets.all(15),
+      margin: EdgeInsets.only(top: 16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFADBD8),
-        borderRadius: BorderRadius.circular(8),
-        border: const Border(
-          left: BorderSide(
-            color: Color(0xFFE74C3C),
-            width: 4,
-          ),
-        ),
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
       ),
-      child: Text(
-        'Error: $_error',
-        style: AppTextStyles.englishText.copyWith(color: Color(0xFFC0392B)),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600]),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Error: $_error',
+              style: GoogleFonts.poppins(
+                color: Colors.red[600],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
