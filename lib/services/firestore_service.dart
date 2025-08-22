@@ -18,28 +18,24 @@ class FirestoreService {
     return searchableTerms.take(10).toList();
   }
 
-  // FIXED: Clean the verse data before saving
   List<String> _cleanQuranVerses(List<String> verses) {
     return verses.where((verse) => 
       verse.isNotEmpty && 
       !verse.contains('null') && 
       verse != 'null'
     ).map((verse) {
-      // Extract just the reference if it's in format "text (reference)"
       final regex = RegExp(r'\(([^)]+)\)$');
       final match = regex.firstMatch(verse);
       if (match != null && match.group(1) != null && match.group(1) != 'null') {
-        return match.group(1)!; // Return just "2:255"
+        return match.group(1)!;
       }
       return verse;
     }).toList();
   }
 
-  // FIXED: Clean hadith data before saving
   List<Map<String, dynamic>> _cleanHadiths(List<dynamic> hadiths) {
     return hadiths.where((hadith) => hadith != null).map((hadith) {
       if (hadith is Map<String, dynamic>) {
-        // Clean the hadith map
         final cleanHadith = <String, dynamic>{};
         hadith.forEach((key, value) {
           if (value != null && value.toString() != 'null' && value.toString().isNotEmpty) {
@@ -63,19 +59,21 @@ class FirestoreService {
   }) async {
     try {
       final String deviceId = await DeviceIDService.getDeviceID();
+      print('DEBUG: Saving QA for device: $deviceId');
+      print('DEBUG: Question: $question');
 
-      // Check if a similar question already exists
       final existingQuestions = await _db.collection('qa_history')
           .where('deviceId', isEqualTo: deviceId)
           .where('question', isEqualTo: question)
           .get();
 
-      // FIXED: Clean the data before saving
+      print('DEBUG: Found ${existingQuestions.docs.length} existing questions');
+
       final cleanVerses = _cleanQuranVerses(quranVerses);
       final cleanHadiths = _cleanHadiths(hadiths);
 
       if (existingQuestions.docs.isNotEmpty) {
-        // Update existing entry
+        print('DEBUG: Updating existing entry');
         await _db.collection('qa_history')
             .doc(existingQuestions.docs.first.id)
             .update({
@@ -87,11 +85,11 @@ class FirestoreService {
         
         print('Updated existing QA entry');
       } else {
-        // Create searchable terms from the question
+        print('DEBUG: Creating new entry');
         final searchableTerms = _generateSearchableTerms(question);
+        print('DEBUG: Generated ${searchableTerms.length} searchable terms');
 
-        // Save new entry
-        await _db.collection('qa_history').add({
+        final docRef = await _db.collection('qa_history').add({
           'deviceId': deviceId,
           'question': question,
           'answer': answer,
@@ -101,12 +99,34 @@ class FirestoreService {
           'timestamp': FieldValue.serverTimestamp(),
         });
 
-        print('QA saved successfully with device ID: $deviceId');
+        print('QA saved successfully with ID: ${docRef.id}');
         print('Saved ${cleanVerses.length} verses and ${cleanHadiths.length} hadiths');
       }
-    } catch (e) {
-      print('Error saving QA: $e');
+    } catch (e, stackTrace) {
+      print('ERROR saving QA: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
     }
+  }
+
+  Future<void> testSaveMultipleQuestions() async {
+    print('Testing multiple question saves...');
+  
+    await saveQA(
+      question: "Test question 1",
+      answer: "Test answer 1",
+      quranVerses: [],
+      hadiths: [],
+    );
+  
+    await saveQA(
+      question: "Test question 2", 
+      answer: "Test answer 2",
+      quranVerses: [],
+      hadiths: [],
+    );
+  
+    print('Test saves completed');
   }
 
   Future<Map<String, dynamic>?> findSimilarQuestion(String question) async {
@@ -133,7 +153,6 @@ class FirestoreService {
     }
   }
 
-  // Quran caching methods
   Future<Map<String, dynamic>?> getCachedVerse(String verseKey) async {
     try {
       final doc = await _db.collection('quran_cache')
@@ -183,7 +202,6 @@ class FirestoreService {
 
   Future<void> clearOldCache() async {
     try {
-      // Clear cache older than 7 days
       final cutoff = Timestamp.fromDate(
           DateTime.now().subtract(const Duration(days: 7))
       );
@@ -203,12 +221,10 @@ class FirestoreService {
     }
   }
 
-  // Method to check and migrate history data
   Future<void> checkAndMigrateHistoryData() async {
     try {
       final String deviceId = await DeviceIDService.getDeviceID();
 
-      // First, check if there are any documents without deviceId
       final snapshot = await _db.collection('qa_history')
           .limit(100)
           .get();
@@ -217,11 +233,9 @@ class FirestoreService {
 
       int migratedCount = 0;
 
-      // Check if any documents don't have deviceId field
       for (var doc in snapshot.docs) {
         final data = doc.data();
         if (!data.containsKey('deviceId')) {
-          // Update the document to include the device ID
           await _db.collection('qa_history')
               .doc(doc.id)
               .update({'deviceId': deviceId});
