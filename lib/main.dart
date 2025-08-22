@@ -31,6 +31,30 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 bool get isFirebaseSupported => kIsWeb || Platform.isIOS || Platform.isAndroid;
 
+/// A [RouteObserver] that unfocuses any primary focus when a new route is popped,
+/// preventing the keyboard from automatically reappearing on TextFields.
+class FocusAwareRouteObserver extends RouteObserver<PageRoute<dynamic>> {
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    // Ensure unfocus is called after the frame has been built to prevent layout issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
+  }
+  
+  // didPush is also included to unfocus previous route's widgets
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      });
+    }
+  }
+}
+
 class LoadingWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -204,7 +228,9 @@ class MyApp extends StatelessWidget {
       title: 'Tafseer',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
+      restorationScopeId: null, // THIS LINE IS NEW
       navigatorObservers: [
+        FocusAwareRouteObserver(), // THIS IS THE REGISTERED OBSERVER
         if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
       ],
       theme: themeProvider.themeData.copyWith(
