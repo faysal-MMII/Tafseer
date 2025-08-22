@@ -59,6 +59,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  // FIXED: Improved search logic to handle partial matches better
   Future<void> _loadMoreData() async {
     if (!_hasMore || _isLoading) return;
 
@@ -76,13 +77,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       print('Created query with deviceId filter');
 
+      // FIXED: Better search implementation
+      if (_searchQuery.isNotEmpty) {
+        // Split search query into individual words for better matching
+        final searchWords = _searchQuery.toLowerCase().trim().split(' ')
+            .where((word) => word.isNotEmpty).toList();
+        
+        if (searchWords.isNotEmpty) {
+          // Use the first word for arrayContains (most restrictive)
+          query = query.where('searchableTerms', arrayContains: searchWords.first);
+          print('Added search filter for: ${searchWords.first}');
+        }
+      }
+
       query = query.orderBy('timestamp', descending: true);
       print('Added ordering by timestamp');
-
-      if (_searchQuery.isNotEmpty) {
-        query = query.where('searchableTerms', arrayContains: _searchQuery.toLowerCase());
-        print('Added search filter: $_searchQuery');
-      }
 
       if (_lastDocument != null) {
         query = query.startAfterDocument(_lastDocument!);
@@ -95,6 +104,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final QuerySnapshot snapshot = await query.get();
       print('Query executed. Got ${snapshot.docs.length} results');
 
+      // FIXED: Additional client-side filtering for multi-word searches
+      List<DocumentSnapshot> filteredDocs = snapshot.docs;
+      
+      if (_searchQuery.isNotEmpty && _searchQuery.trim().split(' ').length > 1) {
+        final searchWords = _searchQuery.toLowerCase().trim().split(' ')
+            .where((word) => word.isNotEmpty).toList();
+        
+        filteredDocs = snapshot.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final question = (data['question'] as String? ?? '').toLowerCase();
+          final answer = (data['answer'] as String? ?? '').toLowerCase();
+          
+          // Check if all search words are present in question or answer
+          return searchWords.every((word) => 
+            question.contains(word) || answer.contains(word));
+        }).toList();
+        
+        print('After client-side filtering: ${filteredDocs.length} results');
+      }
+
       if (snapshot.docs.isEmpty) {
         print('No documents found matching the criteria');
       } else {
@@ -102,7 +131,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       setState(() {
-        _documents.addAll(snapshot.docs);
+        _documents.addAll(filteredDocs);
         _hasMore = snapshot.docs.length == _pageSize;
         if (snapshot.docs.isNotEmpty) {
           _lastDocument = snapshot.docs.last;
@@ -115,6 +144,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
       print('Error loading data: $e');
       print('Error stack trace: ${StackTrace.current}');
+      
+      // FIXED: Better network error handling
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Network error: Unable to load search history. Please check your internet connection and try again.',
+                    style: TextStyle(fontSize: 14, fontFamily: 'Poppins'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'RETRY',
+              textColor: Colors.white,
+              onPressed: () => _refresh(),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -159,18 +216,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
             SizedBox(width: 12),
             Text(
               'Clear History',
-              style: TextStyle(color: Colors.black87),
+              style: TextStyle(
+                color: Colors.black87,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
         content: Text(
           'Are you sure you want to delete all search history? This action cannot be undone.',
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(
+            color: Colors.black87,
+            fontFamily: 'Poppins',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child: Text(
+              'Cancel', 
+              style: TextStyle(
+                color: Colors.black54,
+                fontFamily: 'Poppins',
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -182,7 +252,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Navigator.pop(context);
               await _performClearHistory();
             },
-            child: Text('Clear All'),
+            child: Text(
+              'Clear All',
+              style: TextStyle(fontFamily: 'Poppins'),
+            ),
           ),
         ],
       ),
@@ -214,7 +287,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('All history cleared'),
+          content: Text(
+            'All history cleared',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
           backgroundColor: primaryBlue,
           behavior: SnackBarBehavior.floating,
         ),
@@ -222,7 +298,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error clearing history: $e'),
+          content: Text(
+            'Network error: Unable to clear history. Please check your connection.',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
         ),
@@ -252,7 +331,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Entry deleted'),
+          content: Text(
+            'Entry deleted',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
           backgroundColor: primaryBlue,
           behavior: SnackBarBehavior.floating,
         ),
@@ -260,7 +342,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error deleting entry: $e'),
+          content: Text(
+            'Network error: Unable to delete entry.',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
         ),
@@ -268,6 +353,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  // FIXED: Improved search with debouncing to prevent too many queries
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
@@ -275,7 +361,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _lastDocument = null;
       _hasMore = true;
     });
-    _loadMoreData();
+    
+    // Add a small delay to avoid too many rapid queries
+    Future.delayed(Duration(milliseconds: 500), () {
+      if (_searchQuery == query) { // Only search if query hasn't changed
+        _loadMoreData();
+      }
+    });
   }
 
   // FIXED: Proper verse extraction that handles the actual data structure
@@ -350,7 +442,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         elevation: 0,
         title: Text(
           'Search History', 
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(
+            color: Colors.black87,
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
         ),
         iconTheme: IconThemeData(color: primaryBlue),
         actions: [
@@ -389,6 +485,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       color: Colors.black87,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
+                      fontFamily: 'Poppins',
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -418,10 +515,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(color: Colors.black87),
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontFamily: 'Poppins',
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search history...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontFamily: 'Poppins',
+                      ),
                       prefixIcon: Icon(Icons.search, color: primaryBlue),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.all(18),
@@ -461,6 +564,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     color: Colors.black87,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
+                                    fontFamily: 'Poppins',
                                   ),
                                 ),
                                 SizedBox(height: 8),
@@ -469,6 +573,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   style: TextStyle(
                                     color: Colors.black54,
                                     fontSize: 14,
+                                    fontFamily: 'Poppins',
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -589,6 +694,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                           fontSize: 15,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                     ),
@@ -601,6 +707,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     style: TextStyle(
                       color: Colors.black54,
                       fontSize: 12,
+                      fontFamily: 'Poppins',
                     ),
                   ),
                 ],
@@ -634,6 +741,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: primaryBlue,
+                                fontFamily: 'Poppins',
                               ),
                             ),
                           ],
@@ -645,6 +753,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             color: Colors.black87,
                             fontSize: 14,
                             height: 1.4,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
@@ -656,7 +765,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       children: [
                         Icon(Icons.menu_book, color: primaryBlue, size: 16),
                         SizedBox(width: 8),
-                        Text('Quran Verses:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryBlue)),
+                        Text(
+                          'Quran Verses:', 
+                          style: TextStyle(
+                            fontSize: 14, 
+                            fontWeight: FontWeight.bold, 
+                            color: primaryBlue,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
                       ],
                     ),
                     SizedBox(height: 8),
@@ -670,7 +787,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: primaryBlue.withOpacity(0.3)),
                         ),
-                        child: Text(ref, style: TextStyle(color: primaryBlue, fontSize: 12)),
+                        child: Text(
+                          ref, 
+                          style: TextStyle(
+                            color: primaryBlue, 
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
                       )).toList(),
                     ),
                   ],
@@ -686,6 +810,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: primaryBlue,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
@@ -705,6 +830,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           color: Colors.black87,
                           fontSize: 13,
                           height: 1.3,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                     )),
