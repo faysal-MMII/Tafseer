@@ -9,7 +9,7 @@ import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/responsive_layout.dart'; 
-import '../screens/quran_screen.dart'; 
+import '../screens/quran_screen.dart';
 import '../screens/quran_detail_screen.dart'; 
 import '../data/surah_data.dart';
 import '../widgets/formatted_text.dart';
@@ -43,7 +43,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   bool _isSearching = false;
   StreamSubscription? _openAISubscription;
 
-  // MATCHING HOME SCREEN COLORS
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -163,8 +162,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           _isLoading = false;
         });
 
-        print('[PERF] Total response time: ${DateTime.now().difference(startTime).inMilliseconds}ms');
+        _saveToHistory();
 
+        print('[PERF] Total response time: ${DateTime.now().difference(startTime).inMilliseconds}ms');
       }).catchError((e) {
         print('[ERROR] Error in generateResponse: $e');
       }).whenComplete(() {
@@ -180,6 +180,35 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         _isLoading = false;
         _isSearching = false;
       });
+    }
+  }
+
+  Future<void> _saveToHistory() async {
+    if (widget.firestoreService == null) {
+      print('DEBUG: FirestoreService is null, cannot save to history');
+      return;
+    }
+    try {
+      print('DEBUG: About to save QA - Question: ${widget.query}');
+      print('DEBUG: Answer length: ${_aiResponse.length}');
+      print('DEBUG: Verses count: ${_quranVerses.length}');
+      print('DEBUG: Hadiths count: ${_hadiths.length}');
+      final hadithsForSaving = _hadiths.map((hadith) => {
+        'text': hadith.text,
+        'arabic': hadith.arabicText,
+        'grade': hadith.grade,
+        'narrator': hadith.narrator,
+      }).toList();
+      await widget.firestoreService!.saveQA(
+        question: widget.query,
+        answer: _aiResponse,
+        quranVerses: _quranVerses,
+        hadiths: hadithsForSaving,
+      );
+      print('DEBUG: saveQA completed successfully');
+    } catch (e, stackTrace) {
+      print('ERROR saving QA to history: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
