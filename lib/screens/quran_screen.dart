@@ -31,7 +31,6 @@ class _QuranScreenState extends State<QuranScreen> {
   List<Map<String, dynamic>> _filteredSurahs = [];
   int? _highlightedVerse;
 
-  // MATCHING HOME SCREEN COLORS
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -199,101 +198,177 @@ class _QuranScreenState extends State<QuranScreen> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        title: Text(
-          'Quran', 
-          style: TextStyle(color: Colors.black87),
-        ),
-        iconTheme: IconThemeData(color: primaryBlue),
-      ),
-      body: _isLoading
-        ? Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
-            ),
-          )
-        : _error != null
+      body: SafeArea(
+        child: _isLoading
           ? Center(
-              child: Text(
-                _error!, 
-                style: TextStyle(color: Colors.red),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
               ),
             )
-          : isSmallScreen
-            ? Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: _buildSearchField(),
+          : _error != null
+            ? Center(
+                child: Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontFamily: 'Poppins',
                   ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _filteredSurahs.length,
-                      itemBuilder: (context, index) {
-                        final surah = _filteredSurahs[index];
-                        return _buildSurahListTile(surah);
-                      },
-                    ),
-                  ),
-                ],
+                ),
               )
-            : Row(
-                children: [
-                  Container(
-                    width: 200,
-                    decoration: BoxDecoration(
-                      color: cardColor.withOpacity(0.8),
-                      border: Border(
-                        right: BorderSide(color: softAccent.withOpacity(0.5), width: 1),
+            : isSmallScreen
+              ? Column(
+                  children: [
+                    _buildHeader(
+                      title: 'Quran',
+                      subtitle: 'The Holy Quran',
+                    ),
+                    SizedBox(height: 8),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildSearchField(),
+                    ),
+                    SizedBox(height: 16),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _filteredSurahs.length,
+                        itemBuilder: (context, index) {
+                          final surah = _filteredSurahs[index];
+                          return _buildSurahListTile(surah);
+                        },
                       ),
                     ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: _buildSearchField(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Container(
+                      width: 200,
+                      decoration: BoxDecoration(
+                        color: cardColor.withOpacity(0.8),
+                        border: Border(
+                          right: BorderSide(color: softAccent.withOpacity(0.5), width: 1),
                         ),
-                        Expanded(
-                          child: ListView.builder(
-                            controller: _surahListController,
-                            itemCount: _filteredSurahs.length,
-                            itemBuilder: (context, index) {
-                              final surah = _filteredSurahs[index];
-                              return _buildSurahListTile(surah);
-                            },
+                      ),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: _buildSearchField(),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      color: backgroundColor,
-                      child: _selectedSurahVerses == null
-                        ? Center(
-                            child: Text(
-                              'Select a surah',
-                              style: TextStyle(color: Colors.grey[700]),
+                          Expanded(
+                            child: ListView.builder(
+                              controller: _surahListController,
+                              itemCount: _filteredSurahs.length,
+                              itemBuilder: (context, index) {
+                                final surah = _filteredSurahs[index];
+                                return _buildSurahListTile(surah);
+                              },
                             ),
-                          )
-                        : ScrollablePositionedList.builder(
-                            itemScrollController: itemScrollController,
-                            itemPositionsListener: itemPositionsListener,
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            itemCount: _selectedSurahVerses!.length,
-                            itemBuilder: (context, index) {
-                              final verse = _selectedSurahVerses![index] as Map<String, dynamic>;
-                              final verseNumber = verse['verse'] as int;
-                              final isHighlighted = _highlightedVerse == verseNumber;
-                              return _buildVerseItem(verse, isHighlighted);
-                            },
                           ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Container(
+                        color: backgroundColor,
+                        child: _selectedSurahVerses == null
+                          ? Center(
+                              child: Text(
+                                'Select a surah',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            )
+                          : ScrollablePositionedList.builder(
+                              itemScrollController: itemScrollController,
+                              itemPositionsListener: itemPositionsListener,
+                              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              itemCount: _selectedSurahVerses!.length,
+                              itemBuilder: (context, index) {
+                                final verse = _selectedSurahVerses![index] as Map<String, dynamic>;
+                                final verseNumber = verse['verse'] as int;
+                                final isHighlighted = _highlightedVerse == verseNumber;
+                                return _buildVerseItem(verse, isHighlighted);
+                              },
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+      ),
+    );
+  }
+
+  Widget _buildHeader({required String title, required String subtitle}) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      margin: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 25,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.white.withOpacity(0.2),
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryBlue.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
+              child: Icon(
+                Icons.arrow_back,
+                color: primaryBlue,
+                size: 20,
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -313,10 +388,16 @@ class _QuranScreenState extends State<QuranScreen> {
       ),
       child: TextField(
         controller: _searchController,
-        style: TextStyle(color: Colors.black87),
+        style: TextStyle(
+          color: Colors.black87,
+          fontFamily: 'Poppins',
+        ),
         decoration: InputDecoration(
           hintText: 'Search Surahs...',
-          hintStyle: TextStyle(color: Colors.black54),
+          hintStyle: TextStyle(
+            color: Colors.black54,
+            fontFamily: 'Poppins',
+          ),
           prefixIcon: Icon(Icons.search, color: primaryBlue),
           fillColor: backgroundColor,
           filled: true,
@@ -349,6 +430,7 @@ class _QuranScreenState extends State<QuranScreen> {
           style: TextStyle(
             color: isSelected ? primaryBlue : Colors.black87,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontFamily: 'Poppins',
           ),
         ),
         onTap: () {
@@ -413,6 +495,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: primaryBlue,
+                  fontFamily: 'Poppins',
                 ),
               ),
             ),
@@ -423,6 +506,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 height: 1.5,
                 fontSize: 16,
                 color: Colors.black87,
+                fontFamily: 'Poppins',
               ),
             ),
             SizedBox(height: 16),

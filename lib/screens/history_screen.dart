@@ -443,9 +443,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: Text(
           'Search History', 
           style: TextStyle(
-            color: Colors.black87,
+            color: primaryBlue,
             fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
         iconTheme: IconThemeData(color: primaryBlue),
