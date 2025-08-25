@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
 
 class InfoScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
   String? faqError;
   bool isFAQExpanded = false;
   late AnimationController _faqAnimationController;
+  String _version = 'Loading...';
 
   @override
   void initState() {
@@ -30,12 +32,26 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
       vsync: this,
     );
     loadFAQData();
+    _getVersionNumber();
   }
 
   @override
   void dispose() {
     _faqAnimationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _getVersionNumber() async {
+    try {
+      final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _version = 'Version ${packageInfo.version}+${packageInfo.buildNumber}';
+      });
+    } catch (e) {
+      setState(() {
+        _version = 'Version 1.0.0';
+      });
+    }
   }
 
   Future<void> loadFAQData() async {
@@ -81,7 +97,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // App Header Section
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(20),
@@ -150,7 +165,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 24),
 
-            // App Description Section
             _buildSection(
               title: 'About This App',
               icon: Icons.info_outline,
@@ -167,7 +181,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 20),
 
-            // FAQ Section
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -184,7 +197,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // FAQ Header - Always Visible
                   InkWell(
                     onTap: () {
                       setState(() {
@@ -252,7 +264,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  // FAQ Content - Collapsible
                   AnimatedBuilder(
                     animation: _faqAnimationController,
                     builder: (context, child) {
@@ -295,7 +306,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 20),
 
-            // Features Section
             _buildSection(
               title: 'Features',
               icon: Icons.star_outline,
@@ -331,7 +341,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 20),
 
-            // AI Ethics Section
             _buildSection(
               title: 'AI Ethics & Privacy',
               icon: Icons.security,
@@ -409,7 +418,6 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 24),
 
-            // Privacy Policy Section
             Container(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -441,10 +449,9 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
             SizedBox(height: 24),
 
-            // Footer
             Center(
               child: Text(
-                'Version 1.0.0',
+                _version,
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.grey[500],

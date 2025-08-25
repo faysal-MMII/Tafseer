@@ -19,7 +19,6 @@ class _HadithScreenState extends State<HadithScreen> {
   List<Map<String, dynamic>> _hadiths = [];
   List<Map<String, dynamic>> _filteredHadiths = [];
 
-  // MATCHING HOME SCREEN COLORS
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -80,157 +79,149 @@ class _HadithScreenState extends State<HadithScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Hadith',
-          style: TextStyle(color: Colors.black87),
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: primaryBlue),
-          onPressed: () => Navigator.pop(context),
-        ),
-        backgroundColor: backgroundColor,
-        elevation: 0,
-      ),
-      body: _isLoading
-        ? Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
-            ),
-          )
-        : _error != null
-          ? Center(
-              child: Container(
-                margin: EdgeInsets.all(20),
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red[200]!),
+      body: SafeArea(
+        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
                 ),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Colors.red[700]),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-          : Column(
-              children: [
-                // Header
-                Container(
-                  margin: EdgeInsets.all(16),
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: cardColor.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: cardColor.withOpacity(0.6),
-                      width: 1.5,
+              )
+            : _error != null
+                ? Center(
+                    child: Container(
+                      margin: EdgeInsets.all(20),
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontFamily: 'Poppins',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primaryBlue.withOpacity(0.15),
-                        blurRadius: 30,
-                        offset: Offset(0, 10),
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
+                  )
+                : Column(
                     children: [
+                      _buildHeader(),
                       Container(
-                        padding: EdgeInsets.all(12),
+                        margin: EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [primaryBlue, lightBlue],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFf0f9ff), Color(0xFFe0f2fe)],
                           ),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: softAccent.withOpacity(0.3)),
                           boxShadow: [
                             BoxShadow(
-                              blurRadius: 15,
-                              color: primaryBlue.withOpacity(0.4),
-                              offset: Offset(0, 4),
+                              blurRadius: 10,
+                              color: Colors.black.withOpacity(0.05),
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Icon(
-                          Icons.menu_book,
-                          color: Colors.white,
-                          size: 22,
+                        child: TextField(
+                          controller: _searchController,
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontFamily: 'Poppins',
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search Hadiths...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[500],
+                              fontFamily: 'Poppins',
+                            ),
+                            prefixIcon: Icon(Icons.search, color: primaryBlue),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.all(18),
+                          ),
+                          onChanged: _filterHadiths,
                         ),
                       ),
-                      SizedBox(width: 16),
+                      SizedBox(height: 16),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hadith Collection',
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            Text(
-                              'As compiled by Imam Nawawi',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
+                        child: _buildLayout(),
                       ),
                     ],
                   ),
-                ),
-                
-                // Search Field
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFf0f9ff), Color(0xFFe0f2fe)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: softAccent.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 10,
-                        color: Colors.black.withOpacity(0.05),
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      margin: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardColor.withOpacity(0.6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 25,
+            color: primaryBlue.withOpacity(0.15),
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.white.withOpacity(0.2),
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryBlue.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: primaryBlue,
+                size: 20,
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hadith',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                    fontFamily: 'Poppins',
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: TextStyle(color: Colors.black87),
-                    decoration: InputDecoration(
-                      hintText: 'Search Hadiths...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: Icon(Icons.search, color: primaryBlue),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(18),
-                    ),
-                    onChanged: _filterHadiths,
-                  ),
                 ),
-                
-                SizedBox(height: 16),
-                
-                Expanded(
-                  child: _buildLayout(),
+                Text(
+                  'As compiled by Imam Nawawi',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontFamily: 'Poppins',
+                  ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -276,6 +267,7 @@ class _HadithScreenState extends State<HadithScreen> {
               style: TextStyle(
                 color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
                 fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
+                fontFamily: 'Poppins',
               ),
             ),
             onTap: () {
@@ -328,6 +320,7 @@ class _HadithScreenState extends State<HadithScreen> {
                     style: TextStyle(
                       color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
                       fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
+                      fontFamily: 'Poppins',
                     ),
                   ),
                   onTap: () => setState(() => _selectedHadith = hadith),
@@ -343,7 +336,10 @@ class _HadithScreenState extends State<HadithScreen> {
               ? Center(
                   child: Text(
                     'Select a hadith',
-                    style: TextStyle(color: Colors.grey[700]),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontFamily: 'Poppins',
+                    ),
                   ),
                 )
               : SingleChildScrollView(
@@ -389,6 +385,7 @@ class _HadithScreenState extends State<HadithScreen> {
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: primaryBlue,
+                                fontFamily: 'Poppins',
                               ),
                             ),
                           ],
@@ -412,6 +409,7 @@ class _HadithScreenState extends State<HadithScreen> {
                               height: 1.5,
                               fontSize: 16,
                               color: Colors.black87,
+                              fontFamily: 'Poppins',
                             ),
                           ),
                         ),

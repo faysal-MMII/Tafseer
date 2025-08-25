@@ -37,6 +37,7 @@ dependencies:
   timezone: ^0.9.2
   awesome_notifications: ^0.10.0
   flutter_svg: ^2.0.17
+  package_info_plus: ^4.2.0
   flutter_foreground_task: ^6.0.0+1
 dev_dependencies:
   flutter_test:
