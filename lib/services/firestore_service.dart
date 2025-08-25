@@ -5,6 +5,24 @@ import '../services/deviceid_service.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  String _classifyFirestoreError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('network') || errorString.contains('timeout') || errorString.contains('connection')) {
+      return 'network_connection';
+    } else if (errorString.contains('permission') || errorString.contains('denied')) {
+      return 'permission_denied';
+    } else if (errorString.contains('quota') || errorString.contains('exceeded')) {
+      return 'quota_exceeded';
+    } else if (errorString.contains('unavailable') || errorString.contains('service')) {
+      return 'service_unavailable';
+    } else if (errorString.contains('cancelled')) {
+      return 'request_cancelled';
+    } else {
+      return 'unknown_error';
+    }
+  }
+
   List<String> _generateSearchableTerms(String text) {
     final words = text.toLowerCase().split(' ');
     final searchableTerms = <String>{};
@@ -19,9 +37,9 @@ class FirestoreService {
   }
 
   List<String> _cleanQuranVerses(List<String> verses) {
-    return verses.where((verse) => 
-      verse.isNotEmpty && 
-      !verse.contains('null') && 
+    return verses.where((verse) =>
+      verse.isNotEmpty &&
+      !verse.contains('null') &&
       verse != 'null'
     ).map((verse) {
       final regex = RegExp(r'\(([^)]+)\)$');
@@ -82,7 +100,7 @@ class FirestoreService {
           'hadiths': cleanHadiths,
           'timestamp': FieldValue.serverTimestamp(),
         });
-        
+
         print('Updated existing QA entry');
       } else {
         print('DEBUG: Creating new entry');
@@ -103,7 +121,8 @@ class FirestoreService {
         print('Saved ${cleanVerses.length} verses and ${cleanHadiths.length} hadiths');
       }
     } catch (e, stackTrace) {
-      print('ERROR saving QA: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('ERROR saving QA: $e. Classified as: $errorType');
       print('Stack trace: $stackTrace');
       rethrow;
     }
@@ -111,21 +130,21 @@ class FirestoreService {
 
   Future<void> testSaveMultipleQuestions() async {
     print('Testing multiple question saves...');
-  
+
     await saveQA(
       question: "Test question 1",
       answer: "Test answer 1",
       quranVerses: [],
       hadiths: [],
     );
-  
+
     await saveQA(
-      question: "Test question 2", 
+      question: "Test question 2",
       answer: "Test answer 2",
       quranVerses: [],
       hadiths: [],
     );
-  
+
     print('Test saves completed');
   }
 
@@ -148,7 +167,8 @@ class FirestoreService {
       }
       return null;
     } catch (e) {
-      print('Error checking Firestore: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error checking Firestore: $e. Classified as: $errorType');
       return null;
     }
   }
@@ -164,7 +184,8 @@ class FirestoreService {
       }
       return null;
     } catch (e) {
-      print('Error getting cached verse: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error getting cached verse: $e. Classified as: $errorType');
       return null;
     }
   }
@@ -178,7 +199,8 @@ class FirestoreService {
         'cachedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error caching verse: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error caching verse: $e. Classified as: $errorType');
     }
   }
 
@@ -196,7 +218,8 @@ class FirestoreService {
 
       await batch.commit();
     } catch (e) {
-      print('Error in bulk caching: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error in bulk caching: $e. Classified as: $errorType');
     }
   }
 
@@ -217,7 +240,8 @@ class FirestoreService {
 
       await batch.commit();
     } catch (e) {
-      print('Error clearing old cache: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error clearing old cache: $e. Classified as: $errorType');
     }
   }
 
@@ -252,7 +276,8 @@ class FirestoreService {
 
       print('After migration, found ${deviceSnapshot.docs.length} records for current device');
     } catch (e) {
-      print('Error checking/migrating history data: $e');
+      final errorType = _classifyFirestoreError(e);
+      print('Error checking/migrating history data: $e. Classified as: $errorType');
     }
   }
 }

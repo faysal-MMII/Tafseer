@@ -59,6 +59,25 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     );
   }
 
+  String _getPrayerTimeErrorMessage(String errorType) {
+    switch (errorType) {
+      case 'timeout':
+        return 'Prayer time service timed out. Check your internet connection and try again.';
+      case 'connection_failed':
+        return 'No internet connection. Verify your internet connection.';
+      case 'location_not_found':
+        return 'Prayer times not available for your location. Try adjusting your location settings.';
+      case 'server_error':
+        return 'Prayer time service is temporarily unavailable. Please try again later.';
+      case 'invalid_response':
+        return 'Received invalid data from prayer time service. Please try again.';
+      case 'no_location_available':
+        return 'No location available for prayer times. Please set your location.';
+      default:
+        return 'Failed to load prayer times due to network error. Please try again.';
+    }
+  }
+
   Future<void> debugNotifications() async {
     print("=== NOTIFICATION DEBUG ===");
     
@@ -155,6 +174,15 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
       _updateTimeRemaining();
       
     } catch (e) {
+      String userMessage;
+      if (e is PrayerTimeException) {
+        userMessage = _getPrayerTimeErrorMessage(e.type);
+      } else {
+        userMessage = 'Unable to load prayer times. Please try again.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userMessage)),
+      );
       print("Prayer service initialization failed: $e");
       setState(() {
         _currentLocation = "Tap to set location";
@@ -285,6 +313,16 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
     try {
       await widget.prayerTimeService.refreshPrayerTimes();
       _updateTimeRemaining();
+    } catch (e) {
+      String userMessage;
+      if (e is PrayerTimeException) {
+        userMessage = _getPrayerTimeErrorMessage(e.type);
+      } else {
+        userMessage = 'Unable to load prayer times. Please try again.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userMessage)),
+      );
     } finally {
       setState(() {
         _isLoadingPrayerTimes = false;
@@ -469,10 +507,16 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
         );
       }
     } catch (e) {
+      String userMessage;
+      if (e is PrayerTimeException) {
+        userMessage = _getPrayerTimeErrorMessage(e.type);
+      } else {
+        userMessage = 'Error setting location. Please try again.';
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error setting location'),
+            content: Text(userMessage),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -507,10 +551,16 @@ class _PrayerTimeScreenState extends State<PrayerTimeScreen> {
         );
       }
     } catch (e) {
+      String userMessage;
+      if (e is PrayerTimeException) {
+        userMessage = _getPrayerTimeErrorMessage(e.type);
+      } else {
+        userMessage = 'Error setting location. Please try again.';
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error setting location'),
+            content: Text(userMessage),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),

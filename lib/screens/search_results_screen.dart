@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:math'; 
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/hadith.dart';
 import '../theme/text_styles.dart';
@@ -8,9 +9,9 @@ import '../widgets/hadith_section.dart';
 import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
-import '../widgets/responsive_layout.dart'; 
+import '../widgets/responsive_layout.dart';
 import '../screens/quran_screen.dart';
-import '../screens/quran_detail_screen.dart'; 
+import '../screens/quran_detail_screen.dart';
 import '../data/surah_data.dart';
 import '../widgets/formatted_text.dart';
 import '../theme/theme_provider.dart';
@@ -117,6 +118,18 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         },
         onError: (error) {
           print("[ERROR] OpenAI Stream error: $error");
+          setState(() {
+            _isLoading = false;
+            _isSearching = false;
+            // Handle specific error types
+            if (error is OpenAiServiceException) {
+              _error = error.message;
+            } else if (error is SocketException) {
+              _error = 'No internet connection. Please check your network and try again.';
+            } else {
+              _error = 'An unexpected error occurred while streaming.';
+            }
+          });
         },
         onDone: () {
           print("[PERF] Streaming completed at: ${DateTime.now()}");
@@ -167,16 +180,48 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         print('[PERF] Total response time: ${DateTime.now().difference(startTime).inMilliseconds}ms');
       }).catchError((e) {
         print('[ERROR] Error in generateResponse: $e');
+        if (!mounted) return;
+        setState(() {
+          // Handle specific error types in the main generateResponse call
+          if (e is OpenAiServiceException) {
+            _error = e.message;
+          } else if (e is SocketException) {
+            _error = 'No internet connection. Please check your network and try again.';
+          } else {
+            _error = 'An unexpected error occurred. Please try again later.';
+          }
+          _isLoading = false;
+          _isSearching = false;
+        });
       }).whenComplete(() {
         _isSearching = false;
         print('[DEBUG] Search completed, _isSearching set to false');
       });
 
+    } on OpenAiServiceException catch (e) {
+      // Catch OpenAiServiceException specifically (which already has good error messages)
+      print('[ERROR] OpenAiServiceException in _fetchResults: ${e.message}');
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _isLoading = false;
+        _isSearching = false;
+      });
+    } on SocketException catch (e) {
+      // Catch network errors specifically
+      print('[ERROR] SocketException in _fetchResults: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = 'No internet connection. Please check your network and try again.';
+        _isLoading = false;
+        _isSearching = false;
+      });
     } catch (e) {
+      // Catch any other errors
       print('[ERROR] Error in _fetchResults: $e');
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = 'An unexpected error occurred. Please try again later.';
         _isLoading = false;
         _isSearching = false;
       });
@@ -226,9 +271,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         elevation: 0,
         backgroundColor: backgroundColor,
         title: Text(
-          'Search Results', 
+          'Search Results',
           style: TextStyle(color: Colors.black87),
-        ), 
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primaryBlue),
           onPressed: () => Navigator.pop(context),
@@ -291,7 +336,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   Widget _buildQueryContainer() {
     return Container(
       width: double.infinity,
@@ -397,7 +442,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ],
     );
   }
-  
+
   Widget _buildErrorContainer() {
     return Center(
       child: Container(
@@ -446,7 +491,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   void _navigateToVerse(String reference) {
     final regex = RegExp(r'(\d+):(\d+)');
     final match = regex.firstMatch(reference);
