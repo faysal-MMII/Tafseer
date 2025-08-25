@@ -46,6 +46,15 @@ class CitySearchResult {
 
 typedef PrayerNotificationCallback = void Function(PrayerTime prayer);
 
+class PrayerTimeException implements Exception {
+  final String type;
+  final String message;
+  PrayerTimeException(this.type, this.message);
+  
+  @override
+  String toString() => 'PrayerTimeException: $message (Type: $type)';
+}
+
 class PrayerTimeService with ChangeNotifier {
   List<PrayerTime> _prayerTimes = [];
   List<PrayerTime> get prayerTimes => _prayerTimes;
@@ -67,7 +76,25 @@ class PrayerTimeService with ChangeNotifier {
   final Map<String, DateTime> _lastRequestTimes = {};
 
   PrayerTimeService({this.onPrayerTime});
-  
+
+  String _classifyNetworkError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('timeout')) {
+      return 'timeout';
+    } else if (errorString.contains('socket') || errorString.contains('connection')) {
+      return 'connection_failed';
+    } else if (errorString.contains('format') || errorString.contains('parse')) {
+      return 'invalid_response';
+    } else if (errorString.contains('404')) {
+      return 'location_not_found';
+    } else if (errorString.contains('500')) {
+      return 'server_error';
+    } else {
+      return 'unknown_network';
+    }
+  }
+
   Future<void> debugForegroundService() async {
     print("🔧 DEBUG: Checking foreground service status...");
     
@@ -652,62 +679,76 @@ class PrayerTimeService with ChangeNotifier {
     } else if (_city != null && _country != null) {
       await _getPrayerTimesByCity(today);
     } else {
-      throw Exception('No location available for prayer times');
+      throw PrayerTimeException('no_location_available', 'No location available for prayer times');
     }
     notifyListeners();
   }
 
   Future<void> _getPrayerTimesByCoordinates(DateTime date) async {
-    final dateStr = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-    final url = 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$dateStr';
-    
-    print("API URL: $url");
-    
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final timings = data['data']['timings'];
+    try {
+      final dateStr = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      final url = 'https://api.aladhan.com/v1/timings?latitude=${_latitude!}&longitude=${_longitude!}&method=2&date=$dateStr';
       
-      _prayerTimes = [];
-      _addPrayerTime('Fajr', timings['Fajr'], date);
-      _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
-      _addPrayerTime('Asr', timings['Asr'], date);
-      _addPrayerTime('Maghrib', timings['Maghrib'], date);
-      _addPrayerTime('Isha', timings['Isha'], date);
+      print("API URL: $url");
       
-      _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-      _findNextPrayer();
-      
-      print("Prayer times loaded successfully:");
-      for (var prayer in _prayerTimes) {
-        print("${prayer.name}: ${prayer.dateTime}");
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final timings = data['data']['timings'];
+        
+        _prayerTimes = [];
+        _addPrayerTime('Fajr', timings['Fajr'], date);
+        _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
+        _addPrayerTime('Asr', timings['Asr'], date);
+        _addPrayerTime('Maghrib', timings['Maghrib'], date);
+        _addPrayerTime('Isha', timings['Isha'], date);
+        
+        _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        _findNextPrayer();
+        
+        print("Prayer times loaded successfully:");
+        for (var prayer in _prayerTimes) {
+          print("${prayer.name}: ${prayer.dateTime}");
+        }
+        print("Next prayer: ${_nextPrayer?.name} at ${_nextPrayer?.dateTime}");
+      } else {
+        final errorType = _classifyNetworkError(response.statusCode);
+        throw PrayerTimeException(errorType, 'Failed to load prayer times: ${response.statusCode}');
       }
-      print("Next prayer: ${_nextPrayer?.name} at ${_nextPrayer?.dateTime}");
-    } else {
-      throw Exception('Failed to load prayer times: ${response.statusCode}');
+    } catch (e) {
+      final errorType = _classifyNetworkError(e);
+      throw PrayerTimeException(errorType, 'Failed to load prayer times: $e');
     }
   }
 
   Future<void> _getPrayerTimesByCity(DateTime date) async {
-    final dateStr = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-    final url = 'https://api.aladhan.com/v1/timingsByCity?city=$_city&country=$_country&method=2&date=$dateStr';
-    
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final timings = data['data']['timings'];
+    try {
+      final dateStr = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      final url = 'https://api.aladhan.com/v1/timingsByCity?city=$_city&country=$_country&method=2&date=$dateStr';
       
-      _prayerTimes = [];
-      _addPrayerTime('Fajr', timings['Fajr'], date);
-      _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
-      _addPrayerTime('Asr', timings['Asr'], date);
-      _addPrayerTime('Maghrib', timings['Maghrib'], date);
-      _addPrayerTime('Isha', timings['Isha'], date);
+      final response = await http.get(Uri.parse(url));
       
-      _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-      _findNextPrayer();
-    } else {
-      throw Exception('Failed to load prayer times for $_city, $_country');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final timings = data['data']['timings'];
+        
+        _prayerTimes = [];
+        _addPrayerTime('Fajr', timings['Fajr'], date);
+        _addPrayerTime('Dhuhr', timings['Dhuhr'], date);
+        _addPrayerTime('Asr', timings['Asr'], date);
+        _addPrayerTime('Maghrib', timings['Maghrib'], date);
+        _addPrayerTime('Isha', timings['Isha'], date);
+        
+        _prayerTimes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        _findNextPrayer();
+      } else {
+        final errorType = _classifyNetworkError(response.statusCode);
+        throw PrayerTimeException(errorType, 'Failed to load prayer times for $_city, $_country');
+      }
+    } catch (e) {
+      final errorType = _classifyNetworkError(e);
+      throw PrayerTimeException(errorType, 'Failed to load prayer times: $e');
     }
   }
 

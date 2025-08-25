@@ -59,7 +59,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  // FIXED: Improved search logic to handle partial matches better
+  String _classifyError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('network') || errorString.contains('timeout')) {
+      return 'network_timeout';
+    } else if (errorString.contains('connection')) {
+      return 'connection_failed';
+    } else if (errorString.contains('permission') || errorString.contains('denied')) {
+      return 'permission_denied';
+    } else if (errorString.contains('quota')) {
+      return 'quota_exceeded';
+    } else if (errorString.contains('unavailable')) {
+      return 'service_unavailable';
+    } else {
+      return 'unknown_error';
+    }
+  }
+
+  String _getSpecificErrorMessage(String errorType, String operation) {
+    switch (errorType) {
+      case 'network_timeout':
+        return 'Request timed out while $operation. Check your internet connection and try again.';
+      case 'connection_failed':
+        return 'Failed to connect to server while $operation. Verify your internet connection.';
+      case 'permission_denied':
+        return 'Access denied while $operation. Please check your account permissions.';
+      case 'quota_exceeded':
+        return 'Service quota exceeded while $operation. Please try again later.';
+      case 'service_unavailable':
+        return 'Service temporarily unavailable while $operation. Please try again in a few minutes.';
+      default:
+        return 'An unexpected error occurred while $operation. Please try again.';
+    }
+  }
+
   Future<void> _loadMoreData() async {
     if (!_hasMore || _isLoading) return;
 
@@ -77,14 +111,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       print('Created query with deviceId filter');
 
-      // FIXED: Better search implementation
       if (_searchQuery.isNotEmpty) {
-        // Split search query into individual words for better matching
         final searchWords = _searchQuery.toLowerCase().trim().split(' ')
             .where((word) => word.isNotEmpty).toList();
         
         if (searchWords.isNotEmpty) {
-          // Use the first word for arrayContains (most restrictive)
           query = query.where('searchableTerms', arrayContains: searchWords.first);
           print('Added search filter for: ${searchWords.first}');
         }
@@ -104,7 +135,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final QuerySnapshot snapshot = await query.get();
       print('Query executed. Got ${snapshot.docs.length} results');
 
-      // FIXED: Additional client-side filtering for multi-word searches
       List<DocumentSnapshot> filteredDocs = snapshot.docs;
       
       if (_searchQuery.isNotEmpty && _searchQuery.trim().split(' ').length > 1) {
@@ -116,7 +146,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           final question = (data['question'] as String? ?? '').toLowerCase();
           final answer = (data['answer'] as String? ?? '').toLowerCase();
           
-          // Check if all search words are present in question or answer
           return searchWords.every((word) => 
             question.contains(word) || answer.contains(word));
         }).toList();
@@ -145,8 +174,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       print('Error loading data: $e');
       print('Error stack trace: ${StackTrace.current}');
       
-      // FIXED: Better network error handling
       if (mounted) {
+        final errorType = _classifyError(e);
+        final errorMessage = _getSpecificErrorMessage(errorType, 'loading search history');
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -155,7 +186,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Network error: Unable to load search history. Please check your internet connection and try again.',
+                    errorMessage,
                     style: TextStyle(fontSize: 14, fontFamily: 'Poppins'),
                   ),
                 ),
@@ -163,7 +194,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 4),
+            duration: Duration(seconds: 5),
             action: SnackBarAction(
               label: 'RETRY',
               textColor: Colors.white,
@@ -296,16 +327,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Network error: Unable to clear history. Please check your connection.',
-            style: TextStyle(fontFamily: 'Poppins'),
+      if (mounted) {
+        final errorType = _classifyError(e);
+        final errorMessage = _getSpecificErrorMessage(errorType, 'clearing history');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage,
+              style: TextStyle(fontFamily: 'Poppins'),
+            ),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
           ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -340,20 +375,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Network error: Unable to delete entry.',
-            style: TextStyle(fontFamily: 'Poppins'),
+      if (mounted) {
+        final errorType = _classifyError(e);
+        final errorMessage = _getSpecificErrorMessage(errorType, 'deleting an entry');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage,
+              style: TextStyle(fontFamily: 'Poppins'),
+            ),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
           ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
     }
   }
 
-  // FIXED: Improved search with debouncing to prevent too many queries
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
@@ -362,15 +400,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _hasMore = true;
     });
     
-    // Add a small delay to avoid too many rapid queries
     Future.delayed(Duration(milliseconds: 500), () {
-      if (_searchQuery == query) { // Only search if query hasn't changed
+      if (_searchQuery == query) {
         _loadMoreData();
       }
     });
   }
 
-  // FIXED: Proper verse extraction that handles the actual data structure
   List<String> _extractQuranVerses(dynamic data) {
     if (data == null) return [];
     
@@ -384,7 +420,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         String reference = '';
         
         if (item is Map<String, dynamic>) {
-          // Handle structured verse data
           if (item.containsKey('text')) {
             verseText = item['text']?.toString() ?? '';
           } else if (item.containsKey('translations') && item['translations'] is List && item['translations'].isNotEmpty) {
@@ -398,18 +433,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
           
           if (verseText.isNotEmpty && reference.isNotEmpty) {
-            verses.add('$reference'); // Just show the reference like "2:255"
+            verses.add('$reference');
           } else if (reference.isNotEmpty) {
             verses.add(reference);
           }
         } else if (item is String && item.isNotEmpty) {
-          // Handle string data - extract reference from parentheses
           final regex = RegExp(r'\(([^)]+)\)$');
           final match = regex.firstMatch(item);
           if (match != null && match.group(1) != null && match.group(1) != 'null') {
-            verses.add(match.group(1)!); // Extract "2:255" from "(2:255)"
+            verses.add(match.group(1)!);
           } else if (!item.contains('null')) {
-            // If it's a clean string without null, use it
             verses.add(item);
           }
         }
@@ -419,7 +452,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return verses.where((v) => v.isNotEmpty && !v.contains('null')).toList();
   }
 
-  // FIXED: Better hadith processing
   List<Map<String, dynamic>> _extractHadiths(dynamic data) {
     if (data == null || data is! List) return [];
     
@@ -634,7 +666,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final question = data['question'] as String? ?? '';
     final answer = data['answer'] as String? ?? '';
 
-    // FIXED: Use the new extraction methods
     final quranVerses = _extractQuranVerses(data['quranVerses']);
     final hadiths = _extractHadiths(data['hadiths']);
 
