@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     print("DEBUG: HomeScreen initState called");
     _logScreenView();
-    
+
     _fabAnimationController = AnimationController(
       duration: Duration(milliseconds: 400),
       vsync: this,
@@ -92,11 +92,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeOutBack),
     );
-    
+
     _navOpacity = Tween<double>(begin: 1.0, end: 0.7).animate(
       CurvedAnimation(parent: _scrollAnimationController, curve: Curves.easeInOut),
     );
@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // The FocusAwareRouteObserver will handle unfocusing when navigating.
     // Explicit unfocus here is still good practice before pushing a new screen
     // or submitting a query, to ensure the current TextField loses focus.
-    FocusScope.of(context).unfocus(); 
+    FocusScope.of(context).unfocus();
 
     widget.analyticsService?.logQuestionAsked('Home Screen Question');
     widget.analyticsService?.logEvent(
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _isExpanded = !_isExpanded;
     });
-    
+
     if (_isExpanded) {
       _fabAnimationController.forward();
       _overlayAnimationController.forward();
@@ -194,11 +194,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     print("DEBUG: HomeScreen build called");
-    
+
     // Add back keyboard detection (but NO focus management)
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final keyboardVisible = keyboardHeight > 0;
-    
+
     // Update keyboard state for FAB visibility
     if (_isKeyboardVisible != keyboardVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -207,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       });
     }
-    
+
     return Scaffold(
       backgroundColor: backgroundColor,
       extendBody: true,
@@ -262,23 +262,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 delay: 100,
                 child: _buildHeader(),
               ),
-              
+
               SizedBox(height: 24),
-              
+
               StaggeredAnimationWrapper(
                 delay: 200,
                 child: IslamicFunFact(),
               ),
-              
+
               SizedBox(height: 24),
-              
+
               StaggeredAnimationWrapper(
                 delay: 300,
                 child: _buildSearchSection(),
               ),
-              
+
               SizedBox(height: 20),
-              
+
               if (_error != null) ...[
                 _buildErrorBox(),
               ] else if (_showResults) ...[
@@ -379,13 +379,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   border: InputBorder.none,
                   hintStyle: GoogleFonts.poppins(
-                    color: Colors.grey[500], 
+                    color: Colors.grey[500],
                     fontSize: 14,
                   ),
                 ),
                 style: GoogleFonts.poppins(
-                  color: Colors.black87, 
-                  fontSize: 14, 
+                  color: Colors.black87,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: null,
@@ -433,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           left: 54,
           child: _buildMatchingInfoFAB(),
         ),
-        
+
         // Main Kaaba FAB - Bottom Right
         Positioned(
           bottom: 24,
@@ -452,7 +452,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           builder: (context, child) {
                             final double opacity = (_fabAnimation.value).clamp(0.0, 1.0);
                             final double scale = (0.7 + 0.3 * _fabAnimation.value).clamp(0.0, 1.0);
-                            
+
                             return Transform.scale(
                               scale: scale,
                               child: Opacity(
@@ -498,9 +498,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-              
+
               SizedBox(height: 20),
-              
+
               ModernKaabaFAB(
                 isExpanded: _isExpanded,
                 onPressed: _toggleFAB,
@@ -555,9 +555,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       Color(0xFF2196F3),
       Color(0xFFE91E63),
     ];
-    
+
     final Color buttonColor = buttonColors[index];
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -582,9 +582,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          
+
           SizedBox(width: 12),
-          
+
           Container(
             width: 32,
             height: 32,
@@ -600,11 +600,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ],
             ),
             child: Center(
-              child: Icon(
-                icon,
-                color: buttonColor,
-                size: 16,
-                weight: 700,
+              child: Transform.translate(
+                offset: icon == FontAwesomeIcons.bookOpen ? Offset(-1.0, 0) : Offset.zero,
+                child: Icon(
+                  icon,
+                  color: buttonColor,
+                  size: 16,
+                ),
               ),
             ),
           ),
