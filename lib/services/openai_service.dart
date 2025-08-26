@@ -75,7 +75,22 @@ class OpenAiService {
       throw OpenAiServiceException('No internet connection. Please check your network and try again.');
     } catch (e, stackTrace) {
       print("ERROR in generateResponse: $e\nStack: $stackTrace");
-      throw OpenAiServiceException('An unknown error occurred. Please try again later.');
+
+      // If it's already an OpenAiServiceException, preserve the message
+      if (e is OpenAiServiceException) {
+        rethrow;
+      }
+
+      // Check for network errors in other exception types
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('socket') ||
+          errorString.contains('connection') ||
+          errorString.contains('network') ||
+          errorString.contains('host lookup')) {
+        throw OpenAiServiceException('No internet connection. Please check your network and try again.');
+      }
+
+      throw OpenAiServiceException('An unexpected error occurred. Please try again later.');
     }
   }
 
@@ -281,9 +296,24 @@ Please provide:
       throw OpenAiServiceException('No internet connection. Please check your network and try again.');
     } on TimeoutException {
       throw OpenAiServiceException('Request timed out. Please try again.');
+    } on OpenAiServiceException {
+      // If it's already an OpenAiServiceException, just re-throw it
+      rethrow;
     } catch (e, stackTrace) {
       print("ERROR in _generateQuranResponse: $e\nStack: $stackTrace");
-      throw OpenAiServiceException('An unknown error occurred. Please try again later.');
+
+      // Check if the error contains network-related keywords
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('socket') ||
+          errorString.contains('connection') ||
+          errorString.contains('network') ||
+          errorString.contains('host lookup')) {
+        throw OpenAiServiceException('No internet connection. Please check your network and try again.');
+      } else if (errorString.contains('timeout')) {
+        throw OpenAiServiceException('Request timed out. Please try again.');
+      } else {
+        throw OpenAiServiceException('An unexpected error occurred. Please try again later.');
+      }
     }
   }
 }

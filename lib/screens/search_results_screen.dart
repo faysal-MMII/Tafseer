@@ -1,3 +1,4 @@
+// lib/screens/search_results_screen.dart
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -66,8 +67,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     }
 
     _isSearching = true;
-    print('[PERF] === Performance Tracking Started ===');
-    final startTime = DateTime.now();
+    print('[DEBUG] Starting _fetchResults');
 
     setState(() {
       _isLoading = true;
@@ -78,15 +78,16 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     });
 
     try {
-      print('[PERF] Starting data fetch: ${DateTime.now()}');
+      print('[DEBUG] About to fetch Quran verses');
       final verses = await widget.openAiService.quranService.fetchQuranVerses(widget.query);
-      print('[DEBUG] Verses count: ${verses.length}');
+      print('[DEBUG] Verses fetched successfully: ${verses.length}');
 
       if (!mounted) {
-        print('[DEBUG] Widget not mounted after data fetch');
+        print('[DEBUG] Widget not mounted after verses fetch');
         return;
       }
 
+      // Format verses...
       final formattedVerses = verses.map((v) {
         String text = '';
         if (v.containsKey('translations') && v['translations'] is List && v['translations'].isNotEmpty) {
@@ -95,16 +96,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           text = v['text'] ?? '';
         }
         String reference = v['verse_key'] ?? v['reference'] ?? '';
-        print('[DEBUG] Formatted verse: $reference');
         return "$text ($reference)";
       }).toList();
 
-      print('[DEBUG] Updating UI with ${formattedVerses.length} verses');
       setState(() {
         _quranVerses = formattedVerses;
-        print('[DEBUG] _quranVerses length after update: ${_quranVerses.length}');
       });
 
+      print('[DEBUG] About to create stream');
       final stream = await widget.openAiService.streamQuranResponse(widget.query, verses);
       String accumulatedResponse = '';
 
@@ -117,32 +116,35 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           });
         },
         onError: (error) {
-          print("[ERROR] OpenAI Stream error: $error");
+          print("[DEBUG] Stream onError called with: $error");
+          print("[DEBUG] Error type: ${error.runtimeType}");
           setState(() {
             _isLoading = false;
             _isSearching = false;
-            // Handle specific error types
+
             if (error is OpenAiServiceException) {
+              print("[DEBUG] Caught OpenAiServiceException in stream: ${error.message}");
               _error = error.message;
             } else if (error is SocketException) {
+              print("[DEBUG] Caught SocketException in stream");
               _error = 'No internet connection. Please check your network and try again.';
             } else {
+              print("[DEBUG] Caught other error in stream: $error");
               _error = 'An unexpected error occurred while streaming.';
             }
           });
         },
         onDone: () {
-          print("[PERF] Streaming completed at: ${DateTime.now()}");
-          print("[DEBUG] Final streaming response length: ${accumulatedResponse.length}");
+          print("[DEBUG] Stream completed");
         }
       );
 
-      print('[PERF] Starting full generateResponse call: ${DateTime.now()}');
+      print('[DEBUG] About to call generateResponse');
       widget.openAiService.generateResponse(widget.query).then((response) {
-        print('[PERF] Full response completed: ${DateTime.now()}');
+        print('[DEBUG] generateResponse completed successfully');
 
         if (!mounted) {
-          print('[DEBUG] Widget not mounted after full response');
+          print('[DEBUG] Widget not mounted after generateResponse');
           return;
         }
 
@@ -151,13 +153,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
         setState(() {
           if (_aiResponse.length < 50) {
-            print('[DEBUG] Using full response for _aiResponse as streaming response was insufficient');
             _aiResponse = response['quran_results']['answer'] ?? '';
           }
 
           _hadiths = List<Hadith>.from(
             (response['hadith_results']['hadiths'] ?? []).map((h) {
-              print('[DEBUG] Processing hadith: ${h['text'].toString().substring(0, min(20, h['text'].toString().length))}...');
               return Hadith.fromMap({
                 'id': 0,
                 'collection_id': 0,
@@ -171,23 +171,24 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               });
             }),
           );
-          print('[DEBUG] _hadiths length after update: ${_hadiths.length}');
           _isLoading = false;
         });
 
         _saveToHistory();
-
-        print('[PERF] Total response time: ${DateTime.now().difference(startTime).inMilliseconds}ms');
       }).catchError((e) {
-        print('[ERROR] Error in generateResponse: $e');
+        print('[DEBUG] generateResponse catchError called with: $e');
+        print('[DEBUG] Error type: ${e.runtimeType}');
+
         if (!mounted) return;
         setState(() {
-          // Handle specific error types in the main generateResponse call
           if (e is OpenAiServiceException) {
+            print("[DEBUG] Caught OpenAiServiceException in generateResponse: ${e.message}");
             _error = e.message;
           } else if (e is SocketException) {
+            print("[DEBUG] Caught SocketException in generateResponse");
             _error = 'No internet connection. Please check your network and try again.';
           } else {
+            print("[DEBUG] Caught other error in generateResponse: $e");
             _error = 'An unexpected error occurred. Please try again later.';
           }
           _isLoading = false;
@@ -195,12 +196,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         });
       }).whenComplete(() {
         _isSearching = false;
-        print('[DEBUG] Search completed, _isSearching set to false');
+        print('[DEBUG] generateResponse completed (finally block)');
       });
 
     } on OpenAiServiceException catch (e) {
-      // Catch OpenAiServiceException specifically (which already has good error messages)
-      print('[ERROR] OpenAiServiceException in _fetchResults: ${e.message}');
+      print('[DEBUG] Main try-catch caught OpenAiServiceException: ${e.message}');
       if (!mounted) return;
       setState(() {
         _error = e.message;
@@ -208,8 +208,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         _isSearching = false;
       });
     } on SocketException catch (e) {
-      // Catch network errors specifically
-      print('[ERROR] SocketException in _fetchResults: $e');
+      print('[DEBUG] Main try-catch caught SocketException: $e');
       if (!mounted) return;
       setState(() {
         _error = 'No internet connection. Please check your network and try again.';
@@ -217,8 +216,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         _isSearching = false;
       });
     } catch (e) {
-      // Catch any other errors
-      print('[ERROR] Error in _fetchResults: $e');
+      print('[DEBUG] Main try-catch caught other error: $e');
+      print('[DEBUG] Error type: ${e.runtimeType}');
       if (!mounted) return;
       setState(() {
         _error = 'An unexpected error occurred. Please try again later.';
