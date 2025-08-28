@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'hadith_detail_screen.dart';
 import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HadithScreen extends StatefulWidget {
   @override
@@ -98,9 +99,8 @@ class _HadithScreenState extends State<HadithScreen> {
                       ),
                       child: Text(
                         _error!,
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           color: Colors.red[700],
-                          fontFamily: 'Poppins',
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -127,15 +127,13 @@ class _HadithScreenState extends State<HadithScreen> {
                         ),
                         child: TextField(
                           controller: _searchController,
-                          style: TextStyle(
+                          style: GoogleFonts.poppins(
                             color: Colors.black87,
-                            fontFamily: 'Poppins',
                           ),
                           decoration: InputDecoration(
                             hintText: 'Search Hadiths...',
-                            hintStyle: TextStyle(
+                            hintStyle: GoogleFonts.poppins(
                               color: Colors.grey[500],
-                              fontFamily: 'Poppins',
                             ),
                             prefixIcon: Icon(Icons.search, color: primaryBlue),
                             border: InputBorder.none,
@@ -202,19 +200,17 @@ class _HadithScreenState extends State<HadithScreen> {
               children: [
                 Text(
                   'Hadith',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: primaryBlue,
-                    fontFamily: 'Poppins',
                   ),
                 ),
                 Text(
                   'As compiled by Imam Nawawi',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey[600],
-                    fontFamily: 'Poppins',
                   ),
                 ),
               ],
@@ -264,10 +260,9 @@ class _HadithScreenState extends State<HadithScreen> {
           child: ListTile(
             title: Text(
               'Hadith ${hadith['number']}',
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
                 fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
-                fontFamily: 'Poppins',
               ),
             ),
             onTap: () {
@@ -317,10 +312,9 @@ class _HadithScreenState extends State<HadithScreen> {
                 child: ListTile(
                   title: Text(
                     'Hadith ${hadith['number']}',
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: _selectedHadith == hadith ? primaryBlue : Colors.black87,
                       fontWeight: _selectedHadith == hadith ? FontWeight.bold : FontWeight.normal,
-                      fontFamily: 'Poppins',
                     ),
                   ),
                   onTap: () => setState(() => _selectedHadith = hadith),
@@ -336,9 +330,8 @@ class _HadithScreenState extends State<HadithScreen> {
               ? Center(
                   child: Text(
                     'Select a hadith',
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.grey[700],
-                      fontFamily: 'Poppins',
                     ),
                   ),
                 )
@@ -381,11 +374,10 @@ class _HadithScreenState extends State<HadithScreen> {
                             SizedBox(width: 12),
                             Text(
                               'Hadith ${_selectedHadith!['number']}',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: primaryBlue,
-                                fontFamily: 'Poppins',
                               ),
                             ),
                           ],
@@ -405,11 +397,10 @@ class _HadithScreenState extends State<HadithScreen> {
                           ),
                           child: Text(
                             _selectedHadith!['text'],
-                            style: TextStyle(
+                            style: GoogleFonts.poppins(
                               height: 1.5,
                               fontSize: 16,
                               color: Colors.black87,
-                              fontFamily: 'Poppins',
                             ),
                           ),
                         ),

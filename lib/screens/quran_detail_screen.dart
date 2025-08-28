@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../theme/text_styles.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../data/first_verse_data.dart';
 import 'dart:math';
-import '../theme/theme_provider.dart';
-import 'package:provider/provider.dart';
-import '../services/reading_tracker_service.dart'; 
+import '../services/reading_tracker_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class QuranDetailScreen extends StatefulWidget {
   final int surahNumber;
   final String surahName;
   final List<dynamic> verses;
-  final int? initialVerse; 
+  final int? initialVerse;
 
   const QuranDetailScreen({
     Key? key,
     required this.surahNumber,
     required this.surahName,
     required this.verses,
-    this.initialVerse, 
+    this.initialVerse,
   }) : super(key: key);
 
   @override
@@ -33,7 +31,6 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   int? highlightedVerse;
   Timer? highlightTimer;
 
-  // MATCHING HOME SCREEN COLORS
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -43,7 +40,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // START TRACKING when screen opens
     ReadingTrackerService.startReadingSession(widget.surahNumber, widget.surahName);
 
@@ -75,14 +72,14 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Jump to Verse',
-          style: TextStyle(color: Colors.black87),
+          style: GoogleFonts.poppins(color: Colors.black87),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Enter verse number (1-$maxVerse):',
-              style: TextStyle(color: Colors.black87),
+              style: GoogleFonts.poppins(color: Colors.black87),
             ),
             SizedBox(height: 16),
             Container(
@@ -95,10 +92,10 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                 controller: controller,
                 keyboardType: TextInputType.number,
                 autofocus: true,
-                style: TextStyle(color: Colors.black87),
+                style: GoogleFonts.poppins(color: Colors.black87),
                 decoration: InputDecoration(
                   hintText: 'Verse number',
-                  hintStyle: TextStyle(color: Colors.black54),
+                  hintStyle: GoogleFonts.poppins(color: Colors.black54),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -109,7 +106,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.black54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -124,7 +121,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                 jumpToVerse(verseNumber);
               }
             },
-            child: Text('Go'),
+            child: Text('Go', style: GoogleFonts.poppins()),
           ),
         ],
       ),
@@ -134,7 +131,6 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
   void jumpToVerse(int verseNumber) {
     print('QuranDetailScreen: Jumping to verse $verseNumber');
 
-    // TRACK PROGRESS
     ReadingTrackerService.updateProgress(verseNumber);
 
     setState(() {
@@ -145,7 +141,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Navigating to verse $verseNumber'),
+        content: Text('Navigating to verse $verseNumber', style: GoogleFonts.poppins()),
         backgroundColor: primaryBlue,
       ),
     );
@@ -208,8 +204,12 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
         backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
-          'Surah ${widget.surahNumber}: ${widget.surahName}', 
-          style: TextStyle(color: Colors.black87),
+          'Surah ${widget.surahNumber}: ${widget.surahName}',
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
         ),
         iconTheme: IconThemeData(color: primaryBlue),
         actions: [
@@ -254,13 +254,13 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                   margin: EdgeInsets.only(bottom: 16),
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isHighlighted 
-                      ? Colors.amber[100] 
+                    color: isHighlighted
+                      ? Colors.amber[100]
                       : cardColor.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isHighlighted 
-                        ? Colors.amber 
+                      color: isHighlighted
+                        ? Colors.amber
                         : cardColor.withOpacity(0.5),
                       width: 1.5,
                     ),
@@ -285,7 +285,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                             ),
                             child: Text(
                               'Verse $verseNumber',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: primaryBlue,
@@ -306,7 +306,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                           textDirection: TextDirection.rtl,
                           child: Text(
                             arabicText,
-                            style: TextStyle(
+                            style: TextStyle( // Corrected to TextStyle
                               fontFamily: 'Scheherazade',
                               fontSize: 24,
                               height: 1.5,
@@ -318,7 +318,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
                       if (arabicText != null && arabicText.isNotEmpty) SizedBox(height: 16),
                       Text(
                         verse['text'] ?? '',
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           height: 1.5,
                           fontSize: 16,
                           color: Colors.black87,
@@ -364,7 +364,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
             ),
             child: Text(
               'Bismillah',
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: primaryBlue,
@@ -376,7 +376,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
             textDirection: TextDirection.rtl,
             child: Text(
               'بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ',
-              style: TextStyle(
+              style: TextStyle( // Corrected to TextStyle
                 fontFamily: 'Scheherazade',
                 fontSize: 28,
                 height: 1.5,
@@ -388,7 +388,7 @@ class _QuranDetailScreenState extends State<QuranDetailScreen> {
           SizedBox(height: 12),
           Text(
             'In the name of Allah, the Most Gracious, the Most Merciful',
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.black54,
               fontStyle: FontStyle.italic,

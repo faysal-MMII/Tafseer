@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class QuranScreen extends StatefulWidget {
   final int? initialSurah;
@@ -209,9 +210,8 @@ class _QuranScreenState extends State<QuranScreen> {
             ? Center(
                 child: Text(
                   _error!,
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     color: Colors.red,
-                    fontFamily: 'Poppins',
                   ),
                 ),
               )
@@ -275,9 +275,8 @@ class _QuranScreenState extends State<QuranScreen> {
                           ? Center(
                               child: Text(
                                 'Select a surah',
-                                style: TextStyle(
+                                style: GoogleFonts.poppins(
                                   color: Colors.grey[700],
-                                  fontFamily: 'Poppins',
                                 ),
                               ),
                             )
@@ -349,19 +348,17 @@ class _QuranScreenState extends State<QuranScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: primaryBlue,
-                    fontFamily: 'Poppins',
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey[600],
-                    fontFamily: 'Poppins',
                   ),
                 ),
               ],
@@ -388,15 +385,13 @@ class _QuranScreenState extends State<QuranScreen> {
       ),
       child: TextField(
         controller: _searchController,
-        style: TextStyle(
+        style: GoogleFonts.poppins(
           color: Colors.black87,
-          fontFamily: 'Poppins',
         ),
         decoration: InputDecoration(
           hintText: 'Search Surahs...',
-          hintStyle: TextStyle(
+          hintStyle: GoogleFonts.poppins(
             color: Colors.black54,
-            fontFamily: 'Poppins',
           ),
           prefixIcon: Icon(Icons.search, color: primaryBlue),
           fillColor: backgroundColor,
@@ -427,10 +422,9 @@ class _QuranScreenState extends State<QuranScreen> {
       child: ListTile(
         title: Text(
           'Surah ${surah['chapter']}: ${surah['name']}',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             color: isSelected ? primaryBlue : Colors.black87,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontFamily: 'Poppins',
           ),
         ),
         onTap: () {
@@ -491,22 +485,20 @@ class _QuranScreenState extends State<QuranScreen> {
               ),
               child: Text(
                 'Verse ${verse['verse']}',
-                style: TextStyle(
+                style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: primaryBlue,
-                  fontFamily: 'Poppins',
                 ),
               ),
             ),
             SizedBox(height: 12),
             Text(
               verse['text'],
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 height: 1.5,
                 fontSize: 16,
                 color: Colors.black87,
-                fontFamily: 'Poppins',
               ),
             ),
             SizedBox(height: 16),

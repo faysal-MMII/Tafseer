@@ -1,22 +1,16 @@
-// lib/screens/search_results_screen.dart
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../models/hadith.dart';
-import '../theme/text_styles.dart';
-import '../widgets/quran_section.dart';
-import '../widgets/hadith_section.dart';
-import '../services/openai_service.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
-import '../widgets/responsive_layout.dart';
+import '../services/openai_service.dart';
+import '../widgets/hadith_section.dart';
+import '../widgets/quran_section.dart';
 import '../screens/quran_screen.dart';
-import '../screens/quran_detail_screen.dart';
-import '../data/surah_data.dart';
-import '../widgets/formatted_text.dart';
-import '../theme/theme_provider.dart';
-import 'package:provider/provider.dart';
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
@@ -87,7 +81,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         return;
       }
 
-      // Format verses...
       final formattedVerses = verses.map((v) {
         String text = '';
         if (v.containsKey('translations') && v['translations'] is List && v['translations'].isNotEmpty) {
@@ -237,12 +230,22 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       print('DEBUG: Answer length: ${_aiResponse.length}');
       print('DEBUG: Verses count: ${_quranVerses.length}');
       print('DEBUG: Hadiths count: ${_hadiths.length}');
+      
       final hadithsForSaving = _hadiths.map((hadith) => {
         'text': hadith.text,
         'arabic': hadith.arabicText,
         'grade': hadith.grade,
         'narrator': hadith.narrator,
       }).toList();
+      
+      print('DEBUG: Raw hadith objects:');
+      for (var hadith in _hadiths) {
+        print('  - text: "${hadith.text}"');
+        print('  - arabic: "${hadith.arabicText}"');
+        print('  - grade: "${hadith.grade}"');
+      }
+      print('DEBUG: Mapped for saving: $hadithsForSaving');
+      
       await widget.firestoreService!.saveQA(
         question: widget.query,
         answer: _aiResponse,
@@ -264,15 +267,22 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: backgroundColor,
         title: Text(
           'Search Results',
-          style: TextStyle(color: Colors.black87),
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        // The AppBar you provided is now integrated here.
+        // I've kept the leading and actions from the original
+        // code to maintain functionality.
+        elevation: 0,
+        backgroundColor: backgroundColor,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primaryBlue),
           onPressed: () => Navigator.pop(context),
@@ -303,6 +313,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildBody() {
+    final textTheme = Theme.of(context).textTheme;
     if (_isLoading) {
       return Center(
         child: Column(
@@ -314,7 +325,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             SizedBox(height: 16),
             Text(
               'Searching for answers...',
-              style: TextStyle(color: Colors.black54),
+              style: textTheme.bodyMedium?.copyWith(
+                color: Colors.black54,
+              ),
             ),
           ],
         ),
@@ -337,6 +350,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildQueryContainer() {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       width: double.infinity,
       margin: EdgeInsets.all(16),
@@ -394,8 +408,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 SizedBox(width: 12),
                 Text(
                   'Your Question',
-                  style: TextStyle(
-                    fontSize: 18,
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -407,10 +420,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             padding: EdgeInsets.all(16),
             child: Text(
               widget.query,
-              style: TextStyle(
+              style: textTheme.bodyLarge?.copyWith(
                 fontSize: 16,
-                color: Colors.black87,
                 height: 1.4,
+                color: Colors.black87,
               ),
             ),
           ),
@@ -443,6 +456,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildErrorContainer() {
+    final textTheme = Theme.of(context).textTheme;
     return Center(
       child: Container(
         margin: EdgeInsets.all(20),
@@ -470,8 +484,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             SizedBox(height: 16),
             Text(
               'Error Occurred',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.red[700],
               ),
@@ -480,9 +493,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             Text(
               _error ?? 'An unknown error occurred',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: textTheme.bodySmall?.copyWith(
                 color: Colors.red[600],
-                fontSize: 14,
               ),
             ),
           ],

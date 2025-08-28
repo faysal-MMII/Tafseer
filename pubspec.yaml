@@ -1,8 +1,10 @@
 name: tafseer
 description: An Islamic learning application
 version: 1.1.0+5
+
 environment:
   sdk: '>=3.0.0 <4.0.0'
+
 dependencies:
   flutter:
     sdk: flutter
@@ -39,12 +41,14 @@ dependencies:
   flutter_svg: ^2.0.17
   package_info_plus: ^4.2.0
   flutter_foreground_task: ^6.0.0+1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
   mockito: ^5.4.4
   build_runner: ^2.4.8
+
 flutter:
   uses-material-design: true
   assets:
@@ -73,6 +77,14 @@ flutter:
           weight: 500
         - asset: assets/fonts/Roboto-Bold.ttf
           weight: 700
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
