@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'hadith_card.dart';
 import 'expandable_explanation.dart';
 import '../widgets/formatted_text.dart';
+import 'package:google_fonts/google_fonts.dart'; // Added GoogleFonts import
 
 class LoadingIndicator extends StatelessWidget {
   final String message;
@@ -38,9 +39,13 @@ class LoadingIndicator extends StatelessWidget {
         children: [
           CircularProgressIndicator(),
           SizedBox(height: 16),
-          FormattedText(
+          // Replaced FormattedText with Text and GoogleFonts.poppins
+          Text(
             message,
-            style: AppTextStyles.englishText,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -153,11 +158,12 @@ class _HadithSectionState extends State<HadithSection> {
     final isDark = widget.isDarkMode;
     final accentColor = isDark ? Color(0xFF1F9881) : Color(0xFF2D5F7C);
     final textColor = isDark ? Color(0xFFE0E0E0) : Color(0xFF424242);
+    final textTheme = Theme.of(context).textTheme; // Get text theme
 
     if (_response == null) {
       return Text(
         'No results available',
-        style: TextStyle(
+        style: textTheme.bodyMedium?.copyWith(
           color: isDark ? Colors.white : Colors.black87,
         ),
       );
@@ -183,8 +189,7 @@ class _HadithSectionState extends State<HadithSection> {
             SizedBox(width: 12),
             Text(
               'Hadith Guidance',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: accentColor,
               ),
@@ -199,11 +204,11 @@ class _HadithSectionState extends State<HadithSection> {
             color: isDark ? Color(0xFF0A1F4C) : Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: SingleChildScrollView( // Add this wrapper
+          child: SingleChildScrollView(
             child: Text(
-              _cleanMarkdownFormatting(_response!['hadith_results']['answer'] ?? 'No explanation available'), // Clean the explanation
-              style: TextStyle(
-                fontSize: 15,
+              _cleanMarkdownFormatting(_response!['hadith_results']['answer'] ?? 'No explanation available'),
+              style: textTheme.bodyLarge?.copyWith(
+                fontSize: 15, // Adjusted from original 15, since bodyLarge might have a different default
                 height: 1.5,
                 color: textColor,
               ),
@@ -242,6 +247,7 @@ class _HadithSectionState extends State<HadithSection> {
   }
 
   Widget _buildErrorBox([String? errorMessage]) {
+    final textTheme = Theme.of(context).textTheme; // Get text theme
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -254,9 +260,9 @@ class _HadithSectionState extends State<HadithSection> {
           ),
         ),
       ),
-      child: FormattedText(
+      child: Text( 
         errorMessage ?? 'Error fetching hadiths.',
-        style: AppTextStyles.englishText.copyWith(color: Color(0xFFC0392B)),
+        style: textTheme.bodyMedium?.copyWith(color: Color(0xFFC0392B)),
       ),
     );
   }
