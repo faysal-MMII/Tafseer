@@ -8,6 +8,8 @@ import '../services/deviceid_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../widgets/markdown_text.dart';
 
 class HistoryScreen extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -114,7 +116,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (_searchQuery.isNotEmpty) {
         final searchWords = _searchQuery.toLowerCase().trim().split(' ')
             .where((word) => word.isNotEmpty).toList();
-        
+
         if (searchWords.isNotEmpty) {
           query = query.where('searchableTerms', arrayContains: searchWords.first);
           print('Added search filter for: ${searchWords.first}');
@@ -136,20 +138,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
       print('Query executed. Got ${snapshot.docs.length} results');
 
       List<DocumentSnapshot> filteredDocs = snapshot.docs;
-      
+
       if (_searchQuery.isNotEmpty && _searchQuery.trim().split(' ').length > 1) {
         final searchWords = _searchQuery.toLowerCase().trim().split(' ')
             .where((word) => word.isNotEmpty).toList();
-        
+
         filteredDocs = snapshot.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final question = (data['question'] as String? ?? '').toLowerCase();
           final answer = (data['answer'] as String? ?? '').toLowerCase();
-          
-          return searchWords.every((word) => 
+
+          return searchWords.every((word) =>
             question.contains(word) || answer.contains(word));
         }).toList();
-        
+
         print('After client-side filtering: ${filteredDocs.length} results');
       }
 
@@ -173,11 +175,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
       print('Error loading data: $e');
       print('Error stack trace: ${StackTrace.current}');
-      
+
       if (mounted) {
         final errorType = _classifyError(e);
         final errorMessage = _getSpecificErrorMessage(errorType, 'loading search history');
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -187,7 +189,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Expanded(
                   child: Text(
                     errorMessage,
-                    style: TextStyle(fontSize: 14, fontFamily: 'Poppins'),
+                    style: GoogleFonts.poppins(fontSize: 14),
                   ),
                 ),
               ],
@@ -210,22 +212,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final deviceId = await DeviceIDService.getDeviceID();
       FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Device ID: $deviceId");
-      
+
       final snapshot = await FirebaseFirestore.instance
           .collection('qa_history')
           .limit(1)
           .get();
-      
+
       FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Collection exists: ${snapshot.docs.isNotEmpty}");
-      
+
       final deviceSnapshot = await FirebaseFirestore.instance
           .collection('qa_history')
           .where('deviceId', isEqualTo: deviceId)
           .limit(1)
           .get();
-      
+
       FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Found with device ID: ${deviceSnapshot.docs.length}");
-      
+
       if (deviceSnapshot.docs.isNotEmpty) {
         final doc = deviceSnapshot.docs.first.data();
         FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Sample doc: ${doc['question'] ?? 'No question'}");
@@ -247,9 +249,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             SizedBox(width: 12),
             Text(
               'Clear History',
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 color: Colors.black87,
-                fontFamily: 'Poppins',
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -257,19 +258,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         content: Text(
           'Are you sure you want to delete all search history? This action cannot be undone.',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             color: Colors.black87,
-            fontFamily: 'Poppins',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel', 
-              style: TextStyle(
+              'Cancel',
+              style: GoogleFonts.poppins(
                 color: Colors.black54,
-                fontFamily: 'Poppins',
               ),
             ),
           ),
@@ -285,7 +284,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             },
             child: Text(
               'Clear All',
-              style: TextStyle(fontFamily: 'Poppins'),
+              style: GoogleFonts.poppins(),
             ),
           ),
         ],
@@ -320,7 +319,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         SnackBar(
           content: Text(
             'All history cleared',
-            style: TextStyle(fontFamily: 'Poppins'),
+            style: GoogleFonts.poppins(),
           ),
           backgroundColor: primaryBlue,
           behavior: SnackBarBehavior.floating,
@@ -334,7 +333,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           SnackBar(
             content: Text(
               errorMessage,
-              style: TextStyle(fontFamily: 'Poppins'),
+              style: GoogleFonts.poppins(),
             ),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
@@ -359,16 +358,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           .collection('qa_history')
           .doc(doc.id)
           .delete();
-      
+
       setState(() {
         _documents.remove(doc);
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Entry deleted',
-            style: TextStyle(fontFamily: 'Poppins'),
+            style: GoogleFonts.poppins(),
           ),
           backgroundColor: primaryBlue,
           behavior: SnackBarBehavior.floating,
@@ -382,7 +381,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           SnackBar(
             content: Text(
               errorMessage,
-              style: TextStyle(fontFamily: 'Poppins'),
+              style: GoogleFonts.poppins(),
             ),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
@@ -399,7 +398,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _lastDocument = null;
       _hasMore = true;
     });
-    
+
     Future.delayed(Duration(milliseconds: 500), () {
       if (_searchQuery == query) {
         _loadMoreData();
@@ -409,29 +408,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   List<String> _extractQuranVerses(dynamic data) {
     if (data == null) return [];
-    
+
     List<String> verses = [];
-    
+
     if (data is List) {
       for (var item in data) {
         if (item == null) continue;
-        
+
         String verseText = '';
         String reference = '';
-        
+
         if (item is Map<String, dynamic>) {
           if (item.containsKey('text')) {
             verseText = item['text']?.toString() ?? '';
           } else if (item.containsKey('translations') && item['translations'] is List && item['translations'].isNotEmpty) {
             verseText = item['translations'][0]['text']?.toString() ?? '';
           }
-          
+
           if (item.containsKey('verse_key')) {
             reference = item['verse_key']?.toString() ?? '';
           } else if (item.containsKey('reference')) {
             reference = item['reference']?.toString() ?? '';
           }
-          
+
           if (verseText.isNotEmpty && reference.isNotEmpty) {
             verses.add('$reference');
           } else if (reference.isNotEmpty) {
@@ -448,13 +447,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
     }
-    
+
     return verses.where((v) => v.isNotEmpty && !v.contains('null')).toList();
   }
 
   List<Map<String, dynamic>> _extractHadiths(dynamic data) {
     if (data == null || data is! List) return [];
-    
+
     return (data as List).where((item) => item != null).map((item) {
       if (item is Map<String, dynamic>) {
         return item;
@@ -473,10 +472,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
-          'Search History', 
-          style: TextStyle(
+          'Search History',
+          style: GoogleFonts.poppins(
             color: primaryBlue,
-            fontFamily: 'Poppins',
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -514,11 +512,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   SizedBox(height: 16),
                   Text(
                     'History not available offline',
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.black87,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      fontFamily: 'Poppins',
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -548,15 +545,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.black87,
-                      fontFamily: 'Poppins',
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search history...',
-                      hintStyle: TextStyle(
+                      hintStyle: GoogleFonts.poppins(
                         color: Colors.grey[500],
-                        fontFamily: 'Poppins',
                       ),
                       prefixIcon: Icon(Icons.search, color: primaryBlue),
                       border: InputBorder.none,
@@ -593,20 +588,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 SizedBox(height: 16),
                                 Text(
                                   'No search history yet',
-                                  style: TextStyle(
+                                  style: GoogleFonts.poppins(
                                     color: Colors.black87,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    fontFamily: 'Poppins',
                                   ),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Your previous searches will appear here',
-                                  style: TextStyle(
+                                  style: GoogleFonts.poppins(
                                     color: Colors.black54,
                                     fontSize: 14,
-                                    fontFamily: 'Poppins',
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -722,11 +715,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Expanded(
                       child: Text(
                         question,
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                           fontSize: 15,
-                          fontFamily: 'Poppins',
                         ),
                       ),
                     ),
@@ -736,10 +728,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   SizedBox(height: 8),
                   Text(
                     _formatTimestamp(timestamp),
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.black54,
                       fontSize: 12,
-                      fontFamily: 'Poppins',
                     ),
                   ),
                 ],
@@ -769,24 +760,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             SizedBox(width: 8),
                             Text(
                               'Answer:',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: primaryBlue,
-                                fontFamily: 'Poppins',
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 8),
-                        Text(
-                          answer, 
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: 14,
-                            height: 1.4,
-                            fontFamily: 'Poppins',
-                          ),
+                        MarkdownText(
+                          text: answer,
+                          color: Colors.black87,
+                          fontSize: 14,
                         ),
                       ],
                     ),
@@ -798,12 +784,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Icon(Icons.menu_book, color: primaryBlue, size: 16),
                         SizedBox(width: 8),
                         Text(
-                          'Quran Verses:', 
-                          style: TextStyle(
-                            fontSize: 14, 
-                            fontWeight: FontWeight.bold, 
+                          'Quran Verses:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
                             color: primaryBlue,
-                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
@@ -820,11 +805,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           border: Border.all(color: primaryBlue.withOpacity(0.3)),
                         ),
                         child: Text(
-                          ref, 
-                          style: TextStyle(
-                            color: primaryBlue, 
+                          ref,
+                          style: GoogleFonts.poppins(
+                            color: primaryBlue,
                             fontSize: 12,
-                            fontFamily: 'Poppins',
                           ),
                         ),
                       )).toList(),
@@ -838,34 +822,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Hadiths:',
-                          style: TextStyle(
+                          style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: primaryBlue,
-                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...hadiths.map((hadith) => Container(
-                      margin: EdgeInsets.only(bottom: 8),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: backgroundColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Text(
-                        hadith['text'] ?? '',
-                        style: TextStyle(
+                    ...hadiths.map((hadith) {
+                      final hadithText = hadith['text'] ?? '';
+                      final displayedText = hadithText.length > 300
+                          ? '${hadithText.toString().substring(0, 300)}...'
+                          : hadithText;
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: MarkdownText(
+                          text: displayedText,
                           color: Colors.black87,
                           fontSize: 13,
-                          height: 1.3,
-                          fontFamily: 'Poppins',
                         ),
-                      ),
-                    )),
+                      );
+                    }),
                   ],
                 ],
               ),

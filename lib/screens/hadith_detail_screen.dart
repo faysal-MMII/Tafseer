@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../theme/text_styles.dart';
 import 'package:provider/provider.dart';
 import '../theme/theme_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HadithDetailScreen extends StatelessWidget {
   final Map<String, dynamic> hadith;
   final String searchQuery;
 
-  // MATCHING HOME SCREEN COLORS
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
   static const Color backgroundColor = Colors.white;
@@ -29,7 +29,11 @@ class HadithDetailScreen extends StatelessWidget {
         elevation: 0,
         title: Text(
           'Hadith ${hadith['number']}',
-          style: TextStyle(color: Colors.black87),
+          style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
+            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         iconTheme: IconThemeData(color: primaryBlue),
       ),
@@ -93,7 +97,7 @@ class HadithDetailScreen extends StatelessWidget {
                         SizedBox(width: 16),
                         Text(
                           'Hadith ${hadith['number']}',
-                          style: TextStyle(
+                          style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
@@ -123,7 +127,7 @@ class HadithDetailScreen extends StatelessWidget {
                       ),
                       child: Text(
                         hadith['text'] ?? 'No text available',
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
                           height: 1.6,
                           fontSize: 16,
                           color: Colors.black87,
@@ -153,7 +157,7 @@ class HadithDetailScreen extends StatelessWidget {
                             SizedBox(width: 6),
                             Text(
                               'Search: "$searchQuery"',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 color: primaryBlue,
