@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../models/hadith.dart';
 import '../services/analytics_service.dart';
 import '../services/firestore_service.dart';
@@ -38,6 +36,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<Hadith> _hadiths = [];
   bool _isSearching = false;
   StreamSubscription? _openAISubscription;
+  Map<String, dynamic>? _fullGeneratedResponse;
+
+  bool _streamComplete = false;
+  bool _generateComplete = false;
 
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color lightBlue = Color(0xFF81B3D2);
@@ -69,6 +71,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       _aiResponse = '';
       _quranVerses = [];
       _hadiths = [];
+      _fullGeneratedResponse = null;
+      _streamComplete = false;
+      _generateComplete = false;
     });
 
     try {
@@ -129,6 +134,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         },
         onDone: () {
           print("[DEBUG] Stream completed");
+          _streamComplete = true;
+          _attemptSave();
         }
       );
 
@@ -140,6 +147,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           print('[DEBUG] Widget not mounted after generateResponse');
           return;
         }
+
+        _fullGeneratedResponse = response;
+        _generateComplete = true;
 
         final hadithsCount = (response['hadith_results']['hadiths'] as List?)?.length ?? 0;
         print('[DEBUG] Hadiths received: $hadithsCount');
@@ -167,7 +177,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           _isLoading = false;
         });
 
-        _saveToHistory();
+        _attemptSave();
+
       }).catchError((e) {
         print('[DEBUG] generateResponse catchError called with: $e');
         print('[DEBUG] Error type: ${e.runtimeType}');
@@ -220,38 +231,34 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     }
   }
 
-  Future<void> _saveToHistory() async {
+  void _attemptSave() {
+    print("DEBUG: _attemptSave called. Stream complete: $_streamComplete, Generate complete: $_generateComplete");
+    if (_streamComplete && _generateComplete && _fullGeneratedResponse != null) {
+      print("DEBUG: Conditions met. Calling _saveToHistory.");
+      _saveToHistory(_fullGeneratedResponse!);
+    }
+  }
+  
+  Future<void> _saveToHistory(Map<String, dynamic> response) async {
     if (widget.firestoreService == null) {
       print('DEBUG: FirestoreService is null, cannot save to history');
       return;
     }
     try {
-      print('DEBUG: About to save QA - Question: ${widget.query}');
-      print('DEBUG: Answer length: ${_aiResponse.length}');
-      print('DEBUG: Verses count: ${_quranVerses.length}');
-      print('DEBUG: Hadiths count: ${_hadiths.length}');
+      // Get the AI explanation about hadiths (this is what you want to see in history)
+      final hadithExplanation = response['hadith_results']['answer'] ?? '';
       
-      final hadithsForSaving = _hadiths.map((hadith) => {
-        'text': hadith.text,
-        'arabic': hadith.arabicText,
-        'grade': hadith.grade,
-        'narrator': hadith.narrator,
-      }).toList();
-      
-      print('DEBUG: Raw hadith objects:');
-      for (var hadith in _hadiths) {
-        print('  - text: "${hadith.text}"');
-        print('  - arabic: "${hadith.arabicText}"');
-        print('  - grade: "${hadith.grade}"');
-      }
-      print('DEBUG: Mapped for saving: $hadithsForSaving');
-      
+      // Save the explanation as a hadith entry, not the raw irrelevant hadiths
+      final hadithsToSave = hadithExplanation.isNotEmpty 
+        ? [{'text': hadithExplanation}] 
+        : <Map<String, dynamic>>[];
       await widget.firestoreService!.saveQA(
         question: widget.query,
         answer: _aiResponse,
         quranVerses: _quranVerses,
-        hadiths: hadithsForSaving,
+        hadiths: hadithsToSave, // Save the AI explanation, not raw hadiths
       );
+      
       print('DEBUG: saveQA completed successfully');
     } catch (e, stackTrace) {
       print('ERROR saving QA to history: $e');
@@ -278,9 +285,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        // The AppBar you provided is now integrated here.
-        // I've kept the leading and actions from the original
-        // code to maintain functionality.
         elevation: 0,
         backgroundColor: backgroundColor,
         leading: IconButton(

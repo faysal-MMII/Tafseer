@@ -59,8 +59,12 @@ class HadithRAGService {
           ),
         ],
         temperature: 0.7,
-        maxTokens: 350,
+        maxTokens: 500,
       );
+
+      final answer = response.choices.first.message.content?.first?.text ?? '';
+      print('DEBUG: HadithRAGService response length: ${answer.length}');
+      print('DEBUG: HadithRAGService response preview: ${answer.length > 100 ? answer.substring(0, 100) : answer}...');
 
       // Step 3: Process Hadiths for Response
       final processedHadiths = hadiths.take(3).map((h) {
@@ -75,7 +79,7 @@ class HadithRAGService {
       }).toList();
 
       return {
-        "answer": response.choices.first.message.content?.first?.text ?? '',
+        "answer": answer,
         "hadiths": processedHadiths,
       };
     } catch (e) {

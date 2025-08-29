@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/deviceid_service.dart';
@@ -52,20 +53,33 @@ class FirestoreService {
   }
 
   List<Map<String, dynamic>> _cleanHadiths(List<dynamic> hadiths) {
+    print('DEBUG: _cleanHadiths called with ${hadiths.length} hadiths');
+
     return hadiths.where((hadith) => hadith != null).map((hadith) {
       if (hadith is Map<String, dynamic>) {
+        print('DEBUG: Processing hadith map with keys: ${(hadith as Map<String, dynamic>).keys}');
         final cleanHadith = <String, dynamic>{};
         hadith.forEach((key, value) {
           if (value != null && value.toString() != 'null' && value.toString().isNotEmpty) {
             cleanHadith[key] = value;
           }
         });
-        return cleanHadith;
+
+        final hasText = cleanHadith.containsKey('text') && cleanHadith['text'].toString().isNotEmpty;
+        print('DEBUG: Hadith has valid text: $hasText');
+        if (hasText) {
+          print('DEBUG: Text length: ${cleanHadith['text'].toString().length}');
+          print('DEBUG: First 100 chars: ${cleanHadith['text'].toString().substring(0, math.min(100, cleanHadith['text'].toString().length))}');
+        }
+
+        return hasText ? cleanHadith : null;
       } else if (hadith is String && hadith.isNotEmpty && hadith != 'null') {
+        print('DEBUG: Processing hadith string: ${hadith.substring(0, math.min(50, hadith.length))}...');
         return {'text': hadith};
       }
+      print('DEBUG: Hadith filtered out: $hadith');
       return null;
-    }).where((hadith) => hadith != null && hadith!.isNotEmpty)
+    }).where((hadith) => hadith != null)
       .cast<Map<String, dynamic>>().toList();
   }
 

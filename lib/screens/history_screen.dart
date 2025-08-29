@@ -833,9 +833,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     const SizedBox(height: 8),
                     ...hadiths.map((hadith) {
                       final hadithText = hadith['text'] ?? '';
-                      final displayedText = hadithText.length > 300
-                          ? '${hadithText.toString().substring(0, 300)}...'
-                          : hadithText;
+                      final displayedText = hadithText; // No truncation
                       return Container(
                         margin: EdgeInsets.only(bottom: 8),
                         padding: EdgeInsets.all(12),
