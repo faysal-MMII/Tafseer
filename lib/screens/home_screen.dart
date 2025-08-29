@@ -65,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _overlayAnimation;
   final ScrollController _scrollController = ScrollController();
 
-  // Added back keyboard state variable
   bool _isKeyboardVisible = false;
 
   static const Color primaryBlue = Color(0xFF4A90E2);
@@ -77,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    print("DEBUG: HomeScreen initState called");
     _logScreenView();
 
     _fabAnimationController = AnimationController(
@@ -138,9 +136,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _askQuestion(String query) async {
     if (query.isEmpty) return;
 
-    // The FocusAwareRouteObserver will handle unfocusing when navigating.
-    // Explicit unfocus here is still good practice before pushing a new screen
-    // or submitting a query, to ensure the current TextField loses focus.
     FocusScope.of(context).unfocus();
 
     widget.analyticsService?.logQuestionAsked('Home Screen Question');
@@ -193,13 +188,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    print("DEBUG: HomeScreen build called");
-
-    // Add back keyboard detection (but NO focus management)
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final keyboardVisible = keyboardHeight > 0;
 
-    // Update keyboard state for FAB visibility
     if (_isKeyboardVisible != keyboardVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
@@ -213,7 +204,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       extendBody: true,
       body: GestureDetector(
         onTap: () {
-          // Dismiss keyboard and close FAB when tapping outside
           FocusScope.of(context).unfocus();
           if (_isExpanded) {
             _toggleFAB();
@@ -240,7 +230,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       bottomNavigationBar: _buildBottomNavigation(),
-      // Add back conditional FAB hiding
       floatingActionButton: _isKeyboardVisible ? null : _buildFloatingActionButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
@@ -326,7 +315,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // REVERTED _buildSearchSection() to use a TextField directly
   Widget _buildSearchSection() {
     return Container(
       padding: EdgeInsets.all(12),
@@ -363,16 +351,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Expanded(
               child: TextField(
                 controller: _controller,
-                // The TextField will manage its own focus on tap.
-                // The global FocusAwareRouteObserver and restorationScopeId: null will handle navigation focus.
                 onTap: () {
                   if (_isExpanded) {
                     _toggleFAB();
                   }
-                  // Let TextField naturally gain focus on tap
                 },
                 onChanged: (text) {
-                  print("DEBUG: TextField changed: $text");
+                  // Removed print statement here
                 },
                 decoration: InputDecoration(
                   hintText: 'Salam alaykum...Seek answers to your questions here....',
@@ -405,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   if (text.isNotEmpty) {
                     _askQuestion(text);
                     _controller.clear();
-                    setState(() {}); // Refresh to show empty state
+                    setState(() {});
                   }
                 },
                 constraints: BoxConstraints(minWidth: 36, minHeight: 36),
@@ -418,8 +403,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Removed _showSearchBottomSheet() method
-
   Widget _buildBottomNavigation() {
     return SizedBox.shrink();
   }
@@ -427,14 +410,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildFloatingActionButton() {
     return Stack(
       children: [
-        // Info Button
         Positioned(
           bottom: 24,
           left: 54,
           child: _buildMatchingInfoFAB(),
         ),
 
-        // Main Kaaba FAB - Bottom Right
         Positioned(
           bottom: 24,
           right: 24,
