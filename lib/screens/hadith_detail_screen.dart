@@ -19,6 +19,98 @@ class HadithDetailScreen extends StatelessWidget {
     required this.hadith,
     this.searchQuery = '',
   }) : super(key: key);
+
+  // Method to create highlighted text
+  Widget _buildHighlightedText(String text, String searchQuery) {
+    if (searchQuery.isEmpty) {
+      return Text(
+        text,
+        style: GoogleFonts.poppins(
+          height: 1.6,
+          fontSize: 16,
+          color: Colors.black87,
+        ),
+      );
+    }
+
+    // Split search query into individual words
+    final searchWords = searchQuery.toLowerCase().split(' ')
+        .where((word) => word.trim().isNotEmpty)
+        .toList();
+    
+    if (searchWords.isEmpty) {
+      return Text(
+        text,
+        style: GoogleFonts.poppins(
+          height: 1.6,
+          fontSize: 16,
+          color: Colors.black87,
+        ),
+      );
+    }
+
+    List<TextSpan> spans = [];
+    String remainingText = text;
+    
+    while (remainingText.isNotEmpty) {
+      int earliestIndex = remainingText.length;
+      String foundWord = '';
+      
+      // Find the earliest occurrence of any search word
+      for (String searchWord in searchWords) {
+        int index = remainingText.toLowerCase().indexOf(searchWord.toLowerCase());
+        if (index != -1 && index < earliestIndex) {
+          earliestIndex = index;
+          foundWord = searchWord;
+        }
+      }
+      
+      if (earliestIndex == remainingText.length) {
+        // No more matches, add the rest as normal text
+        spans.add(TextSpan(
+          text: remainingText,
+          style: GoogleFonts.poppins(
+            height: 1.6,
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ));
+        break;
+      } else {
+        // Add text before the match
+        if (earliestIndex > 0) {
+          spans.add(TextSpan(
+            text: remainingText.substring(0, earliestIndex),
+            style: GoogleFonts.poppins(
+              height: 1.6,
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ));
+        }
+        
+        // Add the highlighted match
+        String actualMatch = remainingText.substring(earliestIndex, earliestIndex + foundWord.length);
+        spans.add(TextSpan(
+          text: actualMatch,
+          style: GoogleFonts.poppins(
+            height: 1.6,
+            fontSize: 16,
+            color: Colors.black87,
+            backgroundColor: Colors.yellow.withOpacity(0.3),
+            fontWeight: FontWeight.w600,
+          ),
+        ));
+        
+        // Continue with the rest of the text
+        remainingText = remainingText.substring(earliestIndex + foundWord.length);
+      }
+    }
+    
+    return RichText(
+      text: TextSpan(children: spans),
+    );
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -29,7 +121,7 @@ class HadithDetailScreen extends StatelessWidget {
         elevation: 0,
         title: Text(
           'Hadith ${hadith['number']}',
-          style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
+          style: GoogleFonts.poppins(
             color: Colors.black87,
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -97,7 +189,7 @@ class HadithDetailScreen extends StatelessWidget {
                         SizedBox(width: 16),
                         Text(
                           'Hadith ${hadith['number']}',
-                          style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
+                          style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
@@ -125,48 +217,11 @@ class HadithDetailScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Text(
+                      child: _buildHighlightedText(
                         hadith['text'] ?? 'No text available',
-                        style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
-                          height: 1.6,
-                          fontSize: 16,
-                          color: Colors.black87,
-                        ),
+                        searchQuery,
                       ),
                     ),
-                    if (searchQuery.isNotEmpty) ...[
-                      SizedBox(height: 16),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: primaryBlue.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: primaryBlue.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.search,
-                              size: 16,
-                              color: primaryBlue,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Search: "$searchQuery"',
-                              style: GoogleFonts.poppins(  // Changed from TextStyle to GoogleFonts
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: primaryBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

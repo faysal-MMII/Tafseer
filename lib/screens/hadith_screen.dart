@@ -70,8 +70,61 @@ class _HadithScreenState extends State<HadithScreen> {
           final number = hadith['number'].toString();
           final text = hadith['text'].toString().toLowerCase();
           final searchLower = query.toLowerCase();
-          return number.contains(searchLower) || text.contains(searchLower);
+          
+          // Priority 1: Search by hadith number (most specific)
+          if (RegExp(r'^\d+$').hasMatch(searchLower)) {
+            // For pure numbers, check for exact match first
+            final queryNum = int.tryParse(searchLower);
+            final hadithNum = int.tryParse(number);
+            
+            if (queryNum != null && hadithNum != null) {
+              // Exact match gets priority
+              if (hadithNum == queryNum) return true;
+              
+              // For multi-digit searches, allow partial matching
+              if (searchLower.length > 1) {
+                return number.startsWith(searchLower);
+              }
+              
+              // For single digit searches, only show exact matches
+              return false;
+            }
+          } else if (number.contains(searchLower)) {
+            // For non-numeric queries that might contain numbers
+            return true;
+          }
+          
+          // Priority 2: Check if the full query appears as a phrase in the text
+          if (text.contains(searchLower)) {
+            return true;
+          }
+          
+          // Priority 3: Split search into words and check if ALL words exist in the text
+          final searchWords = searchLower.split(' ').where((word) => word.trim().isNotEmpty);
+          if (searchWords.isNotEmpty) {
+            return searchWords.every((word) => text.contains(word));
+          }
+          
+          return false;
         }).toList();
+        
+        // Sort results to show exact phrase matches first, then word matches
+        _filteredHadiths.sort((a, b) {
+          final textA = a['text'].toString().toLowerCase();
+          final textB = b['text'].toString().toLowerCase();
+          final searchLower = query.toLowerCase();
+          
+          final aExactMatch = textA.contains(searchLower);
+          final bExactMatch = textB.contains(searchLower);
+          
+          if (aExactMatch && !bExactMatch) return -1;
+          if (!aExactMatch && bExactMatch) return 1;
+          
+          // If both are same type of match, sort by hadith number
+          final numA = int.tryParse(a['number'].toString()) ?? 0;
+          final numB = int.tryParse(b['number'].toString()) ?? 0;
+          return numA.compareTo(numB);
+        });
       }
     });
   }
