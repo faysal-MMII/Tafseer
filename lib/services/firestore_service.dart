@@ -83,6 +83,7 @@ class FirestoreService {
       .cast<Map<String, dynamic>>().toList();
   }
 
+  // REPLACED saveQA METHOD
   Future<void> saveQA({
     required String question,
     required String answer,
@@ -103,6 +104,10 @@ class FirestoreService {
 
       final cleanVerses = _cleanQuranVerses(quranVerses);
       final cleanHadiths = _cleanHadiths(hadiths);
+      
+      // Add both server timestamp AND client timestamp for better reliability
+      final now = DateTime.now();
+      final clientTimestamp = Timestamp.fromDate(now);
 
       if (existingQuestions.docs.isNotEmpty) {
         print('DEBUG: Updating existing entry');
@@ -113,6 +118,8 @@ class FirestoreService {
           'quranVerses': cleanVerses,
           'hadiths': cleanHadiths,
           'timestamp': FieldValue.serverTimestamp(),
+          'clientTimestamp': clientTimestamp,
+          'lastUpdated': FieldValue.serverTimestamp(),
         });
 
         print('Updated existing QA entry');
@@ -129,6 +136,8 @@ class FirestoreService {
           'hadiths': cleanHadiths,
           'searchableTerms': searchableTerms,
           'timestamp': FieldValue.serverTimestamp(),
+          'clientTimestamp': clientTimestamp,
+          'createdAt': FieldValue.serverTimestamp(),
         });
 
         print('QA saved successfully with ID: ${docRef.id}');
@@ -141,6 +150,8 @@ class FirestoreService {
       rethrow;
     }
   }
+
+  // The rest of the methods remain unchanged
 
   Future<void> testSaveMultipleQuestions() async {
     print('Testing multiple question saves...');

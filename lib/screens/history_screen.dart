@@ -96,6 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  // UPDATED _loadMoreData() with fallback timestamp handling
   Future<void> _loadMoreData() async {
     if (!_hasMore || _isLoading) return;
 
@@ -105,45 +106,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       final String deviceId = await DeviceIDService.getDeviceID();
-      print('Loading history for device: $deviceId');
 
       Query query = FirebaseFirestore.instance
           .collection('qa_history')
-          .where('deviceId', isEqualTo: deviceId);
+          .where('deviceId', isEqualTo: deviceId)
+          .orderBy('timestamp', descending: true); // Primary sort key
 
-      print('Created query with deviceId filter');
+      if (_lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
+      query = query.limit(_pageSize);
+
+      final QuerySnapshot snapshot = await query.get();
+      List<DocumentSnapshot> fetchedDocs = snapshot.docs;
+
+      // Filter and sort client-side, using clientTimestamp as a fallback
+      List<DocumentSnapshot> filteredAndSortedDocs = fetchedDocs;
 
       if (_searchQuery.isNotEmpty) {
         final searchWords = _searchQuery.toLowerCase().trim().split(' ')
             .where((word) => word.isNotEmpty).toList();
 
-        if (searchWords.isNotEmpty) {
-          query = query.where('searchableTerms', arrayContains: searchWords.first);
-          print('Added search filter for: ${searchWords.first}');
-        }
-      }
-
-      query = query.orderBy('timestamp', descending: true);
-      print('Added ordering by timestamp');
-
-      if (_lastDocument != null) {
-        query = query.startAfterDocument(_lastDocument!);
-        print('Added pagination after document');
-      }
-
-      query = query.limit(_pageSize);
-      print('Executing query with limit: $_pageSize');
-
-      final QuerySnapshot snapshot = await query.get();
-      print('Query executed. Got ${snapshot.docs.length} results');
-
-      List<DocumentSnapshot> filteredDocs = snapshot.docs;
-
-      if (_searchQuery.isNotEmpty && _searchQuery.trim().split(' ').length > 1) {
-        final searchWords = _searchQuery.toLowerCase().trim().split(' ')
-            .where((word) => word.isNotEmpty).toList();
-
-        filteredDocs = snapshot.docs.where((doc) {
+        filteredAndSortedDocs = fetchedDocs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final question = (data['question'] as String? ?? '').toLowerCase();
           final answer = (data['answer'] as String? ?? '').toLowerCase();
@@ -151,18 +136,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return searchWords.every((word) =>
             question.contains(word) || answer.contains(word));
         }).toList();
-
-        print('After client-side filtering: ${filteredDocs.length} results');
       }
 
-      if (snapshot.docs.isEmpty) {
-        print('No documents found matching the criteria');
-      } else {
-        print('First document data: ${snapshot.docs.first.data()}');
-      }
+      _sortDocuments(filteredAndSortedDocs);
 
       setState(() {
-        _documents.addAll(filteredDocs);
+        _documents.addAll(filteredAndSortedDocs);
         _hasMore = snapshot.docs.length == _pageSize;
         if (snapshot.docs.isNotEmpty) {
           _lastDocument = snapshot.docs.last;
@@ -173,8 +152,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('Error loading data: $e');
-      print('Error stack trace: ${StackTrace.current}');
 
       if (mounted) {
         final errorType = _classifyError(e);
@@ -184,8 +161,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 8),
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     errorMessage,
@@ -196,17 +173,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'RETRY',
               textColor: Colors.white,
-              onPressed: () => _refresh(),
+              onPressed: _refresh,
             ),
           ),
         );
       }
     }
   }
+  
+  // New helper method for client-side sorting
+  void _sortDocuments(List<DocumentSnapshot> docs) {
+    docs.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+
+      final timestampA = (dataA['timestamp'] as Timestamp?) ?? (dataA['clientTimestamp'] as Timestamp?);
+      final timestampB = (dataB['timestamp'] as Timestamp?) ?? (dataB['clientTimestamp'] as Timestamp?);
+
+      if (timestampA == null && timestampB == null) return 0;
+      if (timestampA == null) return 1;
+      if (timestampB == null) return -1;
+
+      return timestampB.compareTo(timestampA);
+    });
+  }
+
 
   Future<void> _diagnoseProblem() async {
     try {
@@ -232,8 +227,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         final doc = deviceSnapshot.docs.first.data();
         FirebaseCrashlytics.instance.log("HISTORY_DEBUG: Sample doc: ${doc['question'] ?? 'No question'}");
       }
-    } catch (error) {
-      FirebaseCrashlytics.instance.recordError(error, StackTrace.current, reason: "History diagnostic");
+    } catch (error, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(error, stackTrace, reason: "History diagnostic");
     }
   }
 
@@ -246,7 +241,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.orange[600]),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               'Clear History',
               style: GoogleFonts.poppins(
@@ -399,7 +394,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _hasMore = true;
     });
 
-    Future.delayed(Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (_searchQuery == query) {
         _loadMoreData();
       }
@@ -432,7 +427,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
 
           if (verseText.isNotEmpty && reference.isNotEmpty) {
-            verses.add('$reference');
+            verses.add(reference);
           } else if (reference.isNotEmpty) {
             verses.add(reference);
           }
@@ -454,7 +449,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<Map<String, dynamic>> _extractHadiths(dynamic data) {
     if (data == null || data is! List) return [];
 
-    return (data as List).where((item) => item != null).map((item) {
+    return (data).where((item) => item != null).map((item) {
       if (item is Map<String, dynamic>) {
         return item;
       } else if (item is String && item.isNotEmpty && !item.contains('null')) {
@@ -462,6 +457,238 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
       return null;
     }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
+  }
+  
+  // Method to format the timestamp with relative time
+  String _formatTimestamp(Map<String, dynamic> data) {
+    // Try server timestamp first
+    Timestamp? timestamp = data['timestamp'] as Timestamp?;
+    
+    // Fall back to client timestamp if server timestamp is null
+    timestamp ??= data['clientTimestamp'] as Timestamp?;
+    
+    if (timestamp == null) {
+      return 'Unknown date';
+    }
+    
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    // Show relative time for recent entries
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      // Show full date for older entries
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
+  }
+  
+  // Widget to build the history card
+  Widget _buildHistoryCard(Map<String, dynamic> data) {
+    final question = data['question'] as String? ?? '';
+    final answer = data['answer'] as String? ?? '';
+
+    final quranVerses = _extractQuranVerses(data['quranVerses']);
+    final hadiths = _extractHadiths(data['hadiths']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: cardColor.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          expansionTileTheme: const ExpansionTileThemeData(
+            backgroundColor: Colors.transparent,
+            collapsedBackgroundColor: Colors.transparent,
+            iconColor: primaryBlue,
+            collapsedIconColor: primaryBlue,
+          ),
+        ),
+        child: ExpansionTile(
+          title: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryBlue.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.help_outline,
+                        color: primaryBlue,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        question,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatTimestamp(data), // Pass the entire data map
+                  style: GoogleFonts.poppins(
+                    color: Colors.black54,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: softAccent.withOpacity(0.5)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.lightbulb_outline, color: primaryBlue, size: 16),
+                            SizedBox(width: 8),
+                            Text(
+                              'Answer:',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: primaryBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        MarkdownText(
+                          text: answer,
+                          color: Colors.black87,
+                          fontSize: 14,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (quranVerses.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Icon(Icons.menu_book, color: primaryBlue, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Quran Verses:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: quranVerses.map((ref) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: primaryBlue.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          ref,
+                          style: GoogleFonts.poppins(
+                            color: primaryBlue,
+                            fontSize: 12,
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+                  ],
+                  if (hadiths.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Icon(Icons.format_quote, color: primaryBlue, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Hadiths:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...hadiths.map((hadith) {
+                      final hadithText = hadith['text'] ?? '';
+                      final displayedText = hadithText; // No truncation
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: MarkdownText(
+                          text: displayedText,
+                          color: Colors.black87,
+                          fontSize: 13,
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -479,10 +706,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             fontSize: 20,
           ),
         ),
-        iconTheme: IconThemeData(color: primaryBlue),
+        iconTheme: const IconThemeData(color: primaryBlue),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete_forever, color: primaryBlue),
+            icon: const Icon(Icons.delete_forever, color: primaryBlue),
             onPressed: _clearAllHistory,
             tooltip: 'Clear all history',
           ),
@@ -491,8 +718,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: widget.firestoreService == null
         ? Center(
             child: Container(
-              margin: EdgeInsets.all(20),
-              padding: EdgeInsets.all(20),
+              margin: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: cardColor.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(16),
@@ -509,7 +736,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     color: Colors.grey[600],
                     size: 48,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'History not available offline',
                     style: GoogleFonts.poppins(
@@ -528,9 +755,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 // Search Field
                 Container(
-                  margin: EdgeInsets.all(16),
+                  margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [Color(0xFFf0f9ff), Color(0xFFe0f2fe)],
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -539,7 +766,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       BoxShadow(
                         blurRadius: 10,
                         color: Colors.black.withOpacity(0.05),
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -553,9 +780,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       hintStyle: GoogleFonts.poppins(
                         color: Colors.grey[500],
                       ),
-                      prefixIcon: Icon(Icons.search, color: primaryBlue),
+                      prefixIcon: const Icon(Icons.search, color: primaryBlue),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(18),
+                      contentPadding: const EdgeInsets.all(18),
                     ),
                     onChanged: _onSearchChanged,
                   ),
@@ -567,8 +794,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: _documents.isEmpty && !_isLoading
                       ? Center(
                           child: Container(
-                            margin: EdgeInsets.all(20),
-                            padding: EdgeInsets.all(20),
+                            margin: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: cardColor.withOpacity(0.8),
                               borderRadius: BorderRadius.circular(16),
@@ -585,7 +812,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   color: Colors.grey[600],
                                   size: 48,
                                 ),
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 Text(
                                   'No search history yet',
                                   style: GoogleFonts.poppins(
@@ -594,7 +821,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
                                   'Your previous searches will appear here',
                                   style: GoogleFonts.poppins(
@@ -615,7 +842,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (index == _documents.length) {
                               return Center(
                                 child: Padding(
-                                  padding: EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(16),
                                   child: CircularProgressIndicator(
                                     valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
                                   ),
@@ -628,7 +855,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             return Dismissible(
                               key: Key(doc.id),
                               background: Container(
-                                margin: EdgeInsets.only(bottom: 16),
+                                margin: const EdgeInsets.only(bottom: 16),
                                 decoration: BoxDecoration(
                                   color: Colors.red[400],
                                   borderRadius: BorderRadius.circular(12),
@@ -653,214 +880,5 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
     );
-  }
-
-  Widget _buildHistoryCard(Map<String, dynamic> data) {
-    final question = data['question'] as String? ?? '';
-    final answer = data['answer'] as String? ?? '';
-
-    final quranVerses = _extractQuranVerses(data['quranVerses']);
-    final hadiths = _extractHadiths(data['hadiths']);
-
-    final timestamp = data['timestamp'] as Timestamp?;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: cardColor.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cardColor.withOpacity(0.5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: primaryBlue.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          dividerColor: Colors.transparent,
-          expansionTileTheme: ExpansionTileThemeData(
-            backgroundColor: Colors.transparent,
-            collapsedBackgroundColor: Colors.transparent,
-            iconColor: primaryBlue,
-            collapsedIconColor: primaryBlue,
-          ),
-        ),
-        child: ExpansionTile(
-          title: Container(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primaryBlue.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.help_outline,
-                        color: primaryBlue,
-                        size: 16,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        question,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (timestamp != null) ...[
-                  SizedBox(height: 8),
-                  Text(
-                    _formatTimestamp(timestamp),
-                    style: GoogleFonts.poppins(
-                      color: Colors.black54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: backgroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: softAccent.withOpacity(0.5)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.lightbulb_outline, color: primaryBlue, size: 16),
-                            SizedBox(width: 8),
-                            Text(
-                              'Answer:',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: primaryBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        MarkdownText(
-                          text: answer,
-                          color: Colors.black87,
-                          fontSize: 14,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (quranVerses.isNotEmpty) ...[
-                    SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(Icons.menu_book, color: primaryBlue, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Quran Verses:',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: primaryBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: quranVerses.map((ref) => Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: primaryBlue.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          ref,
-                          style: GoogleFonts.poppins(
-                            color: primaryBlue,
-                            fontSize: 12,
-                          ),
-                        ),
-                      )).toList(),
-                    ),
-                  ],
-                  if (hadiths.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(Icons.format_quote, color: primaryBlue, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Hadiths:',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: primaryBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ...hadiths.map((hadith) {
-                      final hadithText = hadith['text'] ?? '';
-                      final displayedText = hadithText; // No truncation
-                      return Container(
-                        margin: EdgeInsets.only(bottom: 8),
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: backgroundColor,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: MarkdownText(
-                          text: displayedText,
-                          color: Colors.black87,
-                          fontSize: 13,
-                        ),
-                      );
-                    }),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatTimestamp(Timestamp timestamp) {
-    final date = timestamp.toDate();
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
