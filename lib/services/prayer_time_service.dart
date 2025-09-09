@@ -336,8 +336,8 @@ class PrayerTimeService with ChangeNotifier {
               icon: 'resource://mipmap/launcher_icon',
               notificationLayout: NotificationLayout.Default,
               category: NotificationCategory.Reminder,
-              wakeUpScreen: true,
-              fullScreenIntent: true,
+              wakeUpScreen: false, // Changed from true
+              fullScreenIntent: false, // Changed from true
             ),
             schedule: NotificationCalendar(
               year: prayer.dateTime.year,
@@ -350,6 +350,16 @@ class PrayerTimeService with ChangeNotifier {
               allowWhileIdle: true,
             ),
           );
+
+          // Add auto-dismiss timer
+          Timer(Duration(seconds: 8), () async {
+            try {
+              await AwesomeNotifications().cancel(notificationId);
+              print("Successfully auto-dismissed notification $notificationId");
+            } catch (e) {
+              print("Failed to auto-dismiss notification $notificationId: $e");
+            }
+          });
 
           print("Successfully scheduled notification for ${prayer.name}");
           scheduledCount++;
