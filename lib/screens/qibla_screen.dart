@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/qibla_service.dart';
 import '../services/analytics_service.dart';
+import '../services/prayer_time_service.dart';
 import '../theme/theme_provider.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class QiblaScreen extends StatefulWidget {
   final QiblaService qiblaService;
@@ -23,6 +26,7 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
   String _error = '';
   double _qiblaAngle = 0;
   String _locationName = '';
+  PrayerTimeService? _prayerService;
   
   // Animation controllers for enhanced effects
   late AnimationController _pulseController;
@@ -106,6 +110,18 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
       await widget.qiblaService.calculateQiblaDirection();
       _locationName = await widget.qiblaService.getLocationName();
       
+      // Initialize prayer service for theme calculations
+      try {
+        _prayerService = PrayerTimeService();
+        // Try common initialization method names - adjust based on your actual PrayerTimeService
+        // await _prayerService!.initialize(); // Try this if you have an initialize() method
+        // await _prayerService!.getCurrentLocation(); // Or this if you have getCurrentLocation()
+        print("Prayer service initialized for theme calculations");
+      } catch (prayerError) {
+        print("Could not initialize prayer service: $prayerError");
+        // Continue without prayer service - will fall back to static themes
+      }
+      
       setState(() {
         _isCalibrating = false;
       });
@@ -117,11 +133,23 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
     }
   }
 
-  Gradient _getTimeBasedGradient() {
-    final hour = DateTime.now().hour;
-    
-    if (hour >= 5 && hour < 7) {
+  // Get current hour in user's actual timezone
+  int _getCurrentHourInUserTimezone() {
+    try {
+      final now = tz.TZDateTime.now(tz.local);
+      return now.hour;
+    } catch (e) {
+      print("Error getting timezone-aware hour: $e");
+      return DateTime.now().hour;
+    }
+  }
 
+  Gradient _getTimeBasedGradient() {
+    final hour = _getCurrentHourInUserTimezone();
+    
+    // More logical transition times
+    if (hour >= 4 && hour < 7) {
+      // Dawn/Fajr colors (4:30 AM - 7:00 AM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -133,7 +161,7 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
         ],
       );
     } else if (hour >= 7 && hour < 12) {
-
+      // Morning colors (7:00 AM - 11:30 AM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -145,6 +173,7 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
         ],
       );
     } else if (hour >= 12 && hour < 15) {
+      // Dhuhr colors (11:30 AM - 2:30 PM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -155,7 +184,8 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
           Color(0xFFf5f5dc), 
         ],
       );
-    } else if (hour >= 15 && hour < 19) {
+    } else if (hour >= 15 && hour < 18) {
+      // Asr colors (2:30 PM - 6:00 PM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -166,49 +196,48 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
           Color(0xFFfff3e0), 
         ],
       );
-    } else if (hour >= 19 && hour < 21) {
+    } else if (hour >= 18 && hour < 20) {
+      // Maghrib colors (6:00 PM - 8:00 PM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFbf360c), // Dark red-orange
-          Color(0xFFf4511e), // Orange-red
-          Color(0xFFff8a65), // Peach
-          Color(0xFFffccbc), // Light peach
+          Color(0xFFbf360c),
+          Color(0xFFf4511e),
+          Color(0xFFff8a65),
+          Color(0xFFffccbc),
         ],
       );
     } else {
-      // Isha: Deep navy and gold
+      // Night colors (8:00 PM - 4:30 AM)
       return LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFF000051), // Very dark blue
-          Color(0xFF1a237e), // Navy
-          Color(0xFF303f9f), // Medium blue
-          Color(0xFF3f51b5), // Light navy
+          Color(0xFF000051),
+          Color(0xFF1a237e),
+          Color(0xFF303f9f),
+          Color(0xFF3f51b5),
         ],
       );
     }
   }
 
-  // Get text color based on time
   Color _getTextColor() {
-    final hour = DateTime.now().hour;
+    final hour = _getCurrentHourInUserTimezone();
     if (hour >= 7 && hour < 19) {
-      return Colors.black87; // Dark text for bright backgrounds
+      return Colors.black87;
     } else {
-      return Colors.white; // Light text for dark backgrounds
+      return Colors.white;
     }
   }
 
-  // Check if it's night time for stars
   bool _isNightTime() {
-    final hour = DateTime.now().hour;
-    return hour >= 21 || hour < 5;
+    final hour = _getCurrentHourInUserTimezone();
+    return hour >= 20 || hour < 5;
   }
 
-  // ENHANCED: Build stars for night time
+  // Build stars for night time
   List<Widget> _buildStars() {
     return List.generate(30, (index) {
       final random = math.Random(index);
@@ -232,31 +261,11 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
     });
   }
 
-  // Get time indicator
-  String _getTimeOfDay() {
-    final hour = DateTime.now().hour;
-    
-    if (hour >= 5 && hour < 7) {
-      return 'Fajr Time';
-    } else if (hour >= 7 && hour < 12) {
-      return 'Morning';
-    } else if (hour >= 12 && hour < 15) {
-      return 'Dhuhr Time';
-    } else if (hour >= 15 && hour < 19) {
-      return 'Asr Time';
-    } else if (hour >= 19 && hour < 21) {
-      return 'Maghrib Time';
-    } else {
-      return 'Isha Time';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
     
-    // ENHANCED: Use dynamic colors based on time, not just theme
     final textColor = _getTextColor();
     final cardColor = Colors.white.withOpacity(0.9);
     
@@ -271,9 +280,10 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
         ),
         title: Text(
           'Qibla Compass',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             color: textColor,
             fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
         centerTitle: true,
@@ -288,10 +298,8 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
         decoration: BoxDecoration(gradient: _getTimeBasedGradient()),
         child: Stack(
           children: [
-            // ENHANCED: Stars for night time
             if (_isNightTime()) ..._buildStars(),
             
-            // Main content
             SafeArea(
               child: _error.isNotEmpty
                   ? _buildErrorView(textColor, cardColor)
@@ -391,34 +399,8 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: 20),
+            SizedBox(height: 52),
             
-            // ENHANCED: Time indicator
-            Center(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  _getTimeOfDay(),
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            
-            SizedBox(height: 32),
-            
-            // Location section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Row(
@@ -443,7 +425,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
             
             SizedBox(height: 8),
             
-            // Location pill
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Container(
@@ -473,7 +454,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
             
             SizedBox(height: 32),
             
-            // ENHANCED: Animated compass
             Expanded(
               child: Center(
                 child: AnimatedBuilder(
@@ -484,7 +464,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // ENHANCED: Compass circle with glassmorphism
                           Container(
                             width: 280,
                             height: 280,
@@ -508,7 +487,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
                             ),
                           ),
                           
-                          // Direction labels
                           Positioned(
                             top: 20,
                             child: Text('N', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
@@ -526,7 +504,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
                             child: Text('W', style: TextStyle(color: Colors.grey[600], fontSize: 20, fontWeight: FontWeight.bold)),
                           ),
                           
-                          // ENHANCED: Needle with better styling
                           Transform.rotate(
                             angle: _qiblaAngle * (math.pi / 180),
                             child: Container(
@@ -538,7 +515,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
                             ),
                           ),
                           
-                          // ENHANCED: Kaaba icon with better styling
                           Positioned(
                             right: 80,
                             child: Transform.rotate(
@@ -575,7 +551,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
               ),
             ),
             
-            // ENHANCED: Direction instruction
             Container(
               margin: EdgeInsets.symmetric(horizontal: 24),
               padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -609,7 +584,6 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
   }
   
   String _getDirectionText(double angle) {
-    // Determine which direction to turn based on the qibla angle
     if (angle >= 355 || angle < 5) {
       return "You are facing Qibla ✨";
     } else if (angle >= 180) {
@@ -620,13 +594,11 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver, 
   }
 }
 
-// ENHANCED: Custom painter for better needle
 class EnhancedCompassNeedlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     
-    // Enhanced needle with gradient
     final needlePaint = Paint()
       ..shader = LinearGradient(
         colors: [Color(0xFFd32f2f), Color(0xFF2196f3)],
@@ -635,12 +607,11 @@ class EnhancedCompassNeedlePainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     
     final needlePath = Path();
-    needlePath.moveTo(center.dx, center.dy - size.height / 2); // Top point
-    needlePath.lineTo(center.dx - 10, center.dy); // Left point
-    needlePath.lineTo(center.dx + 10, center.dy); // Right point
+    needlePath.moveTo(center.dx, center.dy - size.height / 2);
+    needlePath.lineTo(center.dx - 10, center.dy);
+    needlePath.lineTo(center.dx + 10, center.dy);
     needlePath.close();
     
-    // Shadow
     final shadowPaint = Paint()
       ..color = Colors.black.withOpacity(0.3)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3);
@@ -648,7 +619,6 @@ class EnhancedCompassNeedlePainter extends CustomPainter {
     canvas.drawPath(needlePath.shift(Offset(2, 2)), shadowPaint);
     canvas.drawPath(needlePath, needlePaint);
     
-    // Enhanced center circle
     final centerPaint = Paint()
       ..color = Color(0xFF4A90E2)
       ..style = PaintingStyle.fill;

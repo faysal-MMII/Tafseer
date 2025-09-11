@@ -341,8 +341,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     if (_error != null) {
       return _buildErrorContainer();
     }
-
+    
+    final mediaQuery = MediaQuery.of(context);
     return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        bottom: mediaQuery.padding.bottom + 16,
+      ),
       child: Column(
         children: [
           _buildQueryContainer(),

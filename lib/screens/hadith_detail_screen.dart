@@ -66,7 +66,6 @@ class HadithDetailScreen extends StatelessWidget {
       }
       
       if (earliestIndex == remainingText.length) {
-        // No more matches, add the rest as normal text
         spans.add(TextSpan(
           text: remainingText,
           style: GoogleFonts.poppins(
@@ -77,7 +76,6 @@ class HadithDetailScreen extends StatelessWidget {
         ));
         break;
       } else {
-        // Add text before the match
         if (earliestIndex > 0) {
           spans.add(TextSpan(
             text: remainingText.substring(0, earliestIndex),
@@ -129,104 +127,109 @@ class HadithDetailScreen extends StatelessWidget {
         ),
         iconTheme: IconThemeData(color: primaryBlue),
       ),
-      body: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: cardColor.withOpacity(0.6),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryBlue.withOpacity(0.15),
-                      blurRadius: 30,
-                      offset: Offset(0, 10),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 16),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: cardColor.withOpacity(0.6),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryBlue.withOpacity(0.15),
+                          blurRadius: 30,
+                          offset: Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.2),
+                          blurRadius: 15,
+                          offset: Offset(0, -5),
+                        ),
+                      ],
                     ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.2),
-                      blurRadius: 15,
-                      offset: Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [primaryBlue, lightBlue],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [primaryBlue, lightBlue],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    blurRadius: 15,
+                                    color: primaryBlue.withOpacity(0.4),
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.menu_book,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            shape: BoxShape.circle,
+                            SizedBox(width: 16),
+                            Text(
+                              'Hadith ${hadith['number']}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Divider(color: Colors.grey[300]),
+                        SizedBox(height: 16),
+                        Container(
+                          padding: EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: backgroundColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: softAccent.withOpacity(0.5),
+                              width: 1,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                blurRadius: 15,
-                                color: primaryBlue.withOpacity(0.4),
-                                offset: Offset(0, 4),
+                                color: Colors.grey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: Icon(
-                            Icons.menu_book,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Text(
-                          'Hadith ${hadith['number']}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                          child: _buildHighlightedText(
+                            hadith['text'] ?? 'No text available',
+                            searchQuery,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 16),
-                    Divider(color: Colors.grey[300]),
-                    SizedBox(height: 16),
-                    Container(
-                      padding: EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: backgroundColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: softAccent.withOpacity(0.5),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: _buildHighlightedText(
-                        hadith['text'] ?? 'No text available',
-                        searchQuery,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
