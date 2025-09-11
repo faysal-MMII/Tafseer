@@ -184,7 +184,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
     }
   }
-  
+
   // New helper method for client-side sorting
   void _sortDocuments(List<DocumentSnapshot> docs) {
     docs.sort((a, b) {
@@ -458,23 +458,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return null;
     }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
   }
-  
+
   // Method to format the timestamp with relative time
   String _formatTimestamp(Map<String, dynamic> data) {
     // Try server timestamp first
     Timestamp? timestamp = data['timestamp'] as Timestamp?;
-    
+
     // Fall back to client timestamp if server timestamp is null
     timestamp ??= data['clientTimestamp'] as Timestamp?;
-    
+
     if (timestamp == null) {
       return 'Unknown date';
     }
-    
+
     final date = timestamp.toDate();
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     // Show relative time for recent entries
     if (difference.inMinutes < 1) {
       return 'Just now';
@@ -489,7 +489,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
-  
+
   // Widget to build the history card
   Widget _buildHistoryCard(Map<String, dynamic> data) {
     final question = data['question'] as String? ?? '';
@@ -836,7 +836,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         )
                       : ListView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: 16,
+                            bottom: MediaQuery.of(context).padding.bottom + 16,
+                          ),
                           itemCount: _documents.length + (_isLoading ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == _documents.length) {
