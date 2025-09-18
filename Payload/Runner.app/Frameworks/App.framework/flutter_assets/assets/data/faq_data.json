@@ -1,0 +1,46 @@
+{
+    "muslim_faq": [
+      {
+        "question": "How can I maintain my five daily prayers when traveling or at work?",
+        "answer": "Prayer (Salah) can be combined and shortened while traveling according to Islamic law. For work, try to schedule breaks around prayer times, find a quiet space, or make up missed prayers when possible. Many workplaces now provide prayer rooms, and you have the right to request reasonable religious accommodations."
+      },
+      {
+        "question": "What breaks my fast during Ramadan besides eating and drinking?",
+        "answer": "While eating and drinking are obvious fast-breakers, other actions that invalidate the fast include: intentional vomiting, intimate relations during daylight hours, smoking, and receiving nutrients through IV (though necessary medical injections are permitted). Unintentional actions like swallowing water while washing for wudu don't break the fast."
+      },
+      {
+        "question": "How can I verify if food products are halal?",
+        "answer": "Look for certified halal logos from recognized organizations, check ingredient lists for haram components (alcohol, pork derivatives, etc.), and contact manufacturers when uncertain. Many products now have halal certification apps and databases available. For meat, ensure it's from a halal butcher or has proper certification."
+      },
+      {
+        "question": "What are the conditions for giving Zakat?",
+        "answer": "Zakat becomes obligatory when your wealth reaches the nisab (minimum threshold) and has been in your possession for one lunar year. The general rate is 2.5% of qualifying wealth. This includes money, gold, silver, business inventory, and certain types of investments. Specific conditions apply to different types of wealth."
+      },
+      {
+        "question": "How can I maintain Islamic practices in a non-Muslim environment?",
+        "answer": "Focus on building a strong Muslim community network, use apps for prayer times and finding halal restaurants, keep modest dress while adapting to professional environments, and be open about your religious needs with employers/colleagues. Many Muslims successfully balance their faith with modern life through proper planning and communication."
+      }
+    ],
+    "revert_faq": [
+      {
+        "question": "What are the essential first steps after accepting Islam?",
+        "answer": "After taking your shahada (declaration of faith), focus on learning the five daily prayers and basic purification (wudu). Start with one prayer at a time if needed. Connect with your local mosque for support and consider taking basic Islamic classes. Don't feel overwhelmed - Islam encourages gradual, steady progress."
+      },
+      {
+        "question": "How do I explain my conversion to family and friends?",
+        "answer": "Take a gentle approach, emphasizing the positive changes Islam brings to your life. Be patient with their questions and concerns. Share basic Islamic values that align with universal virtues. Consider having a knowledgeable Muslim friend present for support. Remember that your family may need time to adjust."
+      },
+      {
+        "question": "How can I learn to read the Quran as a beginner?",
+        "answer": "Start with learning the Arabic alphabet and basic pronunciation rules. Many mosques offer Quran reading classes for adults. Use apps with transliteration and audio features. Begin with short surahs like Al-Fatiha and the last few surahs of Juz Amma. Regular practice, even for a few minutes daily, leads to improvement."
+      },
+      {
+        "question": "What changes do I need to make to my diet and lifestyle?",
+        "answer": "Focus on transitioning to halal food options and avoiding alcohol. For women, adopt modest dress gradually if needed. Adjust social activities to align with Islamic values. Remember that Islam encourages balance - you can maintain many aspects of your culture that don't conflict with Islamic teachings."
+      },
+      {
+        "question": "Where can I find reliable Islamic knowledge and support?",
+        "answer": "Connect with your local mosque and Islamic center for in-person guidance. Use reputable online resources like SeekersGuidance or IslamQA for answers to specific questions. Join study circles or find a mentor who can guide you. Be cautious of unreliable internet sources and extreme interpretations."
+      }
+    ]
+  }
