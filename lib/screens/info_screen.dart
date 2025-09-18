@@ -45,7 +45,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
     try {
       final PackageInfo packageInfo = await PackageInfo.fromPlatform();
       setState(() {
-        _version = 'Version ${packageInfo.version}+${packageInfo.buildNumber}';
+        _version = 'Version ${packageInfo.version}';
       });
     } catch (e) {
       setState(() {
