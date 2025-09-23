@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -70,6 +71,15 @@ class LoadingWidget extends StatelessWidget {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure system UI overlay style for edge-to-edge
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      navigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
 
   // Load environment variables FIRST
   await dotenv.load(fileName: ".env");
