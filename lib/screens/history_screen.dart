@@ -10,6 +10,7 @@ import '../theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/markdown_text.dart';
+import 'dart:math';
 
 class HistoryScreen extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -201,7 +202,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return timestampB.compareTo(timestampA);
     });
   }
-
 
   Future<void> _diagnoseProblem() async {
     try {
@@ -447,16 +447,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   List<Map<String, dynamic>> _extractHadiths(dynamic data) {
-    if (data == null || data is! List) return [];
+    print('DEBUG EXTRACT HADITHS: Input data type: ${data.runtimeType}');
+    print('DEBUG EXTRACT HADITHS: Input data: $data');
+    
+    if (data == null || data is! List) {
+      print('DEBUG EXTRACT HADITHS: Data is null or not a list');
+      return [];
+    }
 
-    return (data).where((item) => item != null).map((item) {
+    final result = (data as List).where((item) => item != null).map((item) {
+      print('DEBUG EXTRACT HADITHS: Processing item: $item (${item.runtimeType})');
+      
       if (item is Map<String, dynamic>) {
-        return item;
-      } else if (item is String && item.isNotEmpty && !item.contains('null')) {
+        final text = item['text']?.toString() ?? '';
+        print('DEBUG EXTRACT HADITHS: Map item text: "${text.substring(0, min(50, text.length))}..."');
+        if (text.isNotEmpty) {
+          return item;
+        }
+      } else if (item is String && item.isNotEmpty) {
+        print('DEBUG EXTRACT HADITHS: String item: "${item.substring(0, min(50, item.length))}..."');
         return {'text': item};
       }
+      
+      print('DEBUG EXTRACT HADITHS: Item filtered out');
       return null;
     }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
+
+    print('DEBUG EXTRACT HADITHS: Final result count: ${result.length}');
+    return result;
   }
 
   // Method to format the timestamp with relative time

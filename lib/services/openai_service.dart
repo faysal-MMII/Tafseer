@@ -25,9 +25,14 @@ class OpenAiService {
     OpenAI.apiKey = apiKey;
   }
 
+  // Helper method for finding the minimum of two integers
+  int _min(int a, int b) => a < b ? a : b;
+
   Future<Map<String, dynamic>> generateResponse(String query) async {
     final timeout = Duration(seconds: 30);
     try {
+      print('DEBUG: Starting generateResponse for query: $query');
+      
       final results = await Future.wait([
         quranService.fetchQuranVerses(query),
         hadithService.searchHadiths(query),
@@ -35,6 +40,8 @@ class OpenAiService {
 
       final verses = results[0] as List<Map<String, dynamic>>;
       final hadiths = results[1] as List<Hadith>;
+
+      print('DEBUG: Fetched ${verses.length} verses and ${hadiths.length} hadiths');
 
       // Convert hadiths to maps
       final hadithMaps = hadiths.map((hadith) {
@@ -52,6 +59,17 @@ class OpenAiService {
         }
       }).toList();
 
+      print('DEBUG: Converted ${hadithMaps.length} hadiths to maps');
+      
+      // Log first hadith for debugging
+      if (hadithMaps.isNotEmpty) {
+        final hadithText = hadithMaps[0]['text'].toString();
+        print('DEBUG: First hadith text length: ${hadithText.length}');
+        print('DEBUG: First hadith preview: ${hadithText.substring(0, _min(100, hadithText.length))}...');
+      } else {
+        print('DEBUG: No hadiths found for query: $query');
+      }
+
       // Ensure verses are properly typed
       final List<Map<String, dynamic>> typedVerses = verses.map((v) {
         return {
@@ -62,13 +80,22 @@ class OpenAiService {
 
       // Generate responses
       final quranResponse = await _generateQuranResponse(query, typedVerses);
+      print('DEBUG: Generated quran response');
+      
       final hadithResponse = await generateHadithResponse(query, hadithMaps);
+      print('DEBUG: Generated hadith response');
+      print('DEBUG: Hadith response answer length: ${hadithResponse['answer']?.toString().length ?? 0}');
+      print('DEBUG: Hadith response hadiths count: ${hadithResponse['hadiths']?.length ?? 0}');
 
       // Construct the final response
-      return {
+      final finalResponse = {
         'quran_results': quranResponse['quran_results'],
         'hadith_results': hadithResponse,
       };
+      
+      print('DEBUG: Final response structure: quran_results=${finalResponse['quran_results'] != null}, hadith_results=${finalResponse['hadith_results'] != null}');
+      
+      return finalResponse;
     } on TimeoutException {
       throw OpenAiServiceException('Request timed out. Please try again.');
     } on SocketException {

@@ -355,7 +355,7 @@ class PrayerTimeService with ChangeNotifier {
           Timer(Duration(seconds: 8), () async {
             try {
               await AwesomeNotifications().cancel(notificationId);
-              print("Successfully auto-dismissed notification $notificationId");
+              // Successfully auto-dismissed notification (log removed to prevent log flooding)
             } catch (e) {
               print("Failed to auto-dismiss notification $notificationId: $e");
             }
@@ -935,10 +935,6 @@ class PrayerTaskHandler extends TaskHandler {
   @override
   Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
     print('Prayer service started (background isolate)');
-  }
-  @override
-  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
-    print('Prayer service heartbeat: ${DateTime.now()}');
   }
   @override
   void onRepeatEvent(DateTime timestamp, SendPort? sendPort) {

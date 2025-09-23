@@ -245,21 +245,27 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       return;
     }
     try {
-      // Get the AI explanation about hadiths (this is what you want to see in history)
+      // Get the Quran answer (this is _aiResponse which comes from streaming)
+      final quranAnswer = _aiResponse;
+      
+      // Get the Hadith explanation 
       final hadithExplanation = response['hadith_results']['answer'] ?? '';
       
-      // Save the explanation as a hadith entry, not the raw irrelevant hadiths
+      // Save the hadith explanation as a hadith entry
       final hadithsToSave = hadithExplanation.isNotEmpty 
         ? [{'text': hadithExplanation}] 
         : <Map<String, dynamic>>[];
+      
       await widget.firestoreService!.saveQA(
         question: widget.query,
-        answer: _aiResponse,
+        answer: quranAnswer, // This is the Quran-based answer
         quranVerses: _quranVerses,
-        hadiths: hadithsToSave, // Save the AI explanation, not raw hadiths
+        hadiths: hadithsToSave, // This is the Hadith-based explanation
       );
       
       print('DEBUG: saveQA completed successfully');
+      print('DEBUG: Saved Quran answer length: ${quranAnswer.length}');
+      print('DEBUG: Saved Hadith explanation length: ${hadithExplanation.length}');
     } catch (e, stackTrace) {
       print('ERROR saving QA to history: $e');
       print('Stack trace: $stackTrace');
